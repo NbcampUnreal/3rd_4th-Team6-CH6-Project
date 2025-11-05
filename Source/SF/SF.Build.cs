@@ -17,6 +17,7 @@ public class SF : ModuleRules
 			"EnhancedInput",
 			"GameplayTags",
 			"GameplayTasks",
+			"GameplayAbilities",
 			"NetCore",
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils",
