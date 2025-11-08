@@ -33,18 +33,18 @@ void ASFHeroDisplay::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ASFHeroDisplay, PlayerInfo);
+	DOREPLIFETIME(ASFHeroDisplay, CurrentHeroDefinition);
 }
 
 void ASFHeroDisplay::ConfigureWithHeroDefination(const USFHeroDefinition* HeroDefination)
 {
-	if (!HeroDefination)
+	if (!HasAuthority() || !HeroDefination)
 	{
 		return;
 	}
 	
-	MeshComponent->SetSkeletalMesh(HeroDefination->LoadDisplayMesh());
-	MeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-	MeshComponent->SetAnimInstanceClass(HeroDefination->LoadDisplayAnimationBP());
+	CurrentHeroDefinition = HeroDefination;
+	ApplyHeroConfiguration();
 }
 
 void ASFHeroDisplay::UpdatePlayerInfo(const FSFPlayerInfo& NewPlayerInfo)
@@ -70,6 +70,11 @@ void ASFHeroDisplay::OnRep_PlayerInfo()
 	UpdatePlayerInfoWidget();
 }
 
+void ASFHeroDisplay::OnRep_CurrentHeroDefinition()
+{
+	ApplyHeroConfiguration();
+}
+
 void ASFHeroDisplay::UpdatePlayerInfoWidget()
 {
 	// 위젯이 USFPlayerInfoWidget인지 확인
@@ -79,5 +84,17 @@ void ASFHeroDisplay::UpdatePlayerInfoWidget()
 	}
 
 	PlayerInfoWidget->SetVisibility(true);
+}
+
+void ASFHeroDisplay::ApplyHeroConfiguration()
+{
+	if (!CurrentHeroDefinition)
+	{
+		return;
+	}
+
+	MeshComponent->SetSkeletalMesh(CurrentHeroDefinition->LoadDisplayMesh());
+	MeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	MeshComponent->SetAnimInstanceClass(CurrentHeroDefinition->LoadDisplayAnimationBP());
 }
 

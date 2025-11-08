@@ -1,5 +1,6 @@
 #include "SFLobbyGameMode.h"
 
+#include "SFLobbyGameState.h"
 #include "SFLogChannels.h"
 #include "Actors/SFHeroDisplay.h"
 #include "Actors/SFPlayerSlot.h"
@@ -7,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Player/SFPlayerInfoTypes.h"
 #include "Player/Lobby/SFLobbyPlayerController.h"
+#include "Player/Lobby/SFLobbyPlayerState.h"
 #include "Test/LobbyUI/SFLobbyWidget.h"
 
 ASFLobbyGameMode::ASFLobbyGameMode()
@@ -91,17 +93,6 @@ void ASFLobbyGameMode::SetupPlayerSlots()
 	// === 4. PlayerSlots 배열에 저장 ===
 	PlayerSlots = UnsortedSlots;
 
-	// === 5. 로그 출력 (검증용) ===
-	UE_LOG(LogSF, Log, TEXT("[LobbyGameMode] Found %d PlayerSlots:"), PlayerSlots.Num());
-	for (int32 i = 0; i < PlayerSlots.Num(); ++i)
-	{
-		UE_LOG(LogSF, Log, TEXT("  [%d] SlotID=%d, Location=%s"), 
-			i, 
-			PlayerSlots[i]->GetSlotID(), 
-			*PlayerSlots[i]->GetActorLocation().ToString());
-	}
-
-	// === 6. 완료 플래그 ===
 	bSlotsInit = true;
 }
 
@@ -135,7 +126,6 @@ void ASFLobbyGameMode::WaitForPlayerSlotsAndUpdate()
 
 void ASFLobbyGameMode::UpdatePlayerSlots()
 {
-	// PC가 이미 Slot에 추가되어 있는지 확인 
 	for (APlayerController* PC : PCs)
 	{
 		if (!PC)
@@ -143,6 +133,7 @@ void ASFLobbyGameMode::UpdatePlayerSlots()
 			continue;
 		}
 
+		// PC가 이미 Slot에 추가되어 있는지 확인 
 		bool bPCAlreadyAdded = IsPCAlreadyAdded(PC);
 
 		// PCAlreadyAdded가 false면 빈 슬롯에 추가 
@@ -187,10 +178,18 @@ void ASFLobbyGameMode::AddPCToEmptySlot(APlayerController* PC)
 
 		if (!Slot->GetCurrentPC())
 		{
-			// HeroDefinition은 나중에 선택되므로 일단 nullptr
-			Slot->AddPlayer(PC, nullptr);
+			// Slot Display 업데이트
+			Slot->AddPlayer(PC);
 
-			UE_LOG(LogSF, Log, TEXT("[LobbyGameMode] Added PC '%s' to Slot %d"), *PC->GetName(), Slot->GetSlotID());
+			if (ASFLobbyGameState* LobbyGS = GetGameState<ASFLobbyGameState>())
+			{
+				if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+				{
+					uint8 SlotID = Slot->GetSlotID();
+					// GameState의 PlayerSelectionArray 업데이트
+					LobbyGS->UpdatePlayerSelection(PS, SlotID);
+				}
+			}
 			break;
 		}
 	}
@@ -198,6 +197,12 @@ void ASFLobbyGameMode::AddPCToEmptySlot(APlayerController* PC)
 
 void ASFLobbyGameMode::RemoveDisconnectedPlayers()
 {
+	ASFLobbyGameState* LobbyGS = GetGameState<ASFLobbyGameState>();
+	if (!LobbyGS)
+	{
+		return;
+	}
+	
 	for (ASFPlayerSlot* Slot : PlayerSlots)
 	{
 		if (!Slot)
@@ -205,13 +210,27 @@ void ASFLobbyGameMode::RemoveDisconnectedPlayers()
 			continue;
 		}
 
-		// GetCurrentPC()가 nullptr 반환 가능 (자동으로 댕글링 체크됨)
-		APlayerController* SlotPC = Slot->GetCurrentPC();
 		if (Slot->HasValidPC())
 		{
 			APlayerController* ValidPC = Slot->GetCurrentPC();
 			if (!PCs.Contains(ValidPC))
 			{
+				// GameState의 PlayerSelectionArray에서 제거
+				if (APlayerState* PS = ValidPC->GetPlayerState<APlayerState>())
+				{
+					// PlayerSelectionArray에서 제거
+					const TArray<FSFPlayerSelectionInfo>& Selections = LobbyGS->GetPlayerSelection();
+					for (const FSFPlayerSelectionInfo& Selection : Selections)
+					{
+						if (Selection.IsForPlayer(PS))
+						{
+							// GameState의 PlayerSelectionArray에서 제거
+							LobbyGS->RemovePlayerSelection(PS);
+							break;
+						}
+					}
+				}
+				// Slot에서 PC, Definition 제거
 				Slot->RemovePlayer(ValidPC);
 			}
 		}
@@ -241,6 +260,19 @@ void ASFLobbyGameMode::UpdatePlayerInfo(APlayerController* RequestingPC)
 		// HeroDisplay가 표시 중인 PC와 요청한 PC가 같은지 확인
 		if (Slot->GetCurrentPC() == RequestingPC)
 		{
+			// 플레이어가 선택한 Hero 가져오기
+			USFHeroDefinition* SelectedHero = nullptr;
+			if (ASFLobbyPlayerState* SFPS = RequestingPC->GetPlayerState<ASFLobbyPlayerState>())
+			{
+				SelectedHero = const_cast<USFHeroDefinition*>(SFPS->GetPlayerSelection().GetHeroDefinition());
+			}
+            
+			// 현재 표시 중인 Hero와 다르면 업데이트
+			if (SelectedHero && SelectedHero != Slot->GetCurrentHeroDefinition())
+			{
+				Slot->SwitchHeroDefinition(SelectedHero);
+			}
+			
 			// Get Player Name
 			FString PlayerName = TEXT("");
 			if (APlayerState* PS = RequestingPC->GetPlayerState<APlayerState>())
@@ -294,7 +326,7 @@ void ASFLobbyGameMode::CheckAllPlayersReady()
 		}
 	}
 
-	// 호스트 PC 찾기
+	// 호스트 PC 찾기(Listen Server에서만 가능)
 	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
 	ASFLobbyPlayerController* LobbyPC = Cast<ASFLobbyPlayerController>(PC);
 	if (LobbyPC)

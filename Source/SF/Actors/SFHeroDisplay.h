@@ -28,13 +28,20 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 private:
+	
 	/** PlayerInfo 업데이트 콜백 */
 	UFUNCTION()
 	void OnRep_PlayerInfo();
 
+	/** HeroDefinition 복제 콜백 */
+	UFUNCTION()
+	void OnRep_CurrentHeroDefinition();
+
 	/** 위젯에 PlayerInfo 전달 */
 	void UpdatePlayerInfoWidget();
 
+	/** 실제 Mesh/Anim 설정 */
+	void ApplyHeroConfiguration();
 	
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Character Display")
@@ -50,4 +57,8 @@ private:
 	/** 복제되는 PlayerInfo (RepNotify) */
 	UPROPERTY(ReplicatedUsing=OnRep_PlayerInfo)
 	FSFPlayerInfo PlayerInfo;
+
+	/** 복제되는 HeroDefinition (RepNotify) */
+	UPROPERTY(ReplicatedUsing=OnRep_CurrentHeroDefinition)
+	TObjectPtr<const USFHeroDefinition> CurrentHeroDefinition;
 };

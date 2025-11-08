@@ -73,7 +73,7 @@ void ASFPlayerSlot::SpawnHeroDisplay()
 	HeroDisplay->SetActorHiddenInGame(true);
 }
 
-void ASFPlayerSlot::AddPlayer(APlayerController* InPC, const USFHeroDefinition* HeroDefinition)
+void ASFPlayerSlot::AddPlayer(APlayerController* InPC)
 {
 	// PC 저장
 	CachedPC = InPC;
@@ -85,7 +85,7 @@ void ASFPlayerSlot::AddPlayer(APlayerController* InPC, const USFHeroDefinition* 
 
 	if (ASFPlayerState* SFPlayerState = CachedPC->GetPlayerState<ASFPlayerState>())
 	{
-		const USFHeroDefinition* HeroDef  = SFPlayerState->GetPlayerSelection().GetHeroDefinition();
+		USFHeroDefinition* HeroDef  = const_cast<USFHeroDefinition*>(SFPlayerState->GetPlayerSelection().GetHeroDefinition());
 		UpdateHeroDisplay(HeroDef);
 	}
 }
@@ -93,6 +93,7 @@ void ASFPlayerSlot::AddPlayer(APlayerController* InPC, const USFHeroDefinition* 
 void ASFPlayerSlot::RemovePlayer(APlayerController* PC)
 {
 	CachedPC = nullptr;
+	CurrentHeroDefinition = nullptr;
 	
 	if (!HeroDisplay)
 	{
@@ -105,12 +106,12 @@ void ASFPlayerSlot::RemovePlayer(APlayerController* PC)
 	UE_LOG(LogSF, Log, TEXT("[PlayerSlot] RemovePlayer"));
 }
 
-void ASFPlayerSlot::SwitchHeroDefinition(const USFHeroDefinition* HeroDefinition)
+void ASFPlayerSlot::SwitchHeroDefinition(USFHeroDefinition* HeroDefinition)
 {
 	UpdateHeroDisplay(HeroDefinition);
 }
 
-void ASFPlayerSlot::UpdateHeroDisplay(const USFHeroDefinition* HeroDefinition) const
+void ASFPlayerSlot::UpdateHeroDisplay(USFHeroDefinition* HeroDefinition)
 {
 	if (!HeroDisplay || !HeroDefinition)
 	{
@@ -118,8 +119,12 @@ void ASFPlayerSlot::UpdateHeroDisplay(const USFHeroDefinition* HeroDefinition) c
 	}
 
 	HeroDisplay->ConfigureWithHeroDefination(HeroDefinition);
+
+	// TODO: 아래 로직들을 Client side에서도 처리되도록 해야되는지 확인
 	HeroDisplay->SetActorTransform(Arrow->GetComponentTransform());
 	HeroDisplay->SetActorHiddenInGame(false);
+
+	CurrentHeroDefinition = HeroDefinition;
 }
 
 

@@ -52,17 +52,25 @@ void ASFLobbyPlayerState::Server_SetSelectedHeroDefinition_Implementation(USFHer
 		return;
 	}
 
-	if (LobbyGameState->IsDefinitionSelected(NewDefinition))
+	if (PlayerSelection.GetHeroDefinition() == NewDefinition)
 	{
 		return;
 	}
 
-	if (PlayerSelection.GetHeroDefinition())
-	{
-		LobbyGameState->SetHeroDeselected(PlayerSelection.GetHeroDefinition());
-	}
+	// Hero 중복 선택 불가 
+	// if (LobbyGameState->IsDefinitionSelected(NewDefinition))
+	// {
+	// 	return;
+	// }
+	
+	LobbyGameState->SetHeroDeselected(PlayerSelection.GetHeroDefinition());
 	PlayerSelection.SetHeroDefinition(NewDefinition);
 	LobbyGameState->SetHeroSelected(this, NewDefinition);
+
+	if (ASFLobbyGameMode* LobbyGM = Cast<ASFLobbyGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		LobbyGM->UpdatePlayerInfo(GetPlayerController());
+	}
 }
 
 bool ASFLobbyPlayerState::Server_SetSelectedHeroDefinition_Validate(USFHeroDefinition* NewDefinition)
@@ -84,10 +92,5 @@ void ASFLobbyPlayerState::PlayerSelectionUpdated(const TArray<FSFPlayerSelection
 
 void ASFLobbyPlayerState::OnRep_PlayerSelection(FSFPlayerSelectionInfo OldPlayerSelection)
 {
-	// TODO : 삭제 or 구조 변경 예정
-	// Only Listen servers need to do this
-	if (ASFLobbyGameMode* LobbyGM = Cast<ASFLobbyGameMode>(UGameplayStatics::GetGameMode(this)))
-	{
-		LobbyGM->UpdatePlayerInfo(GetPlayerController());
-	}
+	
 }

@@ -25,6 +25,8 @@ public:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetSelectedHeroDefinition(USFHeroDefinition* NewDefinition);
 
+	const FSFPlayerSelectionInfo& GetPlayerSelection() const { return PlayerSelection; }
+
 private:
 	void PlayerSelectionUpdated(const TArray<FSFPlayerSelectionInfo>& NewPlayerSelections);
 

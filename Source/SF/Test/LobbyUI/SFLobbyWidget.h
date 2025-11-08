@@ -29,16 +29,10 @@ class SF_API USFLobbyWidget : public UUserWidget
 	virtual void NativeConstruct() override;
 
 private:
-	void ClearAndPopulateTeamSelectionSlots();
-	void SlotSelected(uint8 NewSlotID);
-
 	void ConfigureGameState();
 
 	void UpdatePlayerSelectionDisplay(const TArray<FSFPlayerSelectionInfo>& PlayerSelections);
 
-	UFUNCTION()
-	void StartHeroSelectionButtonClicked();
-	
 	void SwitchToHeroSelection();
 	void HeroDefinitionLoaded();
 
@@ -59,21 +53,6 @@ private:
 	TObjectPtr<UWidgetSwitcher> MainSwitcher;
 
 	UPROPERTY(meta=(BindWidget))	
-	TObjectPtr<UWidget> TeamSelectionRoot;
-
-	UPROPERTY(meta=(BindWidget))
-	TObjectPtr<UButton> StartHeroSelectionButton;
-
-	UPROPERTY(meta=(BindWidget))
-	TObjectPtr<UUniformGridPanel> TeamSelectionSlotGridPanel;
-
-	UPROPERTY(EditDefaultsOnly, Category = "TeamSelection")
-	TSubclassOf<USFTeamSelectionWidget> TeamSelectionWidgetClass;
-
-	UPROPERTY()
-	TArray<USFTeamSelectionWidget*> TeamSelectionSlots;
-
-	UPROPERTY(meta=(BindWidget))	
 	TObjectPtr<UWidget> HeroSelectionRoot;
 
 	UPROPERTY(meta=(BindWidget))
@@ -82,10 +61,7 @@ private:
 	// TODO : 현재 캐릭터의 Ability 관련 정보 UI
 	// UPROPERTY(meta = (BindWidget))
 	// TObjectPtr<ULCAbilityListView> AbilityListView;
-
-	UPROPERTY(meta=(BindWidget))
-	TObjectPtr<USFPlayerTeamLayoutWidget> PlayerTeamLayoutWidget;
-
+	
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UButton> StartMatchButton;
 	

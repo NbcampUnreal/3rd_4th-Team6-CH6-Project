@@ -21,11 +21,9 @@ public:
 
 	/**
 	 * AddPlayer - Hero 표시
-	 * @param PC - PlayerController
-	 * @param HeroDefinition - 표시할 Hero
 	 */
 	UFUNCTION(BlueprintCallable, Category = "PlayerSlot")
-	void AddPlayer(APlayerController* PC, const USFHeroDefinition* HeroDefinition);
+	void AddPlayer(APlayerController* PC);
 
 	/**
 	 * RemovePlayer - Hero 숨김
@@ -33,13 +31,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PlayerSlot")
 	void RemovePlayer(APlayerController* PC);
 
-	void SwitchHeroDefinition(const USFHeroDefinition* HeroDefinition);
-	void UpdateHeroDisplay(const USFHeroDefinition* HeroDefinition) const;
+	void SwitchHeroDefinition(USFHeroDefinition* HeroDefinition);
+	void UpdateHeroDisplay(USFHeroDefinition* HeroDefinition);
 
 	FORCEINLINE uint8 GetSlotID() const { return SlotID; }
 	FORCEINLINE APlayerController* GetCurrentPC() const { return CachedPC.Get(); }
 	FORCEINLINE bool HasValidPC() const { return CachedPC.IsValid(); }
 	FORCEINLINE ASFHeroDisplay* GetHeroDisplay() const { return HeroDisplay; }
+	FORCEINLINE const USFHeroDefinition* GetCurrentHeroDefinition() const { return CurrentHeroDefinition; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -61,7 +60,7 @@ private:
 	TObjectPtr<ASFHeroDisplay> HeroDisplay;
 
 	UPROPERTY()
-	FPrimaryAssetId HeroDefinitionAssetID;
+	TObjectPtr<USFHeroDefinition> CurrentHeroDefinition;
 
 	/** PC 변수 */
 	UPROPERTY()

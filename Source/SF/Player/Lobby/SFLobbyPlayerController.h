@@ -17,18 +17,9 @@ class SF_API ASFLobbyPlayerController : public ASFMenuPlayerController
 
 public:
 	ASFLobbyPlayerController();
-	
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_RequestPlayerSelectionChange(uint8 NewSlotID);
-
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_StartHeroSelection();
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_RequestStartMatch();
-	
-	UFUNCTION(Client, Reliable)
-	void Client_StartHeroSelection();
 
 	/** 플레이어 정보 업데이트 요청 (클라이언트 → 서버) */
 	UFUNCTION(BlueprintCallable, Category = "PlayerInfo")

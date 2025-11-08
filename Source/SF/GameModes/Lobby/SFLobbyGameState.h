@@ -11,7 +11,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerSelectionUpdated, const TArray<FSFP
 
 class USFHeroDefinition;
 
-
 /**
  * 
  */
@@ -23,7 +22,8 @@ class SF_API ASFLobbyGameState : public AGameStateBase
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	void RequestPlayerSelectionChange(const APlayerState* RequestingPlayer, uint8 DesiredSlot);
+	void UpdatePlayerSelection(const APlayerState* RequestingPlayer, uint8 InSlot);
+	void RemovePlayerSelection(const APlayerState* LeavingPlayer);
 	void SetHeroSelected(const APlayerState* SelectingPlayer, USFHeroDefinition* SelectedDefinition);
 	bool IsSlotOccupied(uint8 SlotId) const;
 	bool IsDefinitionSelected(const USFHeroDefinition* Definition) const;
@@ -31,7 +31,6 @@ public:
 
 	const TArray<FSFPlayerSelectionInfo>& GetPlayerSelection() const;
 
-	bool CanStartHeroSelection() const;
 	bool CanStartMatch() const;
 
 private:
