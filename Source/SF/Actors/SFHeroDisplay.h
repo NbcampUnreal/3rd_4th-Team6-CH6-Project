@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Player/SFPlayerInfoTypes.h"
 #include "SFHeroDisplay.generated.h"
 
+class UWidgetComponent;
 class USFHeroDefinition;
 class UCameraComponent;
 
@@ -16,10 +18,36 @@ public:
 	ASFHeroDisplay();
 	void ConfigureWithHeroDefination(const USFHeroDefinition* HeroDefinition);
 
+	/** PlayerInfo 설정 (서버에서 호출) */
+	void UpdatePlayerInfo(const FSFPlayerInfo& NewPlayerInfo);
+
+	/** PlayerInfo 가져오기 */
+	const FSFPlayerInfo& GetPlayerInfo() const { return PlayerInfo; }
+
+protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	
+private:
+	/** PlayerInfo 업데이트 콜백 */
+	UFUNCTION()
+	void OnRep_PlayerInfo();
+
+	/** 위젯에 PlayerInfo 전달 */
+	void UpdatePlayerInfoWidget();
+
+	
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Character Display")
 	TObjectPtr<USkeletalMeshComponent> MeshComponent;
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "Character Display")
 	TObjectPtr<UCameraComponent> ViewCameraComponent;
+
+	/** PlayerInfo 위젯 (ScreenSpace) */
+	UPROPERTY(VisibleDefaultsOnly, Category = "Character Display")
+	TObjectPtr<UWidgetComponent> PlayerInfoWidget;
+
+	/** 복제되는 PlayerInfo (RepNotify) */
+	UPROPERTY(ReplicatedUsing=OnRep_PlayerInfo)
+	FSFPlayerInfo PlayerInfo;
 };

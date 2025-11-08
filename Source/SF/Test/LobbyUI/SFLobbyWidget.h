@@ -50,6 +50,10 @@ private:
 	UFUNCTION()
 	void StartMatchButtonClicked();
 
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	bool bAllPlayersReady = false;
+
 private:
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UWidgetSwitcher> MainSwitcher;

@@ -34,7 +34,7 @@ void USFLobbyWidget::NativeConstruct()
 	StartMatchButton->SetIsEnabled(false);
 	StartMatchButton->OnClicked.AddDynamic(this, &ThisClass::StartMatchButtonClicked);
 	
-	USFAssetManager::Get().LoadCharacterDefinitions(FStreamableDelegate::CreateUObject(this, &ThisClass::HeroDefinitionLoaded));
+	USFAssetManager::Get().LoadHeroDefinitions(FStreamableDelegate::CreateUObject(this, &ThisClass::HeroDefinitionLoaded));
 
 	if (HeroSelectionTileView)
 	{
@@ -162,7 +162,7 @@ void USFLobbyWidget::SwitchToHeroSelection()
 void USFLobbyWidget::HeroDefinitionLoaded()
 {
 	TArray<USFHeroDefinition*> LoadedCharacterDefinitions;
-	if (USFAssetManager::Get().GetLoadedCharacterDefinitions(LoadedCharacterDefinitions))
+	if (USFAssetManager::Get().GetLoadedHeroDefinitions(LoadedCharacterDefinitions))
 	{
 		HeroSelectionTileView->SetListItems(LoadedCharacterDefinitions);
 	}

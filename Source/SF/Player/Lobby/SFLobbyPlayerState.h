@@ -27,9 +27,12 @@ public:
 
 private:
 	void PlayerSelectionUpdated(const TArray<FSFPlayerSelectionInfo>& NewPlayerSelections);
+
+	UFUNCTION()
+	void OnRep_PlayerSelection(FSFPlayerSelectionInfo OldPlayerSelection);
 	
 private:
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_PlayerSelection)
 	FSFPlayerSelectionInfo PlayerSelection;
 
 	UPROPERTY()

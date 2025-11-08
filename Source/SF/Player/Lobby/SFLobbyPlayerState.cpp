@@ -2,6 +2,7 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Character/Hero/SFHeroDefinition.h"
+#include "GameModes/Lobby/SFLobbyGameMode.h"
 #include "GameModes/Lobby/SFLobbyGameState.h"
 #include "Player/SFPlayerState.h"
 #include "Net/UnrealNetwork.h"
@@ -78,5 +79,15 @@ void ASFLobbyPlayerState::PlayerSelectionUpdated(const TArray<FSFPlayerSelection
 			PlayerSelection = NewPlayerSelection;
 			return;
 		}
+	}
+}
+
+void ASFLobbyPlayerState::OnRep_PlayerSelection(FSFPlayerSelectionInfo OldPlayerSelection)
+{
+	// TODO : 삭제 or 구조 변경 예정
+	// Only Listen servers need to do this
+	if (ASFLobbyGameMode* LobbyGM = Cast<ASFLobbyGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		LobbyGM->UpdatePlayerInfo(GetPlayerController());
 	}
 }

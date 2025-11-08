@@ -1,13 +1,23 @@
 #include "SFLobbyPlayerController.h"
 
 #include "SFLobbyPlayerState.h"
+#include "GameModes/Lobby/SFLobbyGameMode.h"
 #include "GameModes/Lobby/SFLobbyGameState.h"
 #include "System/SFGameInstance.h"
 
 ASFLobbyPlayerController::ASFLobbyPlayerController()
 {
 	bAutoManageActiveCameraTarget = false;
+	bReady = false;
 }
+
+void ASFLobbyPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	Server_UpdatePlayerInfo();
+}
+
 
 void ASFLobbyPlayerController::Server_RequestPlayerSelectionChange_Implementation(uint8 NewSlotID)
 {
@@ -68,4 +78,44 @@ bool ASFLobbyPlayerController::Server_RequestStartMatch_Validate()
 void ASFLobbyPlayerController::Client_StartHeroSelection_Implementation()
 {
 	OnSwitchToHeroSelection.ExecuteIfBound();
+}
+
+void ASFLobbyPlayerController::UpdatePlayerInfo()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// 0.1초 후 서버 RPC 호출
+	FTimerHandle DelayTimerHandle;
+	World->GetTimerManager().SetTimer(
+		DelayTimerHandle,
+		this,
+		&ASFLobbyPlayerController::Server_UpdatePlayerInfo,
+		0.1f,
+		false
+	);
+}
+
+void ASFLobbyPlayerController::Server_UpdatePlayerInfo_Implementation()
+{
+	ASFLobbyGameMode* LobbyGM = GetWorld()->GetAuthGameMode<ASFLobbyGameMode>();
+	if (!LobbyGM)
+	{
+		return;
+	}
+	
+	LobbyGM->UpdatePlayerInfo(this);
+}
+
+void ASFLobbyPlayerController::Server_ToggleReadyStatus_Implementation()
+{
+	PlayerInfo.bReady = !PlayerInfo.bReady;
+
+	if (ASFLobbyGameMode* LobbyGM = GetWorld()->GetAuthGameMode<ASFLobbyGameMode>())
+	{
+		LobbyGM->UpdatePlayerInfo(this);
+	}
 }

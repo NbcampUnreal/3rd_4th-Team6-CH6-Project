@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "SFMenuPlayerController.h"
+#include "Player/SFPlayerInfoTypes.h"
 #include "SFLobbyPlayerController.generated.h"
 
 DECLARE_DELEGATE(FOnSwitchToHeroSelection);
@@ -29,6 +30,35 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_StartHeroSelection();
 
+	/** 플레이어 정보 업데이트 요청 (클라이언트 → 서버) */
+	UFUNCTION(BlueprintCallable, Category = "PlayerInfo")
+	void UpdatePlayerInfo();
+
+	/** Ready 상태 */
+	UFUNCTION(BlueprintCallable, Category = "PlayerInfo")
+	void SetReady(bool bNewReady) { bReady = bNewReady; }
+	
+	UFUNCTION(BlueprintPure, Category = "PlayerInfo")
+	bool IsReady() const { return bReady; }
+
+	UFUNCTION(Server, Reliable, BlueprintCallable)
+	void Server_ToggleReadyStatus();
+
+protected:
+	virtual void BeginPlay() override;
+
+
 public:
 	FOnSwitchToHeroSelection OnSwitchToHeroSelection;
+
+	FSFPlayerInfo PlayerInfo;
+	
+private:
+	/** 서버 RPC: 플레이어 정보 업데이트 */
+	UFUNCTION(Server, Reliable)
+	void Server_UpdatePlayerInfo();
+
+	/** Ready 상태 */
+	UPROPERTY()
+	bool bReady;
 };
