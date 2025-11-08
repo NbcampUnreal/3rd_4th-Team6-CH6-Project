@@ -54,13 +54,6 @@ struct FSTStateWrapperContainer
 	TArray<FSTStateWrapper> States;
 };
 
-UENUM(BlueprintType)
-enum class ESFEnemyType : uint8
-{
-	Normal,
-	Elite,
-	Boss
-};
 /**
  * 
  */
@@ -71,7 +64,7 @@ class SF_API USFEnemyData : public USFPawnData
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Type")
-	ESFEnemyType EnemyType;
+	FGameplayTag EnemyType;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Behaviour")
 	FSFBehaviourWrapperContainer BehaviourContainer;
