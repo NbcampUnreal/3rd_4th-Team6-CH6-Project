@@ -16,18 +16,24 @@ class SF_API ASFHeroDisplay : public AActor
 
 public:
 	ASFHeroDisplay();
-	void ConfigureWithHeroDefination(const USFHeroDefinition* HeroDefinition);
 
-	/** PlayerInfo 설정 (서버에서 호출) */
+	
+	void UpdateHeroDefination(const USFHeroDefinition* HeroDefinition);
+
+	/**  PlayerInfo Widget 업데이트(UpdateHeroInfo) */
 	void UpdatePlayerInfo(const FSFPlayerInfo& NewPlayerInfo);
 
 	/** PlayerInfo 가져오기 */
 	const FSFPlayerInfo& GetPlayerInfo() const { return PlayerInfo; }
+	const USFHeroDefinition* GetCurrentHeroDefinition() const { return CurrentHeroDefinition; }
 
 protected:
+	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 private:
+	
+	void EnsureWidgetInitialized();
 	
 	/** PlayerInfo 업데이트 콜백 */
 	UFUNCTION()

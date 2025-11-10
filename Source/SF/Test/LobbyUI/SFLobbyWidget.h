@@ -36,7 +36,9 @@ private:
 	void HeroDefinitionLoaded();
 	void HeroSelected(UObject* SelectedUObject);
 
-	void UpdateReadyButtonEnabled() const;
+	void UpdateReadyButtonEnabled(const TArray<FSFPlayerSelectionInfo>& PlayerSelections) const;
+
+	const FSFPlayerSelectionInfo* FindMySelection(const TArray<FSFPlayerSelectionInfo>& PlayerSelections) const;
 
 	bool HasSelectedHero() const;
 

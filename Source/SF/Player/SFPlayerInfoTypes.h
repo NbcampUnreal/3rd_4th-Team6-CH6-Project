@@ -71,7 +71,7 @@ public:
 	FORCEINLINE uint8 GetPlayerSlot() const { return Slot; }
 	FORCEINLINE FUniqueNetIdRepl GetPlayerUniqueId() const { return PlayerUniqueId; }
 	FORCEINLINE FString GetPlayerNickname() const { return PlayerNickname; }
-	FORCEINLINE const USFHeroDefinition* GetHeroDefinition() const { return HeroDefinition; }
+	FORCEINLINE USFHeroDefinition* GetHeroDefinition() const { return HeroDefinition; }
 	FORCEINLINE void SetHeroDefinition(USFHeroDefinition* NewDefinition) { HeroDefinition = NewDefinition; }
 	FORCEINLINE bool IsReady() const { return bReady; }
 	FORCEINLINE void SetReady(bool bInReady) { bReady = bInReady; }

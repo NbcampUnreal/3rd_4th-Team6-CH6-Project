@@ -1,5 +1,6 @@
 #include "SFHeroDisplay.h"
 
+#include "SFLogChannels.h"
 #include "Camera/CameraComponent.h"
 #include "Character/Hero/SFHeroDefinition.h"
 #include "Components/WidgetComponent.h"
@@ -28,6 +29,13 @@ ASFHeroDisplay::ASFHeroDisplay()
 	PlayerInfoWidget->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
+void ASFHeroDisplay::BeginPlay()
+{
+	Super::BeginPlay();
+
+	EnsureWidgetInitialized();
+}
+
 void ASFHeroDisplay::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -36,15 +44,19 @@ void ASFHeroDisplay::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(ASFHeroDisplay, CurrentHeroDefinition);
 }
 
-void ASFHeroDisplay::ConfigureWithHeroDefination(const USFHeroDefinition* HeroDefination)
+void ASFHeroDisplay::UpdateHeroDefination(const USFHeroDefinition* HeroDefinition)
 {
-	if (!HasAuthority() || !HeroDefination)
+	// TODO : CurrentHeroDefintion 이 nullptr일 경우 추가적인 처리 고려
+	if (!HasAuthority() || !HeroDefinition)
 	{
 		return;
 	}
-	
-	CurrentHeroDefinition = HeroDefination;
-	ApplyHeroConfiguration();
+
+	if (CurrentHeroDefinition != HeroDefinition)
+	{
+		CurrentHeroDefinition = HeroDefinition;
+		ApplyHeroConfiguration();
+	}
 }
 
 void ASFHeroDisplay::UpdatePlayerInfo(const FSFPlayerInfo& NewPlayerInfo)
@@ -77,6 +89,8 @@ void ASFHeroDisplay::OnRep_CurrentHeroDefinition()
 
 void ASFHeroDisplay::UpdatePlayerInfoWidget()
 {
+	EnsureWidgetInitialized();
+	
 	// 위젯이 USFPlayerInfoWidget인지 확인
 	if (USFPlayerInfoWidget* InfoWidget = Cast<USFPlayerInfoWidget>(PlayerInfoWidget->GetWidget()))
 	{
@@ -88,6 +102,7 @@ void ASFHeroDisplay::UpdatePlayerInfoWidget()
 
 void ASFHeroDisplay::ApplyHeroConfiguration()
 {
+	// TODO : CurrentHeroDefintion 이 nullptr일 경우 추가적인 처리 고려
 	if (!CurrentHeroDefinition)
 	{
 		return;
@@ -96,5 +111,22 @@ void ASFHeroDisplay::ApplyHeroConfiguration()
 	MeshComponent->SetSkeletalMesh(CurrentHeroDefinition->LoadDisplayMesh());
 	MeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 	MeshComponent->SetAnimInstanceClass(CurrentHeroDefinition->LoadDisplayAnimationBP());
+}
+
+void ASFHeroDisplay::EnsureWidgetInitialized()
+{
+	if (!PlayerInfoWidget)
+	{
+		return;
+	}
+	if (!PlayerInfoWidget->GetWidget())
+	{
+		if (!PlayerInfoWidget->GetWidgetClass())
+		{
+			UE_LOG(LogSF, Error, TEXT("[HeroDisplay] WidgetClass not set on %s"), *GetName());
+			return;
+		}
+		PlayerInfoWidget->InitWidget();
+	}
 }
 

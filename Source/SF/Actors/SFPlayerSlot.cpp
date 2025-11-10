@@ -85,7 +85,7 @@ void ASFPlayerSlot::AddPlayer(APlayerController* InPC)
 
 	if (ASFPlayerState* SFPlayerState = CachedPC->GetPlayerState<ASFPlayerState>())
 	{
-		USFHeroDefinition* HeroDef  = const_cast<USFHeroDefinition*>(SFPlayerState->GetPlayerSelection().GetHeroDefinition());
+		USFHeroDefinition* HeroDef  = SFPlayerState->GetPlayerSelection().GetHeroDefinition();
 		UpdateHeroDisplay(HeroDef);
 	}
 }
@@ -93,8 +93,7 @@ void ASFPlayerSlot::AddPlayer(APlayerController* InPC)
 void ASFPlayerSlot::RemovePlayer(APlayerController* PC)
 {
 	CachedPC = nullptr;
-	CurrentHeroDefinition = nullptr;
-	
+
 	if (!HeroDisplay)
 	{
 		return;
@@ -106,9 +105,21 @@ void ASFPlayerSlot::RemovePlayer(APlayerController* PC)
 	UE_LOG(LogSF, Log, TEXT("[PlayerSlot] RemovePlayer"));
 }
 
-void ASFPlayerSlot::SwitchHeroDefinition(USFHeroDefinition* HeroDefinition)
+void ASFPlayerSlot::UpdatePlayerDisplay(USFHeroDefinition* HeroDef, const FSFPlayerInfo& PlayerInfo)
 {
-	UpdateHeroDisplay(HeroDefinition);
+	if (!HeroDisplay)
+	{
+		return;
+	}
+	
+	// 1. Hero 변경 
+	if (HeroDef && HeroDef != HeroDisplay->GetCurrentHeroDefinition())
+	{
+		UpdateHeroDisplay(HeroDef);
+	}
+
+	// 2. PlayerInfo Widget 업데이트(UpdateHeroInfo)
+	HeroDisplay->UpdatePlayerInfo(PlayerInfo);
 }
 
 void ASFPlayerSlot::UpdateHeroDisplay(USFHeroDefinition* HeroDefinition)
@@ -118,11 +129,9 @@ void ASFPlayerSlot::UpdateHeroDisplay(USFHeroDefinition* HeroDefinition)
 		return;
 	}
 
-	HeroDisplay->ConfigureWithHeroDefination(HeroDefinition);
+	HeroDisplay->UpdateHeroDefination(HeroDefinition);
 	HeroDisplay->SetActorTransform(Arrow->GetComponentTransform());
 	HeroDisplay->SetActorHiddenInGame(false);
-
-	CurrentHeroDefinition = HeroDefinition;
 }
 
 

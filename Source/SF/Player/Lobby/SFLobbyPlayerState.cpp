@@ -16,7 +16,6 @@ ASFLobbyPlayerState::ASFLobbyPlayerState()
 void ASFLobbyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ASFLobbyPlayerState, PlayerSelection);
 }
 
 void ASFLobbyPlayerState::BeginPlay()
@@ -48,16 +47,15 @@ void ASFLobbyPlayerState::Server_SetReady_Implementation(bool bInReady)
 		return;
 	}
 
-	// Ready 상태 변경
-	PlayerSelection.SetReady(bInReady);
-
-	// GameState에 알림 
-	if (ASFLobbyGameState* LobbyGS = GetWorld()->GetGameState<ASFLobbyGameState>())
+	if (!LobbyGameState)
 	{
-		LobbyGS->SetPlayerReady(this, bInReady);
+		return;
 	}
 
-	// GameMode에 알림 (HeroDisplay 업데이트용) TODO ; GameState에서 일괄 처리?
+	// GameState에 알림(현재 LobbyGS에서 일괄적으로 접속한 클라이언트들의 정보 broadcast)
+	LobbyGameState->SetPlayerReady(this, bInReady);
+
+	// GameMode에 알림 (HeroDisplay 업데이트용) TODO ; 리스너가 3개 이상 필요하면 GameState 델리게이트 패턴 고려
 	if (ASFLobbyGameMode* LobbyGM = GetWorld()->GetAuthGameMode<ASFLobbyGameMode>())
 	{
 		LobbyGM->OnPlayerReadyChanged(GetPlayerController());
@@ -83,20 +81,29 @@ void ASFLobbyPlayerState::Server_SetSelectedHeroDefinition_Implementation(USFHer
 	// 	return;
 	// }
 	
-	LobbyGameState->SetHeroDeselected(this);
-	PlayerSelection.SetHeroDefinition(NewDefinition);
+	//LobbyGameState->SetHeroDeselected(this);
 	LobbyGameState->SetHeroSelected(this, NewDefinition);
 
-	// UpdateHeroDisplayForPlayer 호출 TODO : GameState에서 일괄 처리?
+	// 내부적으로 HeroDisplay 업데이트 호출 TODO : 리스너가 3개 이상 필요하면 GameState 델리게이트 패턴 고려
 	if (ASFLobbyGameMode* LobbyGM = GetWorld()->GetAuthGameMode<ASFLobbyGameMode>())
 	{
-		LobbyGM->UpdateHeroDisplayForPlayer(GetPlayerController());
+		LobbyGM->OnPlayerReadyChanged(GetPlayerController());
 	}
 }
 
 bool ASFLobbyPlayerState::Server_SetSelectedHeroDefinition_Validate(USFHeroDefinition* NewDefinition)
 {
 	return true;
+}
+
+FSFPlayerInfo ASFLobbyPlayerState::CreateDisplayInfo() const
+{
+	FSFPlayerInfo DisplayInfo;
+	DisplayInfo.PC = GetPlayerController();
+	DisplayInfo.PS = const_cast<APlayerState*>(static_cast<const APlayerState*>(this));
+	DisplayInfo.PlayerName = PlayerSelection.GetPlayerNickname();
+	DisplayInfo.bReady = PlayerSelection.IsReady();
+	return DisplayInfo;
 }
 
 void ASFLobbyPlayerState::PlayerSelectionUpdated(const TArray<FSFPlayerSelectionInfo>& NewPlayerSelections)
@@ -111,7 +118,3 @@ void ASFLobbyPlayerState::PlayerSelectionUpdated(const TArray<FSFPlayerSelection
 	}
 }
 
-void ASFLobbyPlayerState::OnRep_PlayerSelection(FSFPlayerSelectionInfo OldPlayerSelection)
-{
-	
-}

@@ -4,6 +4,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "SFLobbyGameMode.generated.h"
 
+class ASFLobbyGameState;
 class ASFHeroDisplay;
 class ASFPlayerSlot;
 /**
@@ -18,6 +19,7 @@ public:
 	ASFLobbyGameMode();
 
 	//~AGameModeBase interface
+	virtual void InitGameState() override;
 	virtual void BeginPlay() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
@@ -36,22 +38,25 @@ private:
 	/** PlayerSlots가 준비될 때까지 대기 후 UpdatePlayerSlots 호출 */
 	void WaitForPlayerSlotsAndUpdate();
 
-	/** PlayerSlots 업데이트 (블루프린트의 UpdatePlayerSlots) */
+	/** 로그인/로그아웃 된 플레이어를 PlayerSlots에 추가/제거 */
 	void UpdatePlayerSlots();
 
 	/** PC가 이미 어떤 슬롯에 추가되어 있는지 확인 */
 	bool IsPCAlreadyAdded(APlayerController* PC) const;
 
 	/** 빈 슬롯 찾아서 PC 추가 */
-	void AddPCToEmptySlot(APlayerController* PC);
+	void AddConnectedPlayer(APlayerController* PC);
 
 	/** 로그아웃한 플레이어 제거 */
 	void RemoveDisconnectedPlayers();
 
-	/** Slot 할당 로직 내부에서 PlayerInfo 초기화 */
-	void InitializePlayerInfoForSlot(APlayerController* PC, const ASFPlayerSlot* Slot) const;
+	/** 현재 플레이어 상태에 따른 Start 버튼 업데이트 */
+	void UpdateStartButtonState();
 
 private:
+	UPROPERTY()
+	TObjectPtr<ASFLobbyGameState> LobbyGameState;
+	
 	UPROPERTY()
 	TArray<TObjectPtr<APlayerController>> PCs;
 	

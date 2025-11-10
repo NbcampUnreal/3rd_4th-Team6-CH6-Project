@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "SFPlayerSlot.generated.h"
 
+struct FSFPlayerInfo;
 class USFHeroDefinition;
 class ASFHeroDisplay;
 class APlayerController;
@@ -31,14 +32,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PlayerSlot")
 	void RemovePlayer(APlayerController* PC);
 
-	void SwitchHeroDefinition(USFHeroDefinition* HeroDefinition);
+	void UpdatePlayerDisplay(USFHeroDefinition* HeroDef, const FSFPlayerInfo& PlayerInfo);
 	void UpdateHeroDisplay(USFHeroDefinition* HeroDefinition);
 
 	FORCEINLINE uint8 GetSlotID() const { return SlotID; }
 	FORCEINLINE APlayerController* GetCurrentPC() const { return CachedPC.Get(); }
 	FORCEINLINE bool HasValidPC() const { return CachedPC.IsValid(); }
 	FORCEINLINE ASFHeroDisplay* GetHeroDisplay() const { return HeroDisplay; }
-	FORCEINLINE const USFHeroDefinition* GetCurrentHeroDefinition() const { return CurrentHeroDefinition; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -58,9 +58,6 @@ private:
 	/** HeroDisplay 액터 (재사용) */
 	UPROPERTY()
 	TObjectPtr<ASFHeroDisplay> HeroDisplay;
-
-	UPROPERTY()
-	TObjectPtr<USFHeroDefinition> CurrentHeroDefinition;
 
 	/** PC 변수 */
 	UPROPERTY()

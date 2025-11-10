@@ -10,7 +10,7 @@ void ASFLobbyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, PlayerSelectionArray, COND_None, REPNOTIFY_Always);
 }
 
-void ASFLobbyGameState::UpdatePlayerSelection(const APlayerState* RequestingPlayer, uint8 InSlot)
+void ASFLobbyGameState::AddPlayerSelection(const APlayerState* RequestingPlayer, uint8 InSlot)
 {
 	if (!HasAuthority() || IsSlotOccupied(InSlot))
 	{
@@ -145,7 +145,9 @@ bool ASFLobbyGameState::AreAllPlayersReady() const
 	for (const FSFPlayerSelectionInfo& Selection : PlayerSelectionArray)
 	{
 		if (!Selection.IsReady())
+		{
 			return false;
+		}
 	}
 
 	return true;

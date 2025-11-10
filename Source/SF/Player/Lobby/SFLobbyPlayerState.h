@@ -31,14 +31,14 @@ public:
 	bool IsReady() const { return PlayerSelection.IsReady(); }
 	const FSFPlayerSelectionInfo& GetPlayerSelection() const { return PlayerSelection; }
 
+	FSFPlayerInfo CreateDisplayInfo() const;
+
 private:
 	void PlayerSelectionUpdated(const TArray<FSFPlayerSelectionInfo>& NewPlayerSelections);
 
-	UFUNCTION()
-	void OnRep_PlayerSelection(FSFPlayerSelectionInfo OldPlayerSelection);
-	
+
 private:
-	UPROPERTY(ReplicatedUsing = OnRep_PlayerSelection)
+	UPROPERTY()
 	FSFPlayerSelectionInfo PlayerSelection;
 
 	UPROPERTY()

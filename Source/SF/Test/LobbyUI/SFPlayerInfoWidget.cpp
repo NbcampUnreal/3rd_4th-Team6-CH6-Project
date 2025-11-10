@@ -17,9 +17,7 @@ void USFPlayerInfoWidget::UpdatePlayerInfo(const FSFPlayerInfo& NewPlayerInfo)
 	if (Text_ReadyStatus)
 	{
 		FString ReadyText = PlayerInfo.bReady ? TEXT("Ready") : TEXT("Not Ready");
-		//Text_ReadyStatus->SetText(FText::FromString(ReadyText));
-		FText Temp = FText::FromString(ReadyText);
-		Text_ReadyStatus->SetText(Temp);
+		Text_ReadyStatus->SetText(FText::FromString(ReadyText));
 	}
 
 	// === Opacity 설정 ===

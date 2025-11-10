@@ -22,7 +22,7 @@ class SF_API ASFLobbyGameState : public AGameStateBase
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	void UpdatePlayerSelection(const APlayerState* RequestingPlayer, uint8 InSlot);
+	void AddPlayerSelection(const APlayerState* RequestingPlayer, uint8 InSlot);
 	void RemovePlayerSelection(const APlayerState* LeavingPlayer);
 	void SetHeroSelected(const APlayerState* SelectingPlayer, USFHeroDefinition* SelectedDefinition);
 	void SetHeroDeselected(const APlayerState* Player);

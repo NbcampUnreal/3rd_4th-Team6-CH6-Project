@@ -16,6 +16,7 @@ void USFLobbyWidget::NativeConstruct()
 	Super::NativeConstruct();
 	ConfigureGameState();
 	SFLobbyPlayerController = GetOwningPlayer<ASFLobbyPlayerController>();
+	SFLobbyPlayerState = GetOwningPlayerState<ASFLobbyPlayerState>();
 	Button_Start->OnClicked.AddDynamic(this, &ThisClass::StartMatchButtonClicked);
 	Button_Ready->OnClicked.AddDynamic(this, &ThisClass::ReadyButtonClicked);
 
@@ -83,7 +84,7 @@ void USFLobbyWidget::UpdatePlayerSelectionDisplay(const TArray<FSFPlayerSelectio
 	}
 
 	//  PlayerSelection 업데이트 시 Ready 버튼 상태도 업데이트
-	UpdateReadyButtonEnabled();
+	UpdateReadyButtonEnabled(PlayerSelections);
 }
 
 void USFLobbyWidget::HeroDefinitionLoaded()
@@ -99,11 +100,6 @@ void USFLobbyWidget::HeroSelected(UObject* SelectedUObject)
 {
 	if (!SFLobbyPlayerState)
 	{
-		SFLobbyPlayerState = GetOwningPlayerState<ASFLobbyPlayerState>();
-	}
-
-	if (!SFLobbyPlayerState)
-	{
 		return;
 	}
 
@@ -113,16 +109,28 @@ void USFLobbyWidget::HeroSelected(UObject* SelectedUObject)
 	}
 }
 
-void USFLobbyWidget::UpdateReadyButtonEnabled() const
+void USFLobbyWidget::UpdateReadyButtonEnabled(const TArray<FSFPlayerSelectionInfo>& PlayerSelections) const
 {
 	if (!Button_Ready)
 	{
 		return;
 	}
     
-	// Hero 선택 여부에 따라 버튼 활성화/비활성화
-	bool bHasHero = HasSelectedHero();
+	const FSFPlayerSelectionInfo* MySelection = FindMySelection(PlayerSelections);
+	bool bHasHero = MySelection && MySelection->GetHeroDefinition() != nullptr;
 	Button_Ready->SetIsEnabled(bHasHero);
+}
+
+const FSFPlayerSelectionInfo* USFLobbyWidget::FindMySelection(const TArray<FSFPlayerSelectionInfo>& PlayerSelections) const
+{
+	if (!SFLobbyPlayerState)
+	{
+		return nullptr;
+	}
+	return PlayerSelections.FindByPredicate([this](const FSFPlayerSelectionInfo& Selection)
+		{
+			return Selection.IsForPlayer(SFLobbyPlayerState);
+		});
 }
 
 bool USFLobbyWidget::HasSelectedHero() const
