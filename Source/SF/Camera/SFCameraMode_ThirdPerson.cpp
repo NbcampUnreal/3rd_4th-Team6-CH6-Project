@@ -41,6 +41,17 @@ USFCameraMode_ThirdPerson::USFCameraMode_ThirdPerson()
 	PenetrationAvoidanceFeelers.Add(FSFPenetrationAvoidanceFeeler(FRotator(-20.0f, +00.0f, 0.0f), 0.50f, 0.50f, 00.f, 4));
 }
 
+void USFCameraMode_ThirdPerson::OnActivation()
+{
+	// 캐릭터의 현재 위치(오프셋 포함)
+	FVector IdealPivotLocation = GetPivotLocation() + CurrentCrouchOffset + CurrentJumpOffset;
+
+	// 보간될 위치를 현재 위치로 즉시 설정(Snap)
+	SmoothedPivotLocation = IdealPivotLocation;
+
+	Super::OnActivation();
+}
+
 // 3인칭 카메라 뷰 업데이트
 void USFCameraMode_ThirdPerson::UpdateView(float DeltaTime)
 {
@@ -50,9 +61,23 @@ void USFCameraMode_ThirdPerson::UpdateView(float DeltaTime)
 	UpdateJumpOffset(DeltaTime);
 
 	// 피벗 위치 = 기본 위치 + 앉기 보정값 + 점프 보정값
-	FVector PivotLocation = GetPivotLocation() + CurrentCrouchOffset + CurrentJumpOffset;
-	FRotator PivotRotation = GetPivotRotation();
+	// 1. "이상적인" 피벗 위치 (캐릭터가 *현재* 있는 곳)
+	FVector IdealPivotLocation = GetPivotLocation() + CurrentCrouchOffset + CurrentJumpOffset;
 
+	// 2. "보간된" 피벗 위치 (카메라가 *바라봐야 할* 부드러운 위치)
+	//    이전 프레임의 SmoothedPivotLocation에서 IdealPivotLocation으로 부드럽게 이동
+	SmoothedPivotLocation = FMath::VInterpTo(
+		SmoothedPivotLocation,     // 현재 위치 (지난 프레임의 결과)
+		IdealPivotLocation,        // 목표 위치 (캐릭터의 실제 위치)
+		DeltaTime,                 // 경과 시간
+		PivotFollowSpeed           // 보간 속도 (우리가 .h에 추가한 변수)
+	);
+
+	// 3. 실제 카메라 계산에는 "이상적인" 위치가 아닌 "보간된" 위치를 사용
+	FVector PivotLocation = SmoothedPivotLocation;
+
+	FRotator PivotRotation = GetPivotRotation();
+	
 	// Pitch(상하 각도) 제한
 	PivotRotation.Pitch = FMath::ClampAngle(PivotRotation.Pitch, ViewPitchMin, ViewPitchMax);
 
