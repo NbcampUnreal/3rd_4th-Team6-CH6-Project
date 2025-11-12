@@ -5,9 +5,11 @@
 #include "CoreMinimal.h"
 #include "Components/GameFrameworkInitStateInterface.h"
 #include "Components/PawnComponent.h"
+#include "Templates/SubclassOf.h"
 #include "SFHeroComponent.generated.h"
 
 struct FInputActionValue;
+class USFCameraMode;
 /**
  * component that sets up input and camera handling for player controlled pawns (or bots that simulate players)
  * - this depends on a PawnExtensionComponent to coordinate initialization
@@ -60,13 +62,14 @@ protected:
 	void Input_LookMouse(const FInputActionValue& InputActionValue);
 	void Input_Crouch(const FInputActionValue& InputActionValue);
 
-	//TSubclassOf<ULCCameraMode> DetermineCameraMode() const;
+	UFUNCTION()
+	TSubclassOf<USFCameraMode> DetermineCameraMode();
 
 protected:
 	/** Camera mode set by an ability. */
 	// UPROPERTY()
 	// TSubclassOf<ULCCameraMode> AbilityCameraMode;
-
+	
 	/** Spec handle for the last ability to set a camera mode. */
 	//FGameplayAbilitySpecHandle AbilityCameraModeOwningSpecHandle;
 };
