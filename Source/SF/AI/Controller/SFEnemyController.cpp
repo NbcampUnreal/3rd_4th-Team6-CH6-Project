@@ -133,26 +133,23 @@ void ASFEnemyController::Tick(float DeltaTime)
 
 void ASFEnemyController::SetBehaviorTree(UBehaviorTree* NewBehaviorTree)
 {
-    if (!NewBehaviorTree || !CachedBehaviorTreeComponent)
+    if (!NewBehaviorTree)
         return;
-
-    if (CachedBehaviorTreeComponent->GetCurrentTree() == NewBehaviorTree)
+   
+    if (CachedBehaviorTreeComponent && 
+        CachedBehaviorTreeComponent->GetCurrentTree() == NewBehaviorTree)
+    {
         return;
+    }
 
     RunBehaviorTree(NewBehaviorTree);
 }
-
 void ASFEnemyController::BindingStateMachine(const APawn* InPawn)
 {
     if (!InPawn)
         return;
 
-    CachedBehaviorTreeComponent = Cast<UBehaviorTreeComponent>(GetBrainComponent());
-    CachedBlackboardComponent = GetBlackboardComponent();
-
-    if (!CachedBehaviorTreeComponent || !CachedBlackboardComponent)
-        return;
-
+    
     USFStateMachine* StateMachine = USFStateMachine::FindStateMachineComponent(InPawn);
     if (StateMachine)
     {
@@ -206,7 +203,16 @@ bool ASFEnemyController::RunBehaviorTree(UBehaviorTree* BehaviorTree)
     }
 
     const bool bSuccess = Super::RunBehaviorTree(BehaviorTree);
-    UE_LOG(LogTemp, Log, TEXT("[SFEnemyAI] BehaviorTree 실행: %s"), *BehaviorTree->GetName());
+
+    
+    if (bSuccess)
+    {
+        CachedBehaviorTreeComponent = Cast<UBehaviorTreeComponent>(GetBrainComponent());
+        CachedBlackboardComponent = GetBlackboardComponent();
+
+        UE_LOG(LogTemp, Log, TEXT("[SFEnemyAI] BehaviorTree 실행 및 컴포넌트 캐싱 완료: %s"), *BehaviorTree->GetName());
+    }
+
     bIsInCombat = false;
     return bSuccess;
 }

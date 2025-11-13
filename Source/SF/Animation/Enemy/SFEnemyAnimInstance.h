@@ -52,9 +52,7 @@ protected:
     UFUNCTION(BlueprintCallable, Category = "DistanceMatch Function", meta = (BlueprintThreadSafe))
     float GetPredictedStopDistance() const;
 
-    // ========== Debug Functions ==========
-    UFUNCTION(BlueprintCallable, Category = "Animation Debug")
-    void PrintAnimationDebugInfo() const;
+    
 
 protected:
 
