@@ -11,7 +11,8 @@
 			"AdditionalDependencies": [
 				"GameplayAbilities",
 				"ModularGameplay",
-				"Engine"
+				"Engine",
+				"AIModule"
 			]
 		}
 	],
@@ -41,6 +42,10 @@
 		},
 		{
 			"Name": "ModularGameplay",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationLocomotionLibrary",
 			"Enabled": true
 		}
 	]

@@ -24,6 +24,9 @@ public:
 	USFCameraMode_ThirdPerson();
 
 protected:
+	// 이 카메라 모드가 활성화될 때 한 번 호출됩니다.
+	virtual void OnActivation() override;
+	
 	// 매 프레임 뷰(시점) 업데이트 (3인칭 로직 적용).
 	virtual void UpdateView(float DeltaTime) override;
 
@@ -57,6 +60,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Third Person", Meta = (EditCondition = "bUseRuntimeFloatCurves"))
 	FRuntimeFloatCurve TargetOffsetZ;
 
+	/**
+	 * 카메라 피벗이 캐릭터를 따라가는 속도
+	 * [낮을수록] (예: 5.0) 카메라는 더 느리고 '느슨하게' 따라옴.
+	 * [높을수록] (예: 20.0) 카메라는 더 빠릿하고 '즉각적으로' 반응.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Third Person|Lag")
+	float PivotFollowSpeed = 10.0f;
+
+	 // 실제 카메라 계산에 사용될 '보간된' 피벗 위치
+	UPROPERTY(Transient)
+	FVector SmoothedPivotLocation;
+	
 	// 앉기 상태일 때 카메라 오프셋(위치 보정) 블렌드 속도.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Third Person")
 	float CrouchOffsetBlendMultiplier = 5.0f;

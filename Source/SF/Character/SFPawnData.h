@@ -8,6 +8,7 @@
 
 class USFInputConfig;
 class USFAbilitySet;
+class USFCameraMode;
 
 
 /**
@@ -43,6 +44,6 @@ public:
 	TObjectPtr<USFInputConfig> InputConfig;
 
 	// Default camera mode used by player controlled pawns.
-	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SF|Camera")
-	// TSubclassOf<USFCameraMode> DefaultCameraMode;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SF|Camera")
+	TSubclassOf<USFCameraMode> DefaultCameraMode;
 };

@@ -1,6 +1,7 @@
 #include "SFHeroComponent.h"
 
 #include "EnhancedInputSubsystems.h"
+#include "Camera/SFCameraComponent.h"
 #include "SFHero.h"
 #include "System/SFInitGameplayTags.h"
 #include "SFLogChannels.h"
@@ -17,6 +18,7 @@
 #include "UserSettings/EnhancedInputUserSettings.h"
 #include "AbilitySystem/Attributes/Hero/SFCombatSet_Hero.h"
 #include "AbilitySystem/Attributes/Hero/SFPrimarySet_Hero.h"
+#include "Camera/SFCameraMode.h"
 
 const FName USFHeroComponent::NAME_ActorFeatureName("Hero");
 
@@ -146,13 +148,13 @@ void USFHeroComponent::HandleChangeInitState(UGameFrameworkComponentManager* Man
 		}
 		
 		// Hook up the delegate for all pawns, in case we spectate later
-		// if (PawnData)
-		// {
-		// 	if (ULCCameraComponent* CameraComponent = ULCCameraComponent::FindCameraComponent(Pawn))
-		// 	{
-		// 		CameraComponent->DetermineCameraModeDelegate.BindUObject(this, &ThisClass::DetermineCameraMode);
-		// 	}
-		// }
+		if (PawnData)
+		{
+			if (USFCameraComponent* CameraComponent = USFCameraComponent::FindCameraComponent(Pawn))
+			{
+				CameraComponent->DetermineCameraModeDelegate.BindDynamic(this, &ThisClass::DetermineCameraMode);
+			}
+		}
 	}
 }
 
@@ -387,5 +389,27 @@ void USFHeroComponent::InitializeHUD()
         
 		UE_LOG(LogSF, Log, TEXT("HUD Overlay initialized for %s"), *PS->GetPlayerName());
 	}
+}
+
+TSubclassOf<USFCameraMode> USFHeroComponent::DetermineCameraMode()
+{
+	const APawn* Pawn = GetPawn<APawn>();
+	if (!Pawn)
+	{
+		return nullptr;
+	}
+
+	if (const USFPawnExtensionComponent* PawnExtComp = USFPawnExtensionComponent::FindPawnExtensionComponent(Pawn))
+	{
+		if (const USFPawnData* PawnData = PawnExtComp->GetPawnData<USFPawnData>())
+		{
+			if (PawnData->DefaultCameraMode)
+			{
+				return PawnData->DefaultCameraMode;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
