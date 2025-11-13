@@ -28,7 +28,8 @@ public class SF : ModuleRules
 			"AIModule",
 			"ModularGameplay",
 			"AnimGraphRuntime",
-			"AnimationLocomotionLibraryRuntime"
+			"AnimationLocomotionLibraryRuntime",
+			"NavigationSystem"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
