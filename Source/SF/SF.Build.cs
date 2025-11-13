@@ -26,8 +26,8 @@ public class SF : ModuleRules
 			"UMG",
 			"MediaAssets",
 			"AIModule",
-			"ModularGameplay"
-			
+			"ModularGameplay",
+			"GameplayMessageRuntime",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

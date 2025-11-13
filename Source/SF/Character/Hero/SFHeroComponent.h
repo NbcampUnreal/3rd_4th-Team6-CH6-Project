@@ -60,6 +60,8 @@ protected:
 	void Input_LookMouse(const FInputActionValue& InputActionValue);
 	void Input_Crouch(const FInputActionValue& InputActionValue);
 
+	void InitializeHUD();
+
 	//TSubclassOf<ULCCameraMode> DetermineCameraMode() const;
 
 protected:
