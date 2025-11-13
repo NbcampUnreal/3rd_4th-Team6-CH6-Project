@@ -153,10 +153,7 @@ void USFEnemyAnimInstance::UpdateLocationData(float DeltaSeconds)
 	{
 		DisplacementSpeed = 0.0f;
 	}
-
-	// 디버그: 이동 속도 로그 (필요시 주석 해제)
-	// UE_LOG(LogTemp, Warning, TEXT("[%s] DisplacementSpeed: %.2f cm/s | Delta: %.2f cm | DeltaTime: %.4f s"),
-	// 	*GetNameSafe(GetOwningActor()), DisplacementSpeed, DisplacementSinceLastUpdate, DeltaSeconds);
+	
 }
 
 void USFEnemyAnimInstance::UpdateRotationData()
@@ -227,35 +224,6 @@ float USFEnemyAnimInstance::GetPredictedStopDistance() const
 	return FVector2D(PredictedStopLoc).Length();
 }
 
-void USFEnemyAnimInstance::PrintAnimationDebugInfo() const
-{
-	UE_LOG(LogTemp, Warning, TEXT("========== Animation Debug Info =========="));
-	UE_LOG(LogTemp, Warning, TEXT("Actor: %s"), *GetNameSafe(GetOwningActor()));
-	UE_LOG(LogTemp, Warning, TEXT(""));
-
-	UE_LOG(LogTemp, Warning, TEXT("--- Location Data ---"));
-	UE_LOG(LogTemp, Warning, TEXT("World Location: %s"), *WorldLocation.ToString());
-	UE_LOG(LogTemp, Warning, TEXT("Displacement Since Last Update: %.2f cm"), DisplacementSinceLastUpdate);
-	UE_LOG(LogTemp, Warning, TEXT("Displacement Speed: %.2f cm/s"), DisplacementSpeed);
-	UE_LOG(LogTemp, Warning, TEXT(""));
-
-	UE_LOG(LogTemp, Warning, TEXT("--- Velocity Data ---"));
-	UE_LOG(LogTemp, Warning, TEXT("Has Velocity: %s"), bHasVelocity ? TEXT("true") : TEXT("false"));
-	UE_LOG(LogTemp, Warning, TEXT("World Velocity 2D: %s (%.2f cm/s)"), *WorldVelocity2D.ToString(), WorldVelocity2D.Size());
-	UE_LOG(LogTemp, Warning, TEXT("Local Velocity 2D: %s (%.2f cm/s)"), *LocalVelocity2D.ToString(), LocalVelocity2D.Size());
-	UE_LOG(LogTemp, Warning, TEXT(""));
-
-	UE_LOG(LogTemp, Warning, TEXT("--- Acceleration Data ---"));
-	UE_LOG(LogTemp, Warning, TEXT("Has Acceleration: %s"), bHasAcceleration ? TEXT("true") : TEXT("false"));
-	UE_LOG(LogTemp, Warning, TEXT("World Acceleration 2D: %s"), *WorldAcceleration2D.ToString());
-	UE_LOG(LogTemp, Warning, TEXT("Local Acceleration 2D: %s"), *LocalAcceleration2D.ToString());
-	UE_LOG(LogTemp, Warning, TEXT(""));
-
-	UE_LOG(LogTemp, Warning, TEXT("--- Distance Matching ---"));
-	UE_LOG(LogTemp, Warning, TEXT("Should Distance Match Stop: %s"), ShouldDistanceMatchStop() ? TEXT("true") : TEXT("false"));
-	UE_LOG(LogTemp, Warning, TEXT("Predicted Stop Distance: %.2f cm"), GetPredictedStopDistance());
-	UE_LOG(LogTemp, Warning, TEXT("=========================================="));
-}
 
 
 #pragma endregion

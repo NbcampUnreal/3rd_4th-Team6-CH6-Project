@@ -25,7 +25,6 @@ public:
 	ASFEnemyController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void SetBehaviourContainer(FSFBehaviourWrapperContainer InBehaviorTreeContainer){ BehaviorTreeContainer = InBehaviorTreeContainer; }
-	
 
 protected:
 
@@ -41,32 +40,30 @@ protected:
 
 	virtual void Tick(float DeltaTime) override;
 
-
-
-	
-
 #pragma region BehaviorTree
 protected:
 	void ChangeBehaviorTree(FGameplayTag GameplayTag);
 	
 	void StopBehaviorTree();
 
-	 void SetBehaviorTree(UBehaviorTree* BehaviorTree);
+	void SetBehaviorTree(UBehaviorTree* BehaviorTree);
 
 	void BindingStateMachine(const APawn* InPawn);
 	
 	void UnBindingStateMachine();
-	
+
 protected:
 	UPROPERTY()
-	UBehaviorTreeComponent* CachedBehaviorTreeComponent;
-    
-	UPROPERTY()
-	UBlackboardComponent* CachedBlackboardComponent;
+	FSFBehaviourWrapperContainer BehaviorTreeContainer;
 
+	// 캐시된 BehaviorTree 컴포넌트
 	UPROPERTY()
-	FSFBehaviourWrapperContainer BehaviorTreeContainer; 
-	
+	TObjectPtr<UBehaviorTreeComponent> CachedBehaviorTreeComponent;
+
+	// 캐시된 Blackboard 컴포넌트
+	UPROPERTY()
+	TObjectPtr<UBlackboardComponent> CachedBlackboardComponent;
+
 	// 스폰 위치 (복귀 지점으로 사용)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|BehaviorTree")
 	FVector SpawnLocation;
