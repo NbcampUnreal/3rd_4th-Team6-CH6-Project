@@ -37,6 +37,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SF|GameMode")
 	void ActivatePortal();
 
+	/** GameState에서 호출하는 Travel 요청 */
+	void RequestTravelToNextStage();
+
+	/** 다음 스테이지 레벨 설정 */
+	UFUNCTION(BlueprintCallable, Category = "SF|GameMode")
+	void SetNextStageLevel(TSoftObjectPtr<UWorld> Level);
+
 protected:
 	/** TODO : 게임 시작 후 자동으로 포탈 활성화 (삭제 예정) */
 	UFUNCTION()
@@ -46,8 +53,6 @@ private:
 	void SetupPlayerPawnDataLoading(APlayerController* PC);
 	void OnPlayerPawnDataLoaded(APlayerController* PC, const USFPawnData* PawnData);
 
-	void CachePortal();
-	
 private:
 	/** PawnData 로드 대기 중인 플레이어들*/
 	TSet<TWeakObjectPtr<APlayerController>> PendingPlayers;
@@ -55,6 +60,10 @@ private:
 	/**PIE 테스트용 CharacterDefinition*/
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Test", meta = (EditCondition = "bUsePIETestMode"))
 	TObjectPtr<USFHeroDefinition> PIETestHeroDefinition;
+
+	/** 다음 스테이지 레벨 */
+	UPROPERTY(EditDefaultsOnly, Category = "SF|Stages")
+	TSoftObjectPtr<UWorld> NextStageLevel;
 	
 	/** PIE 테스트 모드 활성화 여부*/
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Test")
@@ -67,9 +76,6 @@ private:
 	/** TODO : 게임 시작 후 포탈 활성화까지 대기 시간 (삭제 예정)*/
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Test|Portal", meta = (EditCondition = "bAutoActivatePortal", ClampMin = "0.0"))
 	float PortalActivationDelay = 5.0f;
-
-	UPROPERTY()
-	TObjectPtr<ASFPortal> CachedPortal;
 
 	FTimerHandle PortalActivationTimerHandle;
 };

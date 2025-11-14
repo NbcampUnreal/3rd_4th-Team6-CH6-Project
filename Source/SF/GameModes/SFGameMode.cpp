@@ -1,13 +1,14 @@
 #include "SFGameMode.h"
 
+#include "SFGameState.h"
 #include "SFLogChannels.h"
-#include "Actors/SFPortal.h"
+#include "SFPortalManagerComponent.h"
 #include "Player/SFPlayerInfoTypes.h"
 #include "Player/SFPlayerState.h"
 #include "Character/Hero/SFHeroDefinition.h"
 #include "Character/SFPawnData.h"
 #include "Character/SFPawnExtensionComponent.h"
-#include "Kismet/GameplayStatics.h"
+#include "System/SFGameInstance.h"
 
 ASFGameMode::ASFGameMode()
 {
@@ -23,8 +24,6 @@ void ASFGameMode::InitGameState()
 void ASFGameMode::StartPlay()
 {
 	Super::StartPlay();
-
-	CachePortal();
 
 	// TODO : 테스트용 자동 포탈 활성화(삭제 예정)
 	if (bAutoActivatePortal)
@@ -252,30 +251,44 @@ void ASFGameMode::OnPlayerPawnDataLoaded(APlayerController* PC, const USFPawnDat
 	}
 }
 
-void ASFGameMode::CachePortal()
-{
-	if (IsValid(CachedPortal))
-	{
-		return;
-	}
-	
-	TArray<AActor*> FoundPortals;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASFPortal::StaticClass(), FoundPortals);
-	if (FoundPortals.Num() > 0)
-	{
-		CachedPortal = Cast<ASFPortal>(FoundPortals[0]);
-	}
-}
-
 void ASFGameMode::ActivatePortal()
 {
-	if (CachedPortal)
+	if (ASFGameState* SFGameState = GetGameState<ASFGameState>())
 	{
-		CachedPortal->SetPortalEnabled(true);
+		if (USFPortalManagerComponent* PortalManager = SFGameState->GetPortalManager())
+		{
+			PortalManager->ActivatePortal();
+		}
 	}
 }
 
 void ASFGameMode::AutoActivatePortalForTest()
 {
 	ActivatePortal();
+}
+
+void ASFGameMode::RequestTravelToNextStage()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (NextStageLevel.IsNull())
+	{
+		UE_LOG(LogSF, Error, TEXT("[GameMode] NextStageLevel is not set!"));
+		return;
+	}
+
+	UE_LOG(LogSF, Log, TEXT("[GameMode] Traveling to next stage: %s"), *NextStageLevel.ToString());
+
+	if (USFGameInstance* SFGameInstance = Cast<USFGameInstance>(GetWorld()->GetGameInstance()))
+	{
+		SFGameInstance->LoadLevelAndListen(NextStageLevel);
+	}
+}
+
+void ASFGameMode::SetNextStageLevel(TSoftObjectPtr<UWorld> Level)
+{
+	NextStageLevel = Level;
 }
