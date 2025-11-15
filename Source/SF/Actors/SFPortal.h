@@ -31,6 +31,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SF|Portal")
 	bool IsEnabled() const { return bIsEnabled; }
 
+	/** 다음 스테이지 레벨 가져오기 */
+	UFUNCTION(BlueprintPure, Category = "SF|Portal")
+	TSoftObjectPtr<UWorld> GetNextStageLevel() const { return NextStageLevel; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -65,6 +69,10 @@ private:
 	/** 포탈 이펙트 */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UParticleSystemComponent> PortalEffect;
+
+	/** 다음 스테이지 레벨 */
+	UPROPERTY(EditInstanceOnly, Category = "SF|Portal", meta = (AllowedClasses = "/Script/Engine.World"))
+	TSoftObjectPtr<UWorld> NextStageLevel;
 
 	/** Portal 활성화 여부 */
 	UPROPERTY(ReplicatedUsing = OnRep_bIsEnabled)

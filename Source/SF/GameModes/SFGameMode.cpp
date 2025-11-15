@@ -267,7 +267,7 @@ void ASFGameMode::AutoActivatePortalForTest()
 	ActivatePortal();
 }
 
-void ASFGameMode::RequestTravelToNextStage()
+void ASFGameMode::RequestTravelToNextStage(TSoftObjectPtr<UWorld> NextStageLevel)
 {
 	if (!HasAuthority())
 	{
@@ -286,9 +286,4 @@ void ASFGameMode::RequestTravelToNextStage()
 	{
 		SFGameInstance->LoadLevelAndListen(NextStageLevel);
 	}
-}
-
-void ASFGameMode::SetNextStageLevel(TSoftObjectPtr<UWorld> Level)
-{
-	NextStageLevel = Level;
 }

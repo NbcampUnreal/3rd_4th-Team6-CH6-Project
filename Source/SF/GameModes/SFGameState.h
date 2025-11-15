@@ -9,11 +9,6 @@
 class USFPortalManagerComponent;
 class ASFPortal;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPortalActivated);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPortalPlayerCountChanged, int32, CurrentCount, int32, RequiredCount);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPortalPlayerEntered, const FSFPlayerSelectionInfo&, PlayerInfo);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPortalPlayerLeft, const FSFPlayerSelectionInfo&, PlayerInfo);
-
 /**
  * 
  */

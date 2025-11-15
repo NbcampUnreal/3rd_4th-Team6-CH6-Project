@@ -38,11 +38,7 @@ public:
 	void ActivatePortal();
 
 	/** GameState에서 호출하는 Travel 요청 */
-	void RequestTravelToNextStage();
-
-	/** 다음 스테이지 레벨 설정 */
-	UFUNCTION(BlueprintCallable, Category = "SF|GameMode")
-	void SetNextStageLevel(TSoftObjectPtr<UWorld> Level);
+	void RequestTravelToNextStage(TSoftObjectPtr<UWorld> NextStageLevel);
 
 protected:
 	/** TODO : 게임 시작 후 자동으로 포탈 활성화 (삭제 예정) */
