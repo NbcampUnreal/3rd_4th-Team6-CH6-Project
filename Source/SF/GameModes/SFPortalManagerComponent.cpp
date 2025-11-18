@@ -23,7 +23,6 @@ void USFPortalManagerComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(USFPortalManagerComponent, bPortalActive);
-	DOREPLIFETIME(USFPortalManagerComponent, PlayersInPortal);
 }
 
 void USFPortalManagerComponent::BeginPlay()
@@ -42,11 +41,10 @@ void USFPortalManagerComponent::ActivatePortal()
 
     if (ManagedPortal)
     {
-        // 등록된 Portal들 비주얼 업데이트
         ManagedPortal->SetPortalEnabled(true);
     }
     
-    // 상태 브로드캐스트
+    // 활성화 메시지 브로드캐스트
     BroadcastPortalState();
 }
 
@@ -62,16 +60,21 @@ void USFPortalManagerComponent::NotifyPlayerEnteredPortal(APlayerState* PlayerSt
         return;
     }
 
-    // 이미 목록에 있는지 체크
-    FSFPlayerSelectionInfo NewPlayerInfo = GetPlayerSelectionInfo(PlayerState);
-    if (PlayersInPortal.Contains(NewPlayerInfo))
+    const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId();
+    if (!UniqueId.IsValid())
     {
         return;
     }
 
-    // 플레이어 추가
-    PlayersInPortal.Add(NewPlayerInfo);
+    // 이미 포탈에 있으면 무시
+    bool bAlreadyAdded;
+    PlayersInsidePortal.Add(UniqueId, &bAlreadyAdded);
 
+    if (bAlreadyAdded)
+    {
+        return;
+    }
+    
     // 상태 브로드캐스트
     BroadcastPortalState();
     
@@ -91,26 +94,23 @@ void USFPortalManagerComponent::NotifyPlayerLeftPortal(APlayerState* PlayerState
         return;
     }
 
-    // 플레이어 찾기
-    int32 FoundIndex = PlayersInPortal.IndexOfByPredicate([PlayerState](const FSFPlayerSelectionInfo& Info)
+    const FUniqueNetIdRepl& UniqueId = PlayerState->GetUniqueId();
+    if (!UniqueId.IsValid())
     {
-        return Info.IsForPlayer(PlayerState);
-    });
+        return;
+    }
 
-    if (FoundIndex != INDEX_NONE)
+    if (PlayersInsidePortal.Remove(UniqueId) > 0)
     {
-        FSFPlayerSelectionInfo RemovedPlayer = PlayersInPortal[FoundIndex];
-        PlayersInPortal.RemoveAt(FoundIndex);
-
-        // 상태 브로드캐스트
-        BroadcastPortalState();
-
         // 타이머 취소
         if (UWorld* World = GetWorld())
         {
             World->GetTimerManager().ClearTimer(TravelTimerHandle);
         }
         TravelCountdownRemaining = -1.0f;
+        
+        // 상태 브로드캐스트
+        BroadcastPortalState();
     }
 }
 
@@ -130,12 +130,23 @@ int32 USFPortalManagerComponent::GetRequiredPlayerCount() const
     return ValidPlayerCount;
 }
 
-bool USFPortalManagerComponent::AreAllPlayersInPortal() const
+APlayerState* USFPortalManagerComponent::FindPlayerStateByUniqueId(const FUniqueNetIdRepl& UniqueId) const
 {
-    return bPortalActive && 
-           PlayersInPortal.Num() >= GetRequiredPlayerCount() && 
-           !bIsTraveling && 
-           GetRequiredPlayerCount() > 0;
+    if (!UniqueId.IsValid())
+    {
+        return nullptr;
+    }
+
+    const AGameStateBase* GameState = GetGameStateChecked<AGameStateBase>();
+    for (APlayerState* PS : GameState->PlayerArray)
+    {
+        if (PS && PS->GetUniqueId() == UniqueId)
+        {
+            return PS;
+        }
+    }
+    
+    return nullptr;
 }
 
 void USFPortalManagerComponent::RegisterPortal(ASFPortal* Portal)
@@ -148,32 +159,25 @@ void USFPortalManagerComponent::RegisterPortal(ASFPortal* Portal)
     ManagedPortal = Portal;
     
     // 현재 활성화 상태에 맞춰 Portal 업데이트
-    Portal->SetPortalEnabled(bPortalActive);
+    ManagedPortal->SetPortalEnabled(bPortalActive);
 }
 
 void USFPortalManagerComponent::UnregisterPortal(ASFPortal* Portal)
 {
-    if (!Portal)
-    {
-        return;
-    }
-
-    if (ManagedPortal == Portal)
+    if (Portal && ManagedPortal == Portal)
     {
         ManagedPortal = nullptr;
-        UE_LOG(LogSF, Log, TEXT("[PortalManager] Portal unregistered: %s"), *Portal->GetName());
     }
 }
 
 void USFPortalManagerComponent::CheckPortalReadyAndTravel()
 {
-    if (!AreAllPlayersInPortal())
+    const int32 RequiredCount = GetRequiredPlayerCount();
+    
+    if (!bPortalActive || PlayersInsidePortal.Num() < RequiredCount || RequiredCount <= 0)
     {
         return;
     }
-
-    UE_LOG(LogSF, Warning, TEXT("[PortalManager] All players ready! Starting travel in %.1f seconds"), 
-        TravelDelayTime);
 
     // 카운트다운 시작
     TravelCountdownRemaining = TravelDelayTime;
@@ -196,44 +200,22 @@ void USFPortalManagerComponent::CheckPortalReadyAndTravel()
 
 void USFPortalManagerComponent::ExecuteTravel()
 {
-    if (!AreAllPlayersInPortal())
+    const int32 RequiredCount = GetRequiredPlayerCount();
+    
+    if (PlayersInsidePortal.Num() < RequiredCount)
     {
-        UE_LOG(LogSF, Warning, TEXT("[PortalManager] Travel cancelled - not all players ready"));
         return;
     }
 
     bIsTraveling = true;
-    
-    UE_LOG(LogSF, Warning, TEXT("[PortalManager] Executing travel to next stage"));
-    
-    // GameMode에 Travel 요청 (다음 스테이지 정보 전달)
-    if (UWorld* World = GetWorld())
+
+    if (ASFGameMode* SFGameMode = GetGameMode<ASFGameMode>())
     {
-        if (ASFGameMode* GameMode = World->GetAuthGameMode<ASFGameMode>())
+        if (ManagedPortal && !ManagedPortal->GetNextStageLevel().IsNull())
         {
-            // ManagedPortal에서 다음 스테이지 레벨 가져오기
-            if (ManagedPortal && !ManagedPortal->GetNextStageLevel().IsNull())
-            {
-                TSoftObjectPtr<UWorld> NextStageLevel = ManagedPortal->GetNextStageLevel();
-                GameMode->RequestTravelToNextStage(NextStageLevel);
-            }
+            SFGameMode->RequestTravelToNextStage(ManagedPortal->GetNextStageLevel());
         }
     }
-}
-
-FSFPlayerSelectionInfo USFPortalManagerComponent::GetPlayerSelectionInfo(const APlayerState* PlayerState) const
-{
-    if (const ASFPlayerState* SFPS = Cast<ASFPlayerState>(PlayerState))
-    {
-        return SFPS->GetPlayerSelection();
-    }
-
-    FSFPlayerSelectionInfo DefaultInfo;
-    if (PlayerState)
-    {
-        DefaultInfo = FSFPlayerSelectionInfo(0, PlayerState);
-    }
-    return DefaultInfo;
 }
 
 void USFPortalManagerComponent::BroadcastPortalState()
@@ -242,35 +224,21 @@ void USFPortalManagerComponent::BroadcastPortalState()
     
     FSFPortalStateMessage Message;
     Message.bIsActive = bPortalActive;
-    Message.PlayersInPortalCount = PlayersInPortal.Num();
-    Message.RequiredPlayerCount = GetRequiredPlayerCount();
-    Message.bReadyToTravel = AreAllPlayersInPortal();
+    Message.TotalPlayerCount = GetRequiredPlayerCount();
     Message.TravelCountdown = TravelCountdownRemaining;
     
-    // === 전체 플레이어의 포탈 진입 상태 구성 ===
-    if (const AGameStateBase* GameState = GetGameStateChecked<AGameStateBase>())
+    Message.PlayersInPortal.Reserve(PlayersInsidePortal.Num());
+    for (const FUniqueNetIdRepl& UniqueId : PlayersInsidePortal)
     {
-        for (APlayerState* PS : GameState->PlayerArray)
+        if (APlayerState* PS = FindPlayerStateByUniqueId(UniqueId))
         {
-            if (!PS || PS->IsInactive())
-            {
-                continue;
-            }
-            // 이 플레이어의 SelectionInfo 가져오기 TODO : PlayerState내 FSFPlayerSelectionInfo의 로비에서 CopyProperties 및 Replication 필요해 보임 
-            FSFPlayerSelectionInfo PlayerInfo = GetPlayerSelectionInfo(PS);
-            
-            // 포탈에 진입했는지 확인
-            bool bIsInPortal = PlayersInPortal.ContainsByPredicate(
-                [&PlayerInfo](const FSFPlayerSelectionInfo& Info)
-                {
-                    return Info == PlayerInfo;
-                }
-            );
-            
-            // 플레이어 상태 추가
-            Message.PlayerStatuses.Add(FPortalPlayerStatus(PlayerInfo, bIsInPortal));
+            Message.PlayersInPortal.Add(PS);
         }
     }
+    
+    Message.bReadyToTravel = (Message.PlayersInPortal.Num() >= Message.TotalPlayerCount) && 
+                              Message.TotalPlayerCount > 0;
+    
     MessageSubsystem.BroadcastMessage(SFGameplayTags::Message_Portal_InfoChanged, Message);
 }
 
@@ -280,12 +248,4 @@ void USFPortalManagerComponent::OnRep_PortalActive()
     {
         ManagedPortal->SetPortalEnabled(bPortalActive);
     }
-    
-    BroadcastPortalState();
 }
-
-void USFPortalManagerComponent::OnRep_PlayersInPortal()
-{
-    BroadcastPortalState();
-}
-

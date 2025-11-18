@@ -16,9 +16,9 @@ struct FPortalPlayerStatus
 {
     GENERATED_BODY()
     
-    // 플레이어 정보 (HeroDefinition, Nickname 포함)
+    // PlayerState 참조 (UI에서 직접 SelectionInfo 조회용)
     UPROPERTY(BlueprintReadOnly)
-    FSFPlayerSelectionInfo PlayerInfo;
+    TObjectPtr<APlayerState> PlayerState = nullptr;
     
     // 포탈에 진입했는지 (Ready)
     UPROPERTY(BlueprintReadOnly)
@@ -26,9 +26,9 @@ struct FPortalPlayerStatus
     
     FPortalPlayerStatus() = default;
     
-    FPortalPlayerStatus(const FSFPlayerSelectionInfo& InPlayerInfo, bool bInPortal)
-        : PlayerInfo(InPlayerInfo)
-        , bIsInPortal(bInPortal)
+    FPortalPlayerStatus(APlayerState* InPS, bool bInPortal)
+         : PlayerState(InPS)
+         , bIsInPortal(bInPortal)
     {}
 };
 
@@ -44,32 +44,25 @@ struct FSFPortalStateMessage
     UPROPERTY(BlueprintReadOnly)
     bool bIsActive = false;
     
-    // 전체 플레이어의 포탈 진입 상태
+    // 포탈에 진입한 플레이어들 
     UPROPERTY(BlueprintReadOnly)
-    TArray<FPortalPlayerStatus> PlayerStatuses;
+    TArray<TObjectPtr<APlayerState>> PlayersInPortal;
     
-    // 포탈에 진입한 플레이어 수
+    // 전체 플레이어 수
     UPROPERTY(BlueprintReadOnly)
-    int32 PlayersInPortalCount = 0;
-    
-    // 필요한 플레이어 수 (전체 플레이어 수)
+    int32 TotalPlayerCount = 0;
+
+    // Travel 대기 시간 (카운트다운 표시용, -1이면 대기중 아님)
     UPROPERTY(BlueprintReadOnly)
-    int32 RequiredPlayerCount = 0;
+    float TravelCountdown = -1.0f;
     
     // Travel 준비 완료 여부 (모든 플레이어 진입)
     UPROPERTY(BlueprintReadOnly)
     bool bReadyToTravel = false;
-    
-    // Travel 대기 시간 (카운트다운 표시용, -1이면 대기중 아님)
-    UPROPERTY(BlueprintReadOnly)
-    float TravelCountdown = -1.0f;
 };
 
 /**
  * Portal 시스템을 관리하는 GameState Component
- * - Portal 활성화 상태 관리
- * - Portal 내 플레이어 추적
- * - Travel 조건 체크
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class SF_API USFPortalManagerComponent : public UGameStateComponent
@@ -98,23 +91,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SF|Portal")
     void NotifyPlayerLeftPortal(APlayerState* PlayerState);
     
-    /** Portal에 있는 플레이어 목록 */
-    UFUNCTION(BlueprintPure, Category = "SF|Portal")
-    const TArray<FSFPlayerSelectionInfo>& GetPlayersInPortal() const { return PlayersInPortal; }
-    
-    /** 현재 Portal에 있는 플레이어 수 */
-    UFUNCTION(BlueprintPure, Category = "SF|Portal")
-    int32 GetCurrentPlayerCount() const { return PlayersInPortal.Num(); }
-    
-    /** Travel에 필요한 플레이어 수 */
-    UFUNCTION(BlueprintPure, Category = "SF|Portal")
-    int32 GetRequiredPlayerCount() const;
-    
-    /** 모든 플레이어가 Portal에 입장했는지 */
-    UFUNCTION(BlueprintPure, Category = "SF|Portal")
-    bool AreAllPlayersInPortal() const;
-
-    /** Portal Actor 등록 (Portal이 BeginPlay에서 호출) */
+    /** Portal Actor 등록 (World에 배치된 Portal이 BeginPlay에서 호출) */
     void RegisterPortal(ASFPortal* Portal);
     
     /** Portal Actor 등록 해제 */
@@ -128,10 +105,7 @@ private:
     UFUNCTION()
     void OnRep_PortalActive();
     
-    UFUNCTION()
-    void OnRep_PlayersInPortal();
-    
-    /** 포탈 상태 메시지 브로드캐스트 (GameplayMessageSubsystem 사용) */
+    /** 포탈 상태 메시지 브로드캐스트 */
     void BroadcastPortalState();
     
     /** Portal 준비 체크 및 Travel 시작 */
@@ -139,18 +113,20 @@ private:
     
     /** Travel 실행 (타이머 콜백) */
     void ExecuteTravel();
+
+    /** 필요한 플레이어 수 계산 */
+    int32 GetRequiredPlayerCount() const;
     
-    /** PlayerState에서 PlayerSelectionInfo 가져오기 */
-    FSFPlayerSelectionInfo GetPlayerSelectionInfo(const APlayerState* PlayerState) const;
+    /** UniqueId로 PlayerState 찾기 */
+    APlayerState* FindPlayerStateByUniqueId(const FUniqueNetIdRepl& UniqueId) const;
 
 private:
     /** Portal 활성화 상태 */
     UPROPERTY(ReplicatedUsing = OnRep_PortalActive)
     bool bPortalActive;
-    
-    /** Portal에 있는 플레이어 목록 */
-    UPROPERTY(ReplicatedUsing = OnRep_PlayersInPortal)
-    TArray<FSFPlayerSelectionInfo> PlayersInPortal;
+
+    /** Portal에 진입한 플레이어들 (UniqueId) */
+    TSet<FUniqueNetIdRepl> PlayersInsidePortal;
     
     /** Travel 대기 타이머 */
     FTimerHandle TravelTimerHandle;
@@ -159,11 +135,11 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "SF|Portal")
     float TravelDelayTime = 3.0f;
     
-    /** Travel 카운트다운 남은 시간 (UI용) */
+    /** Travel 카운트다운 남은 시간 */
     UPROPERTY()
     float TravelCountdownRemaining = -1.0f;
     
-    /** 이미 Travel 중인지 */
+    /** Travel 중인지 */
     bool bIsTraveling;
 
     /** 현재 관리중인 Portal */

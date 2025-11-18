@@ -89,10 +89,7 @@ void ASFPortal::SetPortalEnabled(bool bEnabled)
 	bIsEnabled = bEnabled;
 
 	// Listen 서버 비주얼 업데이트
-	if (PortalEffect)
-	{
-		PortalEffect->SetActive(bIsEnabled);
-	}
+	OnRep_bIsEnabled();
 }
 
 void ASFPortal::OnPortalBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 
