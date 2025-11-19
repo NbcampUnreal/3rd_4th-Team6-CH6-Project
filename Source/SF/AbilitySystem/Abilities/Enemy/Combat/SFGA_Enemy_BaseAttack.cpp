@@ -15,22 +15,23 @@ USFGA_Enemy_BaseAttack::USFGA_Enemy_BaseAttack(const FObjectInitializer& ObjectI
 	:Super(ObjectInitializer)
 {
 	//활성화 안되는 조건
-	//BlockAbilitiesWithTag.AddTag(SFGameplayTags::Ability_Attack);
-	// 활성화 시 소유자한테 제공
-	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_Attacking);
-
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Dead);
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Stunned);
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Hit);
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Blocking);	
+	BlockAbilitiesWithTag.AddTag(SFGameplayTags::Character_State_Attacking);
 	
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;  
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;  
+    
+	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_Attacking);  
+	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Dead);  
+	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Stunned);  
+	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Hit);  
+	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Blocking);  
 }
 
 bool USFGA_Enemy_BaseAttack::IsWithinAttackRange(const AActor* Target) const
 {
 	if (IsValid(GetSFCharacterFromActorInfo()))
 	{
-		return GetSFCharacterFromActorInfo()->GetDistanceTo(Target) <= AttackRange;
+		return (GetSFCharacterFromActorInfo()->GetDistanceTo(Target) <= AttackRange && GetSFCharacterFromActorInfo()->GetDistanceTo(Target) >MinAttackRange);
 	}
 	return false; 
 }
@@ -74,7 +75,7 @@ bool USFGA_Enemy_BaseAttack::CanActivateAbility(
 	ASFCharacterBase* Target = GetCurrentTarget();
 	if (!IsValid(Target))
 	{
-		return false;  // 타겟이 없으면 공격 불가
+		return false;  
 	}
 
 	// 공격 가능 범위/각도 체크
@@ -136,3 +137,28 @@ ASFCharacterBase* USFGA_Enemy_BaseAttack::GetCurrentTarget() const
 	return nullptr;
 }
 
+void USFGA_Enemy_BaseAttack::ApplyCooldown(
+	const FGameplayAbilitySpecHandle Handle, 
+	const FGameplayAbilityActorInfo* ActorInfo, 
+	const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	UGameplayEffect* CooldownGE = GetCooldownGameplayEffect();
+	if (CooldownGE)
+	{
+	
+		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+			CooldownGameplayEffectClass, 
+			GetAbilityLevel()
+		);
+        
+		if (SpecHandle.IsValid())
+		{
+			SpecHandle.Data->SetSetByCallerMagnitude(
+				FGameplayTag::RequestGameplayTag(FName("Data.Cooldown.Duration")), 
+				Cooldown  
+			);
+			
+			ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
+		}
+	}
+}

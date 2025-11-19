@@ -31,6 +31,9 @@ USFEnemyAnimInstance::USFEnemyAnimInstance(const FObjectInitializer& ObjectIniti
 	, bHasAcceleration(false)
 	, WorldAcceleration2D(FVector::ZeroVector)
 	, LocalAcceleration2D(FVector::ZeroVector)
+	, LocalVelocityDirectionAngle(0.0f)
+	, CardinalDirectionDeadZone(10.f)
+	, bWasMovingLastFrame(false)
 {
 }
 
@@ -180,6 +183,13 @@ void USFEnemyAnimInstance::UpdateVelocityData()
 	{
 		bHasVelocity = false;
 	}
+
+	//로컬 좌표계 각도
+	LocalVelocityDirectionAngle = FMath::RadiansToDegrees(FMath::Atan2(LocalVelocity2D.Y, LocalVelocity2D.X));
+
+	LocalVelocityDirection = GetCardinalDirectionFromAngle(LocalVelocityDirectionAngle, CardinalDirectionDeadZone, LocalVelocityDirection,bWasMovingLastFrame);
+
+	bWasMovingLastFrame = bHasVelocity;
 }
 
 void USFEnemyAnimInstance::UpdateAccelerationData()
@@ -224,6 +234,46 @@ float USFEnemyAnimInstance::GetPredictedStopDistance() const
 	return FVector2D(PredictedStopLoc).Length();
 }
 
+AE_CardinalDirection USFEnemyAnimInstance::GetCardinalDirectionFromAngle(float Angle, float DeadZone,
+	AE_CardinalDirection CurrentDirection, bool bUseCurrentDirection) const
+{
+	float AbsAngle = FMath::Abs(Angle);
+	float FwdDeadZone = DeadZone;
+	float BwdDeadZone = DeadZone;
+
+	// 현재 direction에 가중치를 주기 위한 처리
+	if (bUseCurrentDirection)
+	{
+		switch (CurrentDirection)
+		{
+		case AE_CardinalDirection::Forward :
+			FwdDeadZone *= 2.0f;
+			break;
+		case AE_CardinalDirection::Backward :
+			BwdDeadZone *= 2.0f;
+			break;
+		default:
+			break;
+		}
+	}
+	if (FwdDeadZone +45 >= AbsAngle)
+	{
+		return AE_CardinalDirection::Forward;
+	}
+	else if (135.0f - BwdDeadZone <= AbsAngle)
+	{
+		return AE_CardinalDirection::Backward;
+	}
+	else if (Angle < 0.0f)
+	{
+		return AE_CardinalDirection::Left;
+	}
+	else
+	{
+		return AE_CardinalDirection::Right;
+	}
+	
+}
 
 
 #pragma endregion

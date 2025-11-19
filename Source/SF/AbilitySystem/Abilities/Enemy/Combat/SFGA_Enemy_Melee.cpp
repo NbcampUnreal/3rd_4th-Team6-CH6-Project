@@ -10,12 +10,18 @@
 #include "AI/SFAIGameplayTags.h"
 #include "Character/SFCharacterBase.h"
 #include "Character/SFCharacterGameplayTags.h"
+#include "Equipment/EquipmentComponent/SFEquipmentComponent.h"
+#include "Equipment/EquipmentInstance/SFEquipmentInstance.h"
+#include "Interface/SFTraceActorInterface.h"
+
+class USFEquipmentComponent;
 
 USFGA_Enemy_Melee::USFGA_Enemy_Melee(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer),
+	Penetration(1)
 {
 	FGameplayTagContainer AssetTags;
-	AssetTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Attack.Melee")));
+	AssetTags.AddTag(SFGameplayTags::Ability_BaseAttack_Melee);
 	SetAssetTags(AssetTags);
 }
 
@@ -27,6 +33,7 @@ void USFGA_Enemy_Melee::ActivateAbility(
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
+	CurrentPenetration = Penetration;
 	// 1. 기본 검증
 	if (AttackTypeMontage.AnimMontage == nullptr)
 	{
@@ -76,6 +83,43 @@ void USFGA_Enemy_Melee::ActivateAbility(
 	}
 }
 
+
+void USFGA_Enemy_Melee::EndAbility(	const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateEndAbility, bool bWasCancelled)
+{
+
+	CleanupWeaponTraces();
+    
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void USFGA_Enemy_Melee::CleanupWeaponTraces() // 만약 도중에 죽을 수도 있으니 무기 트레이스 꺼버리기 
+{
+	AActor* Owner = GetAvatarActorFromActorInfo();
+	if (!Owner)
+		return;
+    
+	USFEquipmentComponent* EquipmentComp = USFEquipmentComponent::FindEquipmentComponent(Owner);
+	if (!EquipmentComp)
+		return;
+    
+	const TArray<USFEquipmentInstance*>& EquippedItems = EquipmentComp->GetEquippedItems();
+	for (USFEquipmentInstance* Instance : EquippedItems)
+	{
+		if (!Instance)
+			continue;
+        
+		const TArray<AActor*>& SpawnedActors = Instance->GetSpawnedActors();
+		for (AActor* Actor : SpawnedActors)
+		{
+			if (ISFTraceActorInterface* TraceActor = Cast<ISFTraceActorInterface>(Actor))
+			{
+				TraceActor->OnTraceEnd(Owner);
+			}
+		}
+	}
+}
+
 void USFGA_Enemy_Melee::OnTraceHit(FGameplayEventData Payload)
 {
 
@@ -90,15 +134,21 @@ void USFGA_Enemy_Melee::OnTraceHit(FGameplayEventData Payload)
 	{
 		return;
 	}
-	
+	if (CurrentPenetration > 0)
+	{
+		ApplyDamageToTarget(HitActor, BaseDamage);
+		CurrentPenetration--;
+	}
 	if (HitCharacter->HasMatchingGameplayTag(SFGameplayTags::Character_State_Parrying))
 	{
 		// TODO: 경직 상태로 전환하거나 패링 리액션 재생
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
-    
-	ApplyDamageToTarget(HitActor, BaseDamage);
+	
+
+	
+	return;
 }
 
 void USFGA_Enemy_Melee::OnMontageCompleted()
