@@ -2,8 +2,8 @@
 
 namespace SFGameplayTags
 {
-	// Native Input Tags
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Message_Portal_InfoChanged, "Message.Portal.InfoChanged", "Portal Info Changed Message");
+	// Gameplay Message Tags
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Message_Portal_StateChanged, "Message.Portal.InfoChanged", "Portal Info Changed Message");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Message_Player_TravelReadyChanged, "Message.Player.TravelReadyChanged", "Player Travel Ready Changed Message");
 
-	// Ability Input Tags
 }

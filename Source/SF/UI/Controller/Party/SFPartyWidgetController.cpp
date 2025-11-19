@@ -62,9 +62,9 @@ void USFPartyWidgetController::HandlePlayerRemoved(APlayerState* InPlayerState)
 void USFPartyWidgetController::AddAndBroadcastMember(ASFPlayerState* PlayerState)
 {
 	// TMap에 이미 존재하는지 확인 
-	if (PartyMemberControllers.Contains(PlayerState))
+	if (PartyMemberControllerMap.Contains(PlayerState))
 	{
-		UE_LOG(LogSF, Warning, TEXT("USFPartyWidgetController: PlayerState is already in PartyMemberControllers."));
+		UE_LOG(LogSF, Warning, TEXT("USFPartyWidgetController: PlayerState is already in PartyMemberControllerMap."));
 		return;
 	}
 
@@ -85,7 +85,7 @@ void USFPartyWidgetController::AddAndBroadcastMember(ASFPlayerState* PlayerState
 	MemberController->SetWidgetControllerParams(Params);
 	MemberController->BindCallbacksToDependencies();
 
-	PartyMemberControllers.Add(PlayerState, MemberController);
+	PartyMemberControllerMap.Add(PlayerState, MemberController);
 	OnPartyMemberAdded.Broadcast(MemberController);
 
 	// 위젯에 위젯 컨트롤러 설정(WBP_PartyInfo에서 호출함)
@@ -94,10 +94,10 @@ void USFPartyWidgetController::AddAndBroadcastMember(ASFPlayerState* PlayerState
 
 void USFPartyWidgetController::RemoveAndBroadcastMember(ASFPlayerState* PlayerState)
 {
-	USFPartyMemberWidgetController* MemberController = PartyMemberControllers.FindRef(PlayerState);
+	USFPartyMemberWidgetController* MemberController = PartyMemberControllerMap.FindRef(PlayerState);
 	if (MemberController)
 	{
-		PartyMemberControllers.Remove(PlayerState);
+		PartyMemberControllerMap.Remove(PlayerState);
 		OnPartyMemberRemoved.Broadcast(MemberController);
 
 		// MemberController는 TMap에서 제거되었으므로 GC됨
@@ -106,7 +106,7 @@ void USFPartyWidgetController::RemoveAndBroadcastMember(ASFPlayerState* PlayerSt
 
 USFPartyMemberWidgetController* USFPartyWidgetController::GetMemberController(APlayerState* PlayerState) const
 {
-	if (const TObjectPtr<USFPartyMemberWidgetController>* Controller = PartyMemberControllers.Find(PlayerState))
+	if (const TObjectPtr<USFPartyMemberWidgetController>* Controller = PartyMemberControllerMap.Find(PlayerState))
 	{
 		return *Controller;
 	}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/Actor.h"
 #include "SFPortal.generated.h"
 
@@ -34,6 +35,8 @@ public:
 	/** 다음 스테이지 레벨 가져오기 */
 	UFUNCTION(BlueprintPure, Category = "SF|Portal")
 	TSoftObjectPtr<UWorld> GetNextStageLevel() const { return NextStageLevel; }
+
+	UPrimitiveComponent* GetTriggerComponent() const { return TriggerBox; }
 
 protected:
 	virtual void BeginPlay() override;

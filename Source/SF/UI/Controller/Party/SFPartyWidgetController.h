@@ -54,8 +54,7 @@ public:
 	FOnPartyMemberControllerChanged OnPartyMemberRemoved;
 
 	// 이 컨트롤러가 개별 멤버 컨트롤러를 소유/관리
-	UPROPERTY(BlueprintReadOnly, Category="SF|Controller")
-	TMap<TObjectPtr<APlayerState>, TObjectPtr<USFPartyMemberWidgetController>> PartyMemberControllers;
+	TMap<TWeakObjectPtr<APlayerState>, TObjectPtr<USFPartyMemberWidgetController>> PartyMemberControllerMap;
 	
 private:
 	// 파티 멤버 위젯 컨트롤러의 블루프린트 클래스

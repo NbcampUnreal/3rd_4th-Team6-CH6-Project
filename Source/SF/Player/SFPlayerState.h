@@ -62,6 +62,9 @@ public:
 	void SetPlayerSelection(const FSFPlayerSelectionInfo& NewPlayerSelection);
 	const FSFPlayerSelectionInfo& GetPlayerSelection() const { return PlayerSelection; }
 
+	void SetIsReadyForTravel(bool bInIsReadyForTravel);
+	bool GetIsReadyForTravel() const { return bIsReadyForTravel; }
+
 	//~AActor interface
 	virtual void PostInitializeComponents() override;
 	//~End of AActor interface
@@ -84,6 +87,9 @@ private:
 
 	UFUNCTION()
 	virtual void OnRep_PlayerSelection();
+
+	UFUNCTION()
+	void OnRep_IsReadyForTravel();
 	
 public:
 	FOnPawnDataLoaded OnPawnDataLoaded;
@@ -99,6 +105,9 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_PlayerSelection)
 	FSFPlayerSelectionInfo PlayerSelection;
+
+	UPROPERTY(ReplicatedUsing = OnRep_IsReadyForTravel)
+	uint8 bIsReadyForTravel : 1;
 
 	UPROPERTY(VisibleAnywhere, Category = "SF|PlayerState")
 	TObjectPtr<USFAbilitySystemComponent> AbilitySystemComponent;

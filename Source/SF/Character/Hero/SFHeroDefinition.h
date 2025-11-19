@@ -30,6 +30,9 @@ public:
 	UTexture2D* LoadIcon() const;
 
 	UFUNCTION(BlueprintPure, Category = "SF|Hero")
+	TSoftObjectPtr<UTexture2D> GetIconPath() const { return HeroIcon; }
+
+	UFUNCTION(BlueprintPure, Category = "SF|Hero")
 	TSubclassOf<UAnimInstance> LoadDisplayAnimationBP() const;
 
 	UFUNCTION(BlueprintPure, Category = "SF|Hero")
