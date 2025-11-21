@@ -30,7 +30,9 @@ public class SF : ModuleRules
 			"GameplayMessageRuntime",
 			"AnimGraphRuntime",
 			"AnimationLocomotionLibraryRuntime",
-			"NavigationSystem"
+			"NavigationSystem",
+			"MoviePlayer",
+			"EngineSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
