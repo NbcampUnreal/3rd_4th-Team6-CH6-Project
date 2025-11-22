@@ -15,13 +15,9 @@ void USFLoadingScreenSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     // 1. 하드 트래블(OpenLevel) 감지
     FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &USFLoadingScreenSubsystem::OnPreLoadMap);
 
-    // 2. 맵 로드 완료 감지 (하드/심리스 공통)
+    // 2. 맵 로드 완료 감지 
     FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &USFLoadingScreenSubsystem::OnPostLoadMapWithWorld);
-
-    // 3. 심리스 트래블(ServerTravel) 시작 감지 TODO : CommonLoadingScreen 시스템에서 이를 대체할 예정
-    //FWorldDelegates::OnSeamlessTravelStart.AddUObject(this, &USFLoadingScreenSubsystem::OnSeamlessTravelStart);
     
-    bIsSeamlessTravelInProgress = false;
     bCurrentLoadingScreenStarted = false;
 }
 
@@ -31,7 +27,6 @@ void USFLoadingScreenSubsystem::Deinitialize()
     
     FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
     FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
-    FWorldDelegates::OnSeamlessTravelStart.RemoveAll(this);
 	Super::Deinitialize();
 }
 
@@ -42,16 +37,36 @@ bool USFLoadingScreenSubsystem::ShouldCreateSubsystem(UObject* Outer) const
     return !bIsServerWorld;
 }
 
-void USFLoadingScreenSubsystem::OnPreLoadMap(const FString& MapName)
+void USFLoadingScreenSubsystem::SetPreLoadingScreenContentWidget(TSubclassOf<UUserWidget> NewWidgetClass)
 {
-    bIsSeamlessTravelInProgress = false;
-    StartLoadingScreen();
-    
+    if (PreLoadingScreenWidgetClass != NewWidgetClass)
+    {
+        PreLoadingScreenWidgetClass = NewWidgetClass;
+        OnPreLoadingScreenWidgetChanged.Broadcast(PreLoadingScreenWidgetClass);
+    }
 }
 
-void USFLoadingScreenSubsystem::OnSeamlessTravelStart(UWorld* CurrentWorld, const FString& LevelName)
+TSubclassOf<UUserWidget> USFLoadingScreenSubsystem::GetPreLoadingScreenContentWidget() const
 {
-    bIsSeamlessTravelInProgress = true;
+    return PreLoadingScreenWidgetClass;
+}
+
+void USFLoadingScreenSubsystem::SetLoadingScreenContentWidget(TSubclassOf<UUserWidget> NewWidgetClass)
+{
+    if (LoadingScreenWidgetClass != NewWidgetClass)
+    {
+        LoadingScreenWidgetClass = NewWidgetClass;
+        OnLoadingScreenWidgetChanged.Broadcast(LoadingScreenWidgetClass);
+    }
+}
+
+TSubclassOf<UUserWidget> USFLoadingScreenSubsystem::GetLoadingScreenContentWidget() const
+{
+    return LoadingScreenWidgetClass;
+}
+
+void USFLoadingScreenSubsystem::OnPreLoadMap(const FString& MapName)
+{
     StartLoadingScreen();
 }
 
@@ -69,34 +84,23 @@ void USFLoadingScreenSubsystem::StartLoadingScreen()
 
     FLoadingScreenAttributes LoadingScreen;
     UGameInstance* LocalGameInstance = GetGameInstance();
-    TSubclassOf<UUserWidget> LoadingScreenWidgetClass = LoadingScreenWidget.TryLoadClass<UUserWidget>();
-    if (UUserWidget* LoadingWidget = UUserWidget::CreateWidgetInstance(*LocalGameInstance, LoadingScreenWidgetClass, NAME_None))
+    TSubclassOf<UUserWidget> LoadedWidgetClass = PreLoadingScreenWidget.TryLoadClass<UUserWidget>();
+    if (UUserWidget* LoadingWidget = UUserWidget::CreateWidgetInstance(*LocalGameInstance, LoadedWidgetClass, NAME_None))
     {
-        LoadingSWidgetPtr = LoadingWidget->TakeWidget();
-        LoadingScreen.WidgetLoadingScreen = LoadingSWidgetPtr;
+        PreLoadingSWidgetPtr = LoadingWidget->TakeWidget();
+        LoadingScreen.WidgetLoadingScreen = PreLoadingSWidgetPtr;
     }
     else
     {
-        // 기본적으로 정의한 SSimpleLoadingScreen 사용
         LoadingScreen.WidgetLoadingScreen = SNew(SSFSimpleLoadingScreen); 
     }
     
-    if (bIsSeamlessTravelInProgress)
-    {
-        LoadingScreen.bAllowEngineTick = false;   
-        LoadingScreen.bWaitForManualStop = true; 
-        LoadingScreen.bAutoCompleteWhenLoadingCompletes = false;
-    }
-    else
-    {
-        // 하드 트래블 최적화
-        LoadingScreen.bAllowEngineTick = false; 
-        LoadingScreen.bWaitForManualStop = false;
-        LoadingScreen.bAutoCompleteWhenLoadingCompletes = true;
-    }
-
+    // 하드 트래블 최적화
+    LoadingScreen.bAllowEngineTick = false; 
+    LoadingScreen.bWaitForManualStop = false;
+    LoadingScreen.bAutoCompleteWhenLoadingCompletes = true;
     LoadingScreen.bMoviesAreSkippable = false;
-    LoadingScreen.MinimumLoadingScreenDisplayTime = 3.0f; // 최소 노출 시간
+    LoadingScreen.MinimumLoadingScreenDisplayTime = 3.0f; // 최소 로딩 스크린 표시 시간
     LoadingScreen.PlaybackType = MT_Normal;
 
     GetMoviePlayer()->SetupLoadingScreen(LoadingScreen);
@@ -113,28 +117,10 @@ void USFLoadingScreenSubsystem::StartLoadingScreen()
 
 void USFLoadingScreenSubsystem::OnPostLoadMapWithWorld(UWorld* LoadedWorld)
 {
-    FString LoadedMapName = LoadedWorld->GetPackage()->GetName();
-    if (bIsSeamlessTravelInProgress)
+    if (bCurrentLoadingScreenStarted)
     {
-        if (IsInSeamlessTravel())
-        {
-            return; 
-        }
-        else
-        {
-            if (bCurrentLoadingScreenStarted)
-            {
-                //StopLoadingScreen();
-            }
-        }
-    }
-    else
-    {
-        if (bCurrentLoadingScreenStarted)
-        {
-            // 하드 트래블 완료 (bAutoCompleteWhenLoadingCompletes=true라면 엔진이 알아서 끄지만 명시적으로 호출)
-            StopLoadingScreen();
-        }
+        // 하드 트래블 완료 (bAutoCompleteWhenLoadingCompletes=true라면 엔진이 알아서 끄지만 명시적으로 호출)
+        StopLoadingScreen();
     }
 }
 
@@ -154,13 +140,13 @@ void USFLoadingScreenSubsystem::StopLoadingScreen()
 void USFLoadingScreenSubsystem::RemoveWidgetFromViewport()
 {
     UGameInstance* LocalGameInstance = GetGameInstance();
-    if (LoadingSWidgetPtr.IsValid())
+    if (PreLoadingSWidgetPtr.IsValid())
     {
         if (UGameViewportClient* GameViewportClient = LocalGameInstance->GetGameViewportClient())
         {
-            GameViewportClient->RemoveViewportWidgetContent(LoadingSWidgetPtr.ToSharedRef());
+            GameViewportClient->RemoveViewportWidgetContent(PreLoadingSWidgetPtr.ToSharedRef());
         }
-        LoadingSWidgetPtr.Reset();
+        PreLoadingSWidgetPtr.Reset();
     }
 }
 

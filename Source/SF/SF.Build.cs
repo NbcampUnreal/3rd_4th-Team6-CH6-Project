@@ -33,7 +33,8 @@ public class SF : ModuleRules
 			"AnimationLocomotionLibraryRuntime",
 			"NavigationSystem",
 			"MoviePlayer",
-			"EngineSettings"
+			"EngineSettings",
+			"CommonLoadingScreen",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

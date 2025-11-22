@@ -67,6 +67,8 @@ private:
 	UE_API void HandlePreLoadMap(const FWorldContext& WorldContext, const FString& MapName);
 	UE_API void HandlePostLoadMap(UWorld* World);
 
+	UE_API void HandleSeamlessTravelStart(UWorld* CurrentWorld, const FString& LevelName);
+
 	/** Determines if we should show or hide the loading screen. Called every frame. */
 	UE_API void UpdateLoadingScreen();
 
@@ -126,6 +128,9 @@ private:
 
 	/** True when the loading screen is currently being shown */
 	bool bCurrentlyShowingLoadingScreen = false;
+
+	bool bIsHardTravel = true;
+
 };
 
 #undef UE_API

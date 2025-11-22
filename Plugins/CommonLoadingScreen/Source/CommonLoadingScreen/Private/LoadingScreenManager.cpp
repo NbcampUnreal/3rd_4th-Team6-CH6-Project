@@ -139,6 +139,8 @@ void ULoadingScreenManager::Initialize(FSubsystemCollectionBase& Collection)
 	FCoreUObjectDelegates::PreLoadMapWithContext.AddUObject(this, &ThisClass::HandlePreLoadMap);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &ThisClass::HandlePostLoadMap);
 
+	FWorldDelegates::OnSeamlessTravelStart.AddUObject(this, &ULoadingScreenManager::HandleSeamlessTravelStart);
+
 	const UGameInstance* LocalGameInstance = GetGameInstance();
 	check(LocalGameInstance);
 }
@@ -211,9 +213,10 @@ void ULoadingScreenManager::UnregisterLoadingProcessor(TScriptInterface<ILoading
 
 void ULoadingScreenManager::HandlePreLoadMap(const FWorldContext& WorldContext, const FString& MapName)
 {
+	bIsHardTravel = true;
 	if (WorldContext.OwningGameInstance == GetGameInstance())
 	{
-		bCurrentlyInLoadMap = true;
+		//bCurrentlyInLoadMap = true;
 
 		// Update the loading screen immediately if the engine is initialized
 		if (GEngine->IsInitialized())
@@ -229,6 +232,11 @@ void ULoadingScreenManager::HandlePostLoadMap(UWorld* World)
 	{
 		bCurrentlyInLoadMap = false;
 	}
+}
+
+void ULoadingScreenManager::HandleSeamlessTravelStart(UWorld* CurrentWorld, const FString& LevelName)
+{
+	bIsHardTravel = false;
 }
 
 void ULoadingScreenManager::UpdateLoadingScreen()
@@ -418,6 +426,11 @@ bool ULoadingScreenManager::CheckForAnyNeedToShowLoadingScreen()
 
 bool ULoadingScreenManager::ShouldShowLoadingScreen()
 {
+	if (bIsHardTravel)
+	{
+		return false;
+	}
+	
 	if (IGameMoviePlayer* MoviePlayer = GetMoviePlayer())
 	{
 		if (MoviePlayer->IsMovieCurrentlyPlaying())

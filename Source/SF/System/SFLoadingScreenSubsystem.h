@@ -6,6 +6,10 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SFLoadingScreenSubsystem.generated.h"
 
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPreLoadingScreenWidgetChangedDelegate, TSubclassOf<UUserWidget>, NewWidgetClass);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLoadingScreenWidgetChangedDelegate, TSubclassOf<UUserWidget>, NewWidgetClass);
+
 /**
  * 
  */
@@ -18,6 +22,22 @@ public:
 	virtual void Deinitialize() override;
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
+	// Hard Travel 로딩 스크린 위젯 설정
+	UFUNCTION(BlueprintCallable, Category = "SF|Loading")
+	void SetPreLoadingScreenContentWidget(TSubclassOf<UUserWidget> NewWidgetClass);
+
+	// 현재 설정된 Hard Travel 로딩 스크린 위젯 클래스 리턴
+	UFUNCTION(BlueprintPure, Category = "SF|Loading")
+	TSubclassOf<UUserWidget> GetPreLoadingScreenContentWidget() const;
+	
+	// Seamless Travel 로딩 스크린 위젯 설정
+	UFUNCTION(BlueprintCallable, Category = "SF|Loading")
+	void SetLoadingScreenContentWidget(TSubclassOf<UUserWidget> NewWidgetClass);
+
+	// 현재 설정된 Seamless Travel 로딩 스크린 위젯 클래스 리턴
+	UFUNCTION(BlueprintPure, Category = "SF|Loading")
+	TSubclassOf<UUserWidget> GetLoadingScreenContentWidget() const;
+	
 	// 수동으로 로딩 스크린 시작 
 	UFUNCTION(BlueprintCallable, Category = "SF|Loading")
 	void StartLoadingScreen();
@@ -30,10 +50,7 @@ private:
 	// 하드 트래블 감지용 (OpenLevel)
 	void OnPreLoadMap(const FString& MapName);
 
-	// 심리스 트래블 감지용 (ServerTravel)
-	void OnSeamlessTravelStart(UWorld* CurrentWorld, const FString& LevelName);
-
-	// 맵 로딩 완료 감지 (트랜지션 맵과 목적지 맵 구분 로직 포함)
+	// 맵 로딩 완료 감지
 	void OnPostLoadMapWithWorld(UWorld* LoadedWorld);
 
 	bool IsInSeamlessTravel();
@@ -44,12 +61,22 @@ private:
 	void RemoveWidgetFromViewport();
 
 private:
-	bool bIsSeamlessTravelInProgress;
-
 	bool bCurrentLoadingScreenStarted;
 	
 	UPROPERTY(Config, EditDefaultsOnly, Category = "SF|Loading")
-	FSoftClassPath LoadingScreenWidget;;
+	FSoftClassPath PreLoadingScreenWidget;
 
-	TSharedPtr<SWidget> LoadingSWidgetPtr;
+	TSharedPtr<SWidget> PreLoadingSWidgetPtr;
+
+	UPROPERTY(BlueprintAssignable, meta=(AllowPrivateAccess))
+	FLoadingScreenWidgetChangedDelegate OnPreLoadingScreenWidgetChanged;
+	
+	UPROPERTY(BlueprintAssignable, meta=(AllowPrivateAccess))
+	FLoadingScreenWidgetChangedDelegate OnLoadingScreenWidgetChanged;
+
+	UPROPERTY()
+	TSubclassOf<UUserWidget> PreLoadingScreenWidgetClass;
+	
+	UPROPERTY()
+	TSubclassOf<UUserWidget> LoadingScreenWidgetClass;
 };
