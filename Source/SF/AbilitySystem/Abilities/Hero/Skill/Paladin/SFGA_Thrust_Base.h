@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystem/Abilities/SFGameplayAbility.h"
+#include "AbilitySystem/Abilities/Hero/Skill/SFGA_Skill_Melee.h"
 #include "SFGA_Thrust_Base.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class SF_API USFGA_Thrust_Base : public USFGameplayAbility
+class SF_API USFGA_Thrust_Base : public USFGA_Skill_Melee
 {
 	GENERATED_BODY()
 
