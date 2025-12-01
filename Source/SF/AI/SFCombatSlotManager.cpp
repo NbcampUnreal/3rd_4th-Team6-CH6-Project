@@ -89,7 +89,8 @@ void USFCombatSlotManager::ReleaseSlot(ASFEnemyController* Releaser, AActor* Tar
 		Releaser->bHasGuardSlot = false;
 
 		const int32 RemainingSlots = SlotInfo->SlotHolders.Num();
-
+		UE_LOG(LogTemp, Log, TEXT("[SFCombatSlotManager] 🔓 %s: SLOT RELEASED for %s → Slots %d/%d"),
+			*PawnName, *Target->GetName(), RemainingSlots, SlotInfo->MaxSlots);
 
 		if (RemainingSlots == 0)
 		{
@@ -169,6 +170,7 @@ void USFCombatSlotManager::ReleaseAllSlots(ASFEnemyController* AIController)
 	// [변경] bHasAttackSlot -> bHasGuardSlot
 	AIController->bHasGuardSlot = false;
 	
+	UE_LOG(LogTemp, Log, TEXT("[SFCombatSlotManager] 🔓 %s: Force Released All Slots"), *PawnName);
 }
 
 TArray<AActor*> USFCombatSlotManager::GetPlayerGroup(AActor* Player) const
