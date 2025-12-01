@@ -11,10 +11,6 @@ class UAnimInstance;
 class USFGameplayAbility;
 class USFEquipmentInstance;
 
-USTRUCT(BlueprintType)
-struct FEquipmentAnimLayer
-{
-	GENERATED_BODY()
 
 	// Animation Layer를 구현한 AnimInstance 클래스
 	// 주의: LinkAnimClassLayers는 AnimInstance 클래스를 받으므로, 
@@ -104,7 +100,7 @@ public:
 
 	//해당 무기 장착 시 사용할 AnimationLayer 
 	UPROPERTY(EditDefaultsOnly)
-	FEquipmentAnimLayer AnimLayerInfo;
+	TSubclassOf<UAnimInstance> AnimLayerInfo;
 	
 	
 };
