@@ -74,6 +74,8 @@ private:
 
 	void SpawnEquipmentActors();
 	void GrantAbilities(UAbilitySystemComponent* ASC);
+	
+	// Animation Layer 연결/해제
 	void ApplyAnimationLayer();
 	void RemoveAnimationLayer();
 };

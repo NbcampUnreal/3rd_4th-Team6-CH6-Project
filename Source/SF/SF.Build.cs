@@ -32,13 +32,14 @@ public class SF : ModuleRules
 			"AnimGraphRuntime",
 			"AnimationLocomotionLibraryRuntime",
 			"NavigationSystem",
+			"MotionWarping"
 			"MoviePlayer",
 			"EngineSettings",
 			"CommonLoadingScreen",
-            "PlayFab",
-            "PlayFabCpp",
-            "PlayFabCommon",
-            "Json",
+      "PlayFab",
+      "PlayFabCpp",
+      "PlayFabCommon",
+      "Json",
 			"JsonUtilities",
 		});
 

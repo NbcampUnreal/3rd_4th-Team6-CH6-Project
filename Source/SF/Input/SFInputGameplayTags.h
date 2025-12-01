@@ -10,4 +10,5 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Crouch);
 
 	// Ability Input Tags
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Attack);
 }

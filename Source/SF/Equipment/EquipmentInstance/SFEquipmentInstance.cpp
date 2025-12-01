@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
 #include "AbilitySystem/Abilities/SFGameplayAbility.h"
+#include "Animation/AnimInstance.h"
 #include "AbilitySystem/Abilities/Enemy/SFEnemyAbilityInitializer.h"
 #include "Character/Enemy/SFEnemy.h"
 #include "System/SFGameInstance.h"
@@ -47,7 +48,6 @@ void USFEquipmentInstance::Initialize(USFEquipmentDefinition* InDefinition, APaw
         GrantAbilities(ASC);
     }
     ApplyAnimationLayer();
-    
 }
 
 void USFEquipmentInstance::SpawnEquipmentActors()
@@ -219,54 +219,57 @@ void USFEquipmentInstance::Deinitialize(UAbilitySystemComponent* ASC)
     // 스폰된 Actor 제거
     SpawnedActorList.DestroySpawnedActors();
 
+    // Animation Layer 제거
+    RemoveAnimationLayer();
+    
     //참조 정리
     EquipmentDefinition = nullptr;
     Instigator = nullptr;
     
 }
+
 void USFEquipmentInstance::ApplyAnimationLayer()
 {
     if (!EquipmentDefinition || !Instigator)
     {
         return;
     }
-
-    USkeletalMeshComponent* PawnMesh = Instigator->FindComponentByClass<USkeletalMeshComponent>();
-    if (!PawnMesh)
-    {
-        return;
-    }
-    TSubclassOf<UAnimInstance> AnimLayerInfo = EquipmentDefinition->AnimLayerInfo;
-    if (!IsValid(AnimLayerInfo))
-    {
-        return;
-    }
-
-    // 3. Animation Layer 적용
-    PawnMesh->LinkAnimClassLayers(AnimLayerInfo);
     
+    USkeletalMeshComponent* MeshComponent = Instigator->FindComponentByClass<USkeletalMeshComponent>();
+    if (!MeshComponent)
+    {
+        return;
+    }
+    
+    const FEquipmentAnimLayer& AnimLayerInfo = EquipmentDefinition->AnimLayerInfo;
+    
+    if (AnimLayerInfo.AnimLayerClass)
+    {
+        // Animation Layer Interface를 구현한 AnimInstance 클래스를 연결
+        MeshComponent->LinkAnimClassLayers(AnimLayerInfo.AnimLayerClass);
+    }
 }
 
 void USFEquipmentInstance::RemoveAnimationLayer()
 {
-    if (!EquipmentDefinition || !Instigator)
+    // EquipmentDefinition이 유효한지 확인
+    if (!Instigator || !EquipmentDefinition)
     {
         return;
     }
-
-    USkeletalMeshComponent* PawnMesh = Instigator->FindComponentByClass<USkeletalMeshComponent>();
-    if (!PawnMesh)
-    {
-        return;
-    }
-
-    TSubclassOf<UAnimInstance> AnimLayerInfo = EquipmentDefinition->AnimLayerInfo;
-    if (!IsValid(AnimLayerInfo))
-    {
-        return;
-    }
-
-    // Animation Layer 제거
-    PawnMesh->UnlinkAnimClassLayers(AnimLayerInfo);
     
+    USkeletalMeshComponent* MeshComponent = Instigator->FindComponentByClass<USkeletalMeshComponent>();
+    if (!MeshComponent)
+    {
+        return;
+    }
+    
+    // 정의된 정보에서 연결했던 애니메이션 레이어 클래스를 가져옴
+    const FEquipmentAnimLayer& AnimLayerInfo = EquipmentDefinition->AnimLayerInfo;
+    
+    // 해당 클래스가 유효하다면 언링크(해제)
+    if (AnimLayerInfo.AnimLayerClass)
+    {
+        MeshComponent->UnlinkAnimClassLayers(AnimLayerInfo.AnimLayerClass);
+    }
 }
