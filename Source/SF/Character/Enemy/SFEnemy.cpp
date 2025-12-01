@@ -8,6 +8,7 @@
 #include "AbilitySystem/Attributes/SFCombatSet.h"
 #include "AbilitySystem/Attributes/SFPrimarySet.h"
 #include "AbilitySystem/Attributes/Enemy/SFCombatSet_Enemy.h"
+#include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Character/SFPawnData.h"
 #include "Character/SFPawnExtensionComponent.h"
 #include "Component/SFEnemyMovementComponent.h"
