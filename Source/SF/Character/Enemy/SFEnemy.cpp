@@ -132,6 +132,9 @@ void ASFEnemy::InitializeAttributeSet(USFPawnExtensionComponent* PawnExtComp)
 		AttrMap.Add(SFGameplayTags::Data_CriticalDamage, AttrData->CriticalDamage);
 		AttrMap.Add(SFGameplayTags::Data_CriticalChance, AttrData->CriticalChance);
 		AttrMap.Add(SFGameplayTags::Data_Enemy_MaxStagger, AttrData->MaxStagger);
+		AttrMap.Add(SFGameplayTags::Data_Enemy_GuardRange, AttrData->GuardRange);
+		AttrMap.Add(SFGameplayTags::Data_Enemy_SightRadius, AttrData->SightRadius);
+		AttrMap.Add(SFGameplayTags::Data_Enemy_LoseSightRadius, AttrData->LoseSightRadius);
 	}
 	if (IsValid(InitializeEffect))
 	{

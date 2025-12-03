@@ -57,4 +57,9 @@ namespace SFGameplayTags
 
 	// --- Enemy Attribute Data ---
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Enemy_MaxStagger);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Enemy_GuardRange);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Enemy_SightRadius);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Enemy_LoseSightRadius);
+	
+	
 }

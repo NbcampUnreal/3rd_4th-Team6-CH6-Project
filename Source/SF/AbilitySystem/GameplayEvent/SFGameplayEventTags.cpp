@@ -56,6 +56,9 @@ namespace SFGameplayTags
 
 	// Enemy 전용 속성
 	UE_DEFINE_GAMEPLAY_TAG(Data_Enemy_MaxStagger, "Data.Attribute.Enemy.MaxStagger");
-
+	UE_DEFINE_GAMEPLAY_TAG(Data_Enemy_GuardRange, "Data.Attribute.Enemy.GuardRange");
+	UE_DEFINE_GAMEPLAY_TAG(Data_Enemy_SightRadius, "Data.Attribute.Enemy.SightRadius");
+	UE_DEFINE_GAMEPLAY_TAG(Data_Enemy_LoseSightRadius, "Data.Attribute.Enemy.LoseSightRadius");
+	
 	
 }
