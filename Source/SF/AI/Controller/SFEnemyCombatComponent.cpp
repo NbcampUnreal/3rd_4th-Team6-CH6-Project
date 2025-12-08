@@ -278,7 +278,7 @@ void USFEnemyCombatComponent::UpdateCombatRangeTags()
 	// [디버그 2] 타겟이 없는지 확인
 	if (!CurrentTarget)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("DEBUG: CurrentTarget is NULL (Tag Cleared)"));
+		//UE_LOG(LogTemp, Warning, TEXT("DEBUG: CurrentTarget is NULL (Tag Cleared)"));
 		SetGameplayTagStatus(SFGameplayTags::AI_Range_Melee, false);
 		SetGameplayTagStatus(SFGameplayTags::AI_Range_Guard, false);
 		return;

@@ -236,7 +236,7 @@ void USFAbilitySystemComponent::ProcessAbilityInput(float DeltaTime, bool bGameP
 				// 활성화된 어빌리티만 Started 이벤트를 전달
 				if (AbilitySpec->IsActive())
 				{
-					// GameCustom1 복제 이벤트 발생 (UD1AbilityTask_WaitInputStart가 감지)
+					// GameCustom1 복제 이벤트 발생 (USFAbilityTask_WaitInputStart가 감지)
 					AbilitySpecInputStarted(*AbilitySpec);
 				}
 			}
@@ -256,7 +256,6 @@ void USFAbilitySystemComponent::ProcessAbilityInput(float DeltaTime, bool bGameP
 				if (AbilitySpec->IsActive()) // 핵심 분기점: 현재 활성화된 어빌리티인 경우
 				{
 					// 새로운 활성화 없이 입력 이벤트만 전달
-					// InputPressed 복제 이벤트 발생 (UD1AbilityTask_WaitInputStart 등이 감지)
 					AbilitySpecInputPressed(*AbilitySpec);
 				}
 				else // 어빌리티가 비활성화된 경우

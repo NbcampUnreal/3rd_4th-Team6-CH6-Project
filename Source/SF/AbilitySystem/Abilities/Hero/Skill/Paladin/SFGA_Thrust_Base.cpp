@@ -26,19 +26,22 @@ void USFGA_Thrust_Base::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		return;
 	}
 
-	if (CommitAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo) == false)
+	if (!CommitAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 	{
 		CancelAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true);
 		return;
 	}
 
-	if (UAbilityTask_PlayMontageAndWait* ThrustMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("ThrustMontage"), ThrustMontage, 1.f, NAME_None, true))
+	if (ThrustMontage)
 	{
-		ThrustMontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished);
-		ThrustMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);
-		ThrustMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageFinished);
-		ThrustMontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageFinished);
-		ThrustMontageTask->ReadyForActivation();
+		if (UAbilityTask_PlayMontageAndWait* ThrustMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("ThrustMontage"), ThrustMontage, 1.f, NAME_None, true))
+		{
+			ThrustMontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished);
+			ThrustMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);
+			ThrustMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageFinished);
+			ThrustMontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageFinished);
+			ThrustMontageTask->ReadyForActivation();
+		}
 	}
 
 	if (UAbilityTask_WaitGameplayEvent* TraceEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, SFGameplayTags::GameplayEvent_Tracing, nullptr, false, true))

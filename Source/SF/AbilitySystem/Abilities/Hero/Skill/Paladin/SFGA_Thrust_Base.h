@@ -20,7 +20,7 @@ protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 	UFUNCTION()
-	void OnTrace(FGameplayEventData Payload);
+	virtual void OnTrace(FGameplayEventData Payload);
 	
 	UFUNCTION()
 	void OnThrustBegin(FGameplayEventData Payload);
