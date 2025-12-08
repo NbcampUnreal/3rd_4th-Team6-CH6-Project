@@ -5,6 +5,11 @@
 
 #include "SFLogChannels.h"
 #include "Abilities/SFGameplayAbility.h"
+#include "Animation/Enemy/SFEnemyAnimInstance.h"
+#include "Animation/Hero/SFHeroAnimInstance.h"
+#include "Character/Enemy/SFEnemy.h"
+#include "Character/Hero/SFHero.h"
+#include "GameplayEvent/SFGameplayEventTags.h"
 #include "Player/Save/SFPersistentDataType.h"
 
 
@@ -31,7 +36,29 @@ void USFAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActo
 	if (bHasNewPawnAvatar)
 	{
 		// TODO : AnimInstance 초기화
-
+		ASFEnemy* Enemy = Cast<ASFEnemy>(GetAvatarActor());
+		if (Enemy)
+		{
+			USFEnemyAnimInstance* AniminInstance = Cast<USFEnemyAnimInstance>(GetAvatarActor()->FindComponentByClass<USkeletalMeshComponent>()->GetAnimInstance());
+			if (IsValid(AniminInstance))
+			{
+				AniminInstance->InitializeWithAbilitySystem(this);
+			}
+		}
+		else
+		{
+			ASFHero* Hero = Cast<ASFHero>(GetAvatarActor());
+			if (Hero)
+			{
+				USFHeroAnimInstance* AniminInstance = Cast<USFHeroAnimInstance>(GetAvatarActor()->FindComponentByClass<USkeletalMeshComponent>()->GetAnimInstance());
+				if (IsValid(AniminInstance))
+				{
+					AniminInstance->InitializeWithAbilitySystem(this);
+				}
+			}
+		}
+		// Effect 처리 
+		OnGameplayEffectAppliedDelegateToSelf.AddUObject(this, &ThisClass::HandleGameplayEffectAppliedToSelf);
 		// 스폰 시 자동으로 활성화되어야 하는 어빌리티들 처리
 		TryActivateAbilitiesOnSpawn();
 	}
@@ -536,4 +563,34 @@ void USFAbilitySystemComponent::RestoreGameplayEffectsFromData(const FSFSavedAbi
 		RestoredCount, InData.SavedGameplayEffects.Num());
 }
 
+void USFAbilitySystemComponent::HandleGameplayEffectAppliedToSelf(
+	UAbilitySystemComponent* SourceASC,
+	const FGameplayEffectSpec& Spec,
+	FActiveGameplayEffectHandle Handle)
+{
+	if (!Spec.Def)
+		return;
 
+	if (!Spec.Def)
+		return;
+
+	ProcessHitReactionEvent(Spec);
+}
+
+void USFAbilitySystemComponent::ProcessHitReactionEvent( const FGameplayEffectSpec& Spec)
+{
+	const float Damage = Spec.GetSetByCallerMagnitude(
+		SFGameplayTags::Data_Damage_BaseDamage, false, 0.f);
+
+	if (Damage <= 1.f)
+		return;
+
+	FGameplayEventData Payload;
+	Payload.EventTag = SFGameplayTags::GameplayEvent_HitReaction;
+	Payload.Target = GetAvatarActor();
+	Payload.Instigator = Spec.GetContext().GetOriginalInstigator();
+	Payload.ContextHandle = Spec.GetContext();
+	Payload.EventMagnitude = Damage;
+
+	HandleGameplayEvent(SFGameplayTags::GameplayEvent_HitReaction, &Payload);
+}

@@ -26,10 +26,13 @@ public:
 	USFEnemyWidgetComponent();
 
 	virtual void BeginPlay() override;
+	void TryInitializeWidget();
 
 	void OnHealthChanged(const FOnAttributeChangeData& OnAttributeChangeData);
 	// 초기화
 	void InitializeWidget();
+	
+	void MarkAsAttackedByLocalPlayer();
 
 protected:
 	virtual void InitWidget() override;
@@ -39,6 +42,17 @@ private:
 
 	void FaceToCamera();
 	void UpdateVisibility(float DeltaTime);
+	
+	void ShowHealthBar();
+
+	//교전 타이머 만료 시 호출 
+	void OnEngagementExpired();
+
+	//교전 타이머 리셋 
+	void ResetEngagementTimer();
+
+	// 체력 퍼센트 업데이트
+	void UpdateHealthPercent();
 
 private:
 
@@ -58,4 +72,12 @@ private:
 
 	float CurrentVisibleTime = 0.f;
 
+	// 이건 클라이언트 표시 
+	bool bEngagedByLocalPlayer = false;
+
+	// 타이머 
+	FTimerHandle EngagementTimerHandle;
+
+	//
+	float CachedMaxHealth = 0.f;
 };

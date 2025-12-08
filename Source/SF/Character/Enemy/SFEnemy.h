@@ -41,9 +41,6 @@ public:
 	virtual void InitializeMovementComponent();
 
 protected:
-	
-	virtual void PostInitializeComponents() override;
-	
 
 	//PawnData에 있는 AbilitySet GIVE
 	void GrantAbilitiesFromPawnData();
@@ -74,7 +71,18 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category="Component")
 	TObjectPtr<class USFEnemyWidgetComponent> EnemyWidgetComponent;
 
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|InitializeEffect")
 	TSubclassOf<UGameplayEffect> InitializeEffect;
+
+	// 마지막 공격자
+	UPROPERTY(ReplicatedUsing=OnRep_LastAttacker)
+	TObjectPtr<AActor> LastAttacker;
+
+	UFUNCTION()
+	void OnRep_LastAttacker();
+
+public:
+
+	void SetLastAttacker(AActor* Attacker);
 };

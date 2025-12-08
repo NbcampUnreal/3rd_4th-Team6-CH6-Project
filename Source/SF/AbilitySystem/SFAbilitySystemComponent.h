@@ -72,6 +72,8 @@ public:
 	// Duration GE 복원
 	void RestoreGameplayEffectsFromData(const FSFSavedAbilitySystemData& InData);
 
+	
+
 protected:
 
 	// ProcessAbilityInput에서 AbilitySecInputStarted 호출을 통해 GameCustom1 이벤트 발생
@@ -99,4 +101,10 @@ protected:
 
 	// 현재 입력이 지속적으로 눌려있는 어빌리티들의 핸들.
 	TArray<FGameplayAbilitySpecHandle> InputHeldSpecHandles;
+
+//Effect
+protected:
+	// GameplayEffect를 처리한다  
+	void HandleGameplayEffectAppliedToSelf(UAbilitySystemComponent* SourceASC, const FGameplayEffectSpec& Spec, FActiveGameplayEffectHandle Handle);
+	void ProcessHitReactionEvent(const FGameplayEffectSpec& Spec);
 };

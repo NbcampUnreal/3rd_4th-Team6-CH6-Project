@@ -5,7 +5,6 @@
 
 #include "AbilitySystem/SFAbilitySet.h"
 #include "AbilitySystem/SFAbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/Enemy/SFEnemyAbilitySystemComponent.h"
 #include "AbilitySystem/Attributes/SFCombatSet.h"
 #include "AbilitySystem/Attributes/SFPrimarySet.h"
 #include "AbilitySystem/Attributes/Enemy/SFCombatSet_Enemy.h"
@@ -17,6 +16,7 @@
 #include "Component/SFEnemyWidgetComponent.h"
 #include "Component/SFStateReactionComponent.h"
 #include "System/SFGameInstance.h"
+#include "Net/UnrealNetwork.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SFEnemy)
@@ -27,7 +27,7 @@ ASFEnemy::ASFEnemy(const FObjectInitializer& ObjectInitializer)
 
 	// Ability
 	
-	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<USFEnemyAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
+	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<USFAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
@@ -48,13 +48,6 @@ ASFEnemy::ASFEnemy(const FObjectInitializer& ObjectInitializer)
 	//사실 PlayerState에서 Ability세팅할때랑 똑같이 세팅을 라이라에서는 하는것 같다
 	
 	
-}
-
-void ASFEnemy::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
-
-	check(AbilitySystemComponent);
 }
 
 void ASFEnemy::PossessedBy(AController* NewController)
@@ -81,7 +74,6 @@ void ASFEnemy::PossessedBy(AController* NewController)
 	{
 		return;
 	}
-
 	PawnExtComp->SetPawnData(EnemyPawnData);
 }
 
@@ -219,7 +211,39 @@ void ASFEnemy::GrantAbilitiesFromPawnData()
 			AbilitySet->GiveToAbilitySystem(AbilitySystemComponent, nullptr, this);
 			GrantedCount++;
 		}
-		
+
 	}
 
+}
+
+void ASFEnemy::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	
+	DOREPLIFETIME(ThisClass, LastAttacker);
+}
+
+void ASFEnemy::SetLastAttacker(AActor* Attacker)
+{
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	LastAttacker = Attacker;
+	OnRep_LastAttacker();
+}
+
+void ASFEnemy::OnRep_LastAttacker()
+{
+	
+	if (LastAttacker && LastAttacker->HasLocalNetOwner())
+	{
+		if (EnemyWidgetComponent)
+		{
+			EnemyWidgetComponent->MarkAsAttackedByLocalPlayer();
+		}
+	}
 }

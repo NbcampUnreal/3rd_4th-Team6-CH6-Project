@@ -3,6 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffectExtension.h"
 #include "AbilitySystem/Attributes/Enemy/SFPrimarySet_Enemy.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
@@ -28,37 +29,39 @@ USFEnemyWidgetComponent::USFEnemyWidgetComponent()
 void USFEnemyWidgetComponent::BeginPlay()
 {
     Super::BeginPlay();
-    InitializeWidget();
+
+    TryInitializeWidget();
 }
 
-void USFEnemyWidgetComponent::OnHealthChanged(const FOnAttributeChangeData& OnAttributeChangeData)
+void USFEnemyWidgetComponent::TryInitializeWidget()
 {
     UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
     if (IsValid(ASC))
     {
-        const USFPrimarySet_Enemy* PrimarySet = ASC->GetSet<USFPrimarySet_Enemy>();
-        if (IsValid(PrimarySet))
-        {
-           float Health = PrimarySet->GetHealth();
-           float MaxHealth = PrimarySet->GetMaxHealth();
-           float Percent = Health / MaxHealth;
-           EnemyWidget->SetPercentVisuals(Percent);
-            
-        }
+        InitializeWidget();
     }
-    SetVisibility(true);
-    CurrentVisibleTime  =0.f;
+    else
+    {
+        GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::TryInitializeWidget);
+    }
+}
+void USFEnemyWidgetComponent::OnHealthChanged(const FOnAttributeChangeData& OnAttributeChangeData)
+{
+    UpdateHealthPercent();
     
+    if (bEngagedByLocalPlayer)
+    {
+        ShowHealthBar();
+        ResetEngagementTimer();
+    }
 }
 
 void USFEnemyWidgetComponent::InitWidget()
 {
     Super::InitWidget();
-    
+
     EnemyWidget = Cast<UCommonBarBase>(GetUserWidgetObject());
 }
-
-
 
 void USFEnemyWidgetComponent::InitializeWidget()
 {
@@ -68,10 +71,78 @@ void USFEnemyWidgetComponent::InitializeWidget()
         const USFPrimarySet_Enemy* PrimarySet = ASC->GetSet<USFPrimarySet_Enemy>();
         if (IsValid(PrimarySet))
         {
-            ASC->GetGameplayAttributeValueChangeDelegate(ASC->GetSet<USFPrimarySet_Enemy>()->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+           
+            ASC->GetGameplayAttributeValueChangeDelegate(PrimarySet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+
+            // MaxHealth 캐싱
+            CachedMaxHealth = PrimarySet->GetMaxHealth();
         }
     }
-    EnemyWidget->SetPercentVisuals(1);
+
+    if (EnemyWidget)
+    {
+        EnemyWidget->SetPercentVisuals(1.f);
+    }
+}
+
+void USFEnemyWidgetComponent::MarkAsAttackedByLocalPlayer()
+{
+    bEngagedByLocalPlayer = true;
+    ShowHealthBar();
+    ResetEngagementTimer();
+}
+
+void USFEnemyWidgetComponent::ShowHealthBar()
+{
+    SetVisibility(true);
+    CurrentVisibleTime = VisibleDurationAfterHit;
+}
+
+void USFEnemyWidgetComponent::OnEngagementExpired()
+{
+    bEngagedByLocalPlayer = false;
+    SetVisibility(false);
+}
+
+//이게 교전 중일때 일정 시간 데미지 안받으면 RESET
+void USFEnemyWidgetComponent::ResetEngagementTimer()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(EngagementTimerHandle);
+        World->GetTimerManager().SetTimer(
+            EngagementTimerHandle,
+            this,
+            &ThisClass::OnEngagementExpired,
+            VisibleDurationAfterHit,
+            false
+        );
+    }
+}
+
+void USFEnemyWidgetComponent::UpdateHealthPercent()
+{
+    if (!EnemyWidget)
+    {
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+    if (IsValid(ASC))
+    {
+        const USFPrimarySet_Enemy* PrimarySet = ASC->GetSet<USFPrimarySet_Enemy>();
+        if (IsValid(PrimarySet))
+        {
+            float Health = PrimarySet->GetHealth();
+            float MaxHealth = PrimarySet->GetMaxHealth();
+
+            if (MaxHealth > 0.f)
+            {
+                float Percent = Health / MaxHealth;
+                EnemyWidget->SetPercentVisuals(Percent);
+            }
+        }
+    }
 }
 
 void USFEnemyWidgetComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
