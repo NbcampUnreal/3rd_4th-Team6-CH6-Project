@@ -179,13 +179,14 @@ void ASFEnemy::InitializeMovementComponent()
 
 FGenericTeamId ASFEnemy::GetGenericTeamId() const
 {
-	if (ASFEnemyController* Controller = Cast<ASFEnemyController>(GetController()))
+	// [수정] 변수명 충돌 방지를 위해 Controller -> EnemyController 로 변경
+	if (ASFEnemyController* EnemyController = Cast<ASFEnemyController>(GetController()))
 	{
-		return Controller->GetGenericTeamId();
+		return EnemyController->GetGenericTeamId();
 	}
 	else
 	{
-		return Super::GetGenericTeamId();	
+		return Super::GetGenericTeamId();    
 	}
 	
 }

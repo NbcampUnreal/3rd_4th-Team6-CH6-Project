@@ -20,7 +20,7 @@ class UBehaviorTree;
 
 // [수정] 부모 클래스 변경: AAIController -> ADetourCrowdAIController
 UCLASS()
-class SF_API ASFEnemyController : public ADetourCrowdAIController, public IGenericTeamAgentInterface
+class SF_API ASFEnemyController : public ADetourCrowdAIController
 {
 	GENERATED_BODY()
 
