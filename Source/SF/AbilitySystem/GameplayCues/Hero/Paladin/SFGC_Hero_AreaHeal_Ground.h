@@ -11,11 +11,6 @@ class UAudioComponent;
 class UNiagaraSystem;
 class UNiagaraComponent;
 
-/**
- * AreaHeal Ground GameplayCue
- * - OnActive : 바닥 위치에 Particle/Niagara 중 존재하는 FX 스폰 + 사운드 재생
- * - OnRemove : 컴포넌트 정리
- */
 UCLASS()
 class SF_API ASFGC_Hero_AreaHeal_Ground : public AGameplayCueNotify_Actor
 {
@@ -26,34 +21,31 @@ public:
 
 protected:
 
-	/* Casscade Particle */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SF|AreaHeal|VFX")
-	UParticleSystem* GroundCascade;
+	UParticleSystem* GroundCascade; //캐스케이드 FX
 
-	/* Niagara System */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SF|AreaHeal|VFX")
-	UNiagaraSystem* GroundNiagara;
+	UNiagaraSystem* GroundNiagara; //나이아가라 FX
 
-	/* Sound */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SF|AreaHeal|Audio")
-	USoundBase* GroundSound;
-
-	/* Runtime spawned components */
-	UPROPERTY(Transient)
-	UParticleSystemComponent* SpawnedCascadeComp;
+	USoundBase* GroundSound; //사운드
 
 	UPROPERTY(Transient)
-	UNiagaraComponent* SpawnedNiagaraComp;
+	UParticleSystemComponent* SpawnedCascadeComp; //실행 중 Cascade
 
 	UPROPERTY(Transient)
-	UAudioComponent* SpawnedAudioComp;
+	UNiagaraComponent* SpawnedNiagaraComp; //실행 중 Niagara
+
+	UPROPERTY(Transient)
+	UAudioComponent* SpawnedAudioComp; //실행 중 Audio
 
 public:
+
 	virtual bool OnActive_Implementation(
 		AActor* MyTarget,
-		const FGameplayCueParameters& Parameters) override;
+		const FGameplayCueParameters& Parameters) override; //발동 시
 
 	virtual bool OnRemove_Implementation(
 		AActor* MyTarget,
-		const FGameplayCueParameters& Parameters) override;
+		const FGameplayCueParameters& Parameters) override; //종료 시
 };

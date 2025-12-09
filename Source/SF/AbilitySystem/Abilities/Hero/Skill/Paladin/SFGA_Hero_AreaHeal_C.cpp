@@ -5,12 +5,12 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "AbilitySystemComponent.h"
+
 #include "AbilitySystemGlobals.h"
-#include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
+#include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
 
 #include "Character/SFCharacterBase.h"
-#include "Engine/World.h"
 
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
@@ -19,35 +19,33 @@
 USFGA_Hero_AreaHeal_C::USFGA_Hero_AreaHeal_C(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	LightningEventTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Skill.AreaHeal"));
 }
 
-//현재 장착 무기 메쉬 찾기 (ComponentTag "MainWeapon" 기준)
+
+//=====================무기 메쉬 찾기(사실 안쓸듯)==================
 USkeletalMeshComponent* USFGA_Hero_AreaHeal_C::FindCurrentWeaponMesh(ASFCharacterBase* OwnerChar) const
 {
-	if (!OwnerChar || !OwnerChar->GetMesh())
-	{
-		return nullptr;
-	}
+	if (!OwnerChar) return nullptr;
 
 	TArray<USceneComponent*> Children;
 	OwnerChar->GetMesh()->GetChildrenComponents(true, Children);
 
 	for (USceneComponent* Comp : Children)
 	{
-		if (USkeletalMeshComponent* Skm = Cast<USkeletalMeshComponent>(Comp))
+		if (USkeletalMeshComponent* Skel = Cast<USkeletalMeshComponent>(Comp))
 		{
-			// BP_OneHandSword의 SKM_OneHandSword_001 에 "MainWeapon" 태그 달았다고 가정
-			if (Skm->ComponentTags.Contains(FName(TEXT("MainWeapon"))))
-			{
-				return Skm;
-			}
+			//MainWeapon 태그가 붙은 스켈레탈을 무기로 인식
+			if (Skel->ComponentTags.Contains("MainWeapon"))
+				return Skel; 
 		}
 	}
-
 	return nullptr;
 }
+//================================================================
 
-//===============================Ability 실행===============================
+
+//=====================스킬 실행=======================
 void USFGA_Hero_AreaHeal_C::ActivateAbility(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -57,246 +55,164 @@ void USFGA_Hero_AreaHeal_C::ActivateAbility(
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	ASFCharacterBase* OwnerChar = GetSFCharacterFromActorInfo();
-	if (!OwnerChar)
+	if (!OwnerChar){ EndAbility(Handle,ActorInfo,ActivationInfo,true,true); return; }
+
+	//=====================Trail 생성=====================
+	if (SwordTrailFX)
 	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
-
-	//-------------------- Attack Trail 시작 ---------------------
-	USkeletalMeshComponent* WeaponMesh = FindCurrentWeaponMesh(OwnerChar);
-
-	if (SwordTrailFX && WeaponMesh)
-	{
-		TrailComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-			SwordTrailFX,
-			WeaponMesh,
-			NAME_None,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::SnapToTarget,
-			true, true);
-
-		if (TrailComp)
+		if (USkeletalMeshComponent* Mesh = FindCurrentWeaponMesh(OwnerChar))
 		{
-			TrailComp->SetVariableFloat(TEXT("User.Fade"), 1.0f);
-		}
+			TrailComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				SwordTrailFX, Mesh, NAME_None,
+				FVector::ZeroVector,FRotator::ZeroRotator,
+				EAttachLocation::SnapToTarget,true,true);
 
-		TWeakObjectPtr<USkeletalMeshComponent> WeakWeaponMesh = WeaponMesh;
+			if(TrailComp) TrailComp->SetVariableFloat(TEXT("User.Fade"),1.f);
 
-		OwnerChar->GetWorldTimerManager().SetTimer(
-			TrailUpdateHandle,
-			[this, WeakWeaponMesh]()
+			FTimerDelegate Update;
+			TWeakObjectPtr<USkeletalMeshComponent> Weak=Mesh;
+
+			Update.BindLambda([this,Weak]()
 			{
-				if (!TrailComp) return;
-				if (!WeakWeaponMesh.IsValid()) return;
+				if(!TrailComp||!Weak.IsValid())return;
 
-				USkeletalMeshComponent* Mesh = WeakWeaponMesh.Get();
+				auto* M=Weak.Get();
+				TrailComp->SetVariableVec3(TEXT("User.TrailStart"),M->GetSocketLocation("Trail_Start"));
+				TrailComp->SetVariableVec3(TEXT("User.TrailEnd"),M->GetSocketLocation("Trail_End"));
+			});
 
-				TrailComp->SetVariableVec3(TEXT("User.TrailStart"),
-					Mesh->GetSocketLocation(TEXT("Trail_Start")));
-				TrailComp->SetVariableVec3(TEXT("User.TrailEnd"),
-					Mesh->GetSocketLocation(TEXT("Trail_End")));
-			},
-			0.01f, true);
-	}
-	//-----------------------------------------------------------
-
-	//공격 몽타주 재생
-	if (LightningMontage)
-	{
-		auto* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this, TEXT("LightningMontage"), LightningMontage);
-
-		if (MontageTask)
-		{
-			MontageTask->OnCompleted.AddDynamic(this, &USFGA_Hero_AreaHeal_C::OnMontageEnded);
-			MontageTask->OnInterrupted.AddDynamic(this, &USFGA_Hero_AreaHeal_C::OnMontageEnded);
-			MontageTask->OnCancelled.AddDynamic(this, &USFGA_Hero_AreaHeal_C::OnMontageEnded);
-			MontageTask->ReadyForActivation();
+			OwnerChar->GetWorldTimerManager().SetTimer(TrailUpdateHandle,Update,0.01f,true);
 		}
 	}
-
-	//AnimNotify → GameplayEvent 대기
-	auto* LightningEvent = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		this,
-		FGameplayTag::RequestGameplayTag(TEXT("Event.Skill.LightningStrike"))
-	);
-
-	if (LightningEvent)
+	//====================================================
+	
+	//=====================Montage실행====================
+	if(LightningMontage)
 	{
-		LightningEvent->EventReceived.AddDynamic(this, &USFGA_Hero_AreaHeal_C::OnLightningImpact);
-		LightningEvent->ReadyForActivation();
+		auto* M=UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this,"LM",LightningMontage);
+		M->OnCompleted.AddDynamic(this,&USFGA_Hero_AreaHeal_C::OnMontageEnded);
+		M->OnInterrupted.AddDynamic(this,&USFGA_Hero_AreaHeal_C::OnMontageEnded);
+		M->OnCancelled.AddDynamic(this,&USFGA_Hero_AreaHeal_C::OnMontageEnded);
+		M->ReadyForActivation();
 	}
+	//====================================================
+	
+	//=====================Event대기======================
+	if(LightningEventTag.IsValid())
+	{
+		auto* E=UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this,LightningEventTag);
+		if(E){E->EventReceived.AddDynamic(this,&USFGA_Hero_AreaHeal_C::OnLightningImpact);E->ReadyForActivation();}
+	}
+	//====================================================
 }
-//=========================================================================
+//====================================================
 
-//========================스킬 이펙트 + 타격 판정 처리=========================
 
+//=====================FX Que 호출, 데미지 처리=====================
 void USFGA_Hero_AreaHeal_C::OnLightningImpact(FGameplayEventData Payload)
 {
-	ASFCharacterBase* OwnerChar = GetSFCharacterFromActorInfo();
-	if (!OwnerChar) return;
+	ASFCharacterBase* OwnerChar=GetSFCharacterFromActorInfo();
+	if(!OwnerChar)return;
 
-	FVector StrikePos = OwnerChar->GetActorLocation() +
-		OwnerChar->GetActorForwardVector() * StrikeDistance;
+	//공격 위치 계산
+	FVector StrikePos=
+		OwnerChar->GetActorLocation()+
+		OwnerChar->GetActorForwardVector()*StrikeDistance;
 
-	FVector TraceStart = StrikePos + FVector(0,0,200);
-	FVector TraceEnd   = StrikePos + FVector(0,0,-500);
-
-	FHitResult GroundHit;
-	FCollisionQueryParams Params(NAME_None, false, OwnerChar);
-
-	bool bHitGround = GetWorld()->LineTraceSingleByChannel(
-		GroundHit, TraceStart, TraceEnd, ECC_Visibility, Params);
-
-	if (bHitGround)
+	//지면 보정
 	{
-		StrikePos = GroundHit.ImpactPoint + FVector(0,0,5);
+		FHitResult H;
+		if(GetWorld()->LineTraceSingleByChannel(H,StrikePos+FVector(0,0,200),StrikePos-FVector(0,0,400),ECC_Visibility))
+			StrikePos=H.ImpactPoint+FVector(0,0,5);
 	}
+	
+	//FX 출력(GC)
+	if(LightningCueTag.IsValid())
+		if(auto* ASC=UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerChar))
+		{
+			FGameplayCueParameters P;
+			P.Location=StrikePos;
+			P.Instigator=OwnerChar;
+			ASC->ExecuteGameplayCue(LightningCueTag,P);
+		}
+	
+	//타격 판정
+	TArray<FHitResult> HitResults;
+	UKismetSystemLibrary::SphereTraceMulti(
+		GetWorld(),StrikePos+FVector(0,0,50),StrikePos-FVector(0,0,50),
+		StrikeRadius,UEngineTypes::ConvertToTraceType(ECC_Pawn),
+		false,{OwnerChar},EDrawDebugTrace::None,HitResults,true);
 
-	if (LightningEffect1)
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), LightningEffect1, StrikePos);
-	if (LightningEffect2)
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), LightningEffect2, StrikePos);
+	if(HitResults.Num()==0)return;
+	
+	//ActorTag기반 태그 캐싱
+	bool OP=OwnerChar->Tags.Contains("Player");
+	bool OE=OwnerChar->Tags.Contains("Enemy");
 
-	if (LightningSound1)
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), LightningSound1, StrikePos);
-	if (LightningSound2)
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), LightningSound2, StrikePos);
-
-	TArray<AActor*> HitActors;
-	UKismetSystemLibrary::SphereOverlapActors(
-		GetWorld(),
-		StrikePos,
-		StrikeRadius,
-		{ UEngineTypes::ConvertToObjectType(ECC_Pawn) },
-		ASFCharacterBase::StaticClass(),
-		{ OwnerChar },
-		HitActors
-	);
-
-	bool bOwnerIsPlayer = OwnerChar->Tags.Contains("Player");
-	bool bOwnerIsEnemy  = OwnerChar->Tags.Contains("Enemy");
-
-	for (AActor* HitActor : HitActors)
+	//데미지, 디버프 처리
+	for(const FHitResult& Hit : HitResults)
 	{
-		if (!HitActor || HitActor == OwnerChar) continue;
+		AActor* HitActor=Hit.GetActor();
+		if(!HitActor||HitActor==OwnerChar)continue;
 
-		ASFCharacterBase* TargetChar = Cast<ASFCharacterBase>(HitActor);
-		if (!TargetChar) continue;
+		auto* Target=Cast<ASFCharacterBase>(HitActor);
+		if(!Target)continue;
 
-		bool bTargetIsPlayer = TargetChar->Tags.Contains("Player");
-		bool bTargetIsEnemy  = TargetChar->Tags.Contains("Enemy");
+		bool TP=Target->Tags.Contains("Player");
+		bool TE=Target->Tags.Contains("Enemy");
 
-		if ((bOwnerIsPlayer && bTargetIsPlayer) ||
-			(bOwnerIsEnemy && bTargetIsEnemy))
-			continue;
-
-		FHitResult FakeHit;
-		FakeHit.Location = StrikePos;
-		FakeHit.ImpactPoint = TargetChar->GetActorLocation();
-		FakeHit.ImpactNormal = (TargetChar->GetActorLocation() - StrikePos).GetSafeNormal();
-		FakeHit.HitObjectHandle = FActorInstanceHandle(TargetChar);
-		
-		ProcessHitResult(FakeHit, BaseDamage, nullptr);
+		//아군 제외
+		if((OP&&TP)||(OE&&TE))continue;
 
 		//데미지 처리
-		if (DamageGE)
+		ProcessHitResult(Hit,BaseDamage,nullptr);
+
+		//디버프 GE 적용
+		if(DebuffGE)
 		{
-			auto* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetChar);
-			if (TargetASC)
+			if(auto* ASC=UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target))
 			{
-				FGameplayEffectSpecHandle DamageSpec = MakeOutgoingGameplayEffectSpec(DamageGE, 1.f);
-				if (DamageSpec.IsValid())
-				{
-					//BaseDamage 값을 ExecutionCalculation으로 전달
-					DamageSpec.Data->SetSetByCallerMagnitude(
-						SFGameplayTags::Data_Damage_BaseDamage, // 반드시 GameplayTag 맞춰야 작동
-						BaseDamage
-					);
-
-					//히트 정보 전달 (크리 표시, UI 처리 등 가능)
-					FGameplayEffectContextHandle Ctx = DamageSpec.Data->GetContext();
-					Ctx.AddHitResult(FakeHit);
-					DamageSpec.Data->SetContext(Ctx);
-
-					TargetASC->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
-				}
-			}
-		}
-		//=========================================================================================
-
-		if (DebuffGE)
-		{
-			auto* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetChar);
-			if (TargetASC)
-			{
-				FGameplayEffectSpecHandle DebuffSpec = MakeOutgoingGameplayEffectSpec(DebuffGE, 1.f);
-				if (DebuffSpec.IsValid())
-				{
-					FGameplayEffectContextHandle Ctx = DebuffSpec.Data->GetContext();
-					Ctx.AddHitResult(FakeHit);
-					DebuffSpec.Data->SetContext(Ctx);
-
-					TargetASC->ApplyGameplayEffectSpecToSelf(*DebuffSpec.Data.Get());
-				}
+				auto S=MakeOutgoingGameplayEffectSpec(DebuffGE,1.f);
+				if(S.IsValid())ASC->ApplyGameplayEffectSpecToSelf(*S.Data.Get());
 			}
 		}
 	}
 }
+//==================================================================
 
-//===============================Ability 종료===============================
+
+//================Montage 종료시 이벤트=================
 void USFGA_Hero_AreaHeal_C::OnMontageEnded()
 {
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, false, false);
+	EndAbility(CurrentSpecHandle,CurrentActorInfo,CurrentActivationInfo,false,false);
 }
+//====================================================
 
+
+//=====================EndAbility=====================
 void USFGA_Hero_AreaHeal_C::EndAbility(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
+	bool bReplicateEndAbility,bool bWasCancelled)
 {
-	if (TrailComp)
+	//Trail Fade Out 처리
+	if(TrailComp)
 	{
-		ASFCharacterBase* OwnerChar = nullptr;
-		if (ActorInfo && ActorInfo->AvatarActor.IsValid())
-		{
-			OwnerChar = Cast<ASFCharacterBase>(ActorInfo->AvatarActor.Get());
-		}
+		TWeakObjectPtr<UNiagaraComponent> W=TrailComp;
+		float F=1.f;
 
-		if (OwnerChar)
-		{
-			OwnerChar->GetWorldTimerManager().ClearTimer(TrailUpdateHandle);
-		}
-
-		TWeakObjectPtr<UNiagaraComponent> WeakTrail = TrailComp;
-		float Fade = 1.f;
-
-		if (OwnerChar)
-		{
-			OwnerChar->GetWorldTimerManager().SetTimer(
-				TrailFadeHandle,
-				[this, WeakTrail, Fade]() mutable
-				{
-					if (!WeakTrail.IsValid()) return;
-
-					Fade -= 0.04f;
-					WeakTrail->SetVariableFloat(TEXT("User.Fade"), Fade);
-
-					if (Fade <= 0.f)
-					{
-						WeakTrail->Deactivate();
-						WeakTrail->DestroyComponent();
-						TrailComp = nullptr;
-					}
-				},
-				0.03f, true);
-		}
+		GetWorld()->GetTimerManager().SetTimer(
+			TrailFadeHandle,
+			[this,W,F]()mutable
+			{
+				if(!W.IsValid())return;
+				F-=0.04f;W->SetVariableFloat(TEXT("User.Fade"),F);
+				if(F<=0.f){W->Deactivate();W->DestroyComponent();TrailComp=nullptr;}
+			},
+			0.03f,true);
 	}
 
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	Super::EndAbility(Handle,ActorInfo,ActivationInfo,bReplicateEndAbility,bWasCancelled);
 }
-//=========================================================================
+//====================================================

@@ -12,14 +12,16 @@
 
 ASFGC_Hero_AreaHeal_Ground::ASFGC_Hero_AreaHeal_Ground()
 {
-	PrimaryActorTick.bCanEverTick = false;
-	bAutoDestroyOnRemove = true;
+	PrimaryActorTick.bCanEverTick = false; //Tick 미사용
+	bAutoDestroyOnRemove = true; //OnRemove 후 자동 Destroy
 
 	SpawnedCascadeComp = nullptr;
 	SpawnedNiagaraComp = nullptr;
 	SpawnedAudioComp = nullptr;
 }
 
+
+//=====================OnActive=====================
 bool ASFGC_Hero_AreaHeal_Ground::OnActive_Implementation(
 	AActor* MyTarget,
 	const FGameplayCueParameters& Parameters)
@@ -28,16 +30,17 @@ bool ASFGC_Hero_AreaHeal_Ground::OnActive_Implementation(
 	UWorld* World = MyTarget->GetWorld();
 	if(!World) return false;
 
-	// 바닥 위치 계산
-	FVector SpawnLocation = MyTarget->GetActorLocation();
+	//바닥 위치 계산
+	FVector SpawnLocation = MyTarget->GetActorLocation(); //기본 = 캐릭터 발 밑
 	if(ACharacter* Char = Cast<ACharacter>(MyTarget))
 	{
 		if(UCapsuleComponent* Capsule = Char->GetCapsuleComponent())
-			SpawnLocation.Z -= Capsule->GetScaledCapsuleHalfHeight();
+			SpawnLocation.Z -= Capsule->GetScaledCapsuleHalfHeight(); //정확한 지면 위치
 	}
+
 	FRotator Rot = FRotator::ZeroRotator;
 
-	//=========== Niagara 우선 적용 ===========//
+	//Niagara 우선
 	if(GroundNiagara)
 	{
 		SpawnedNiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
@@ -45,13 +48,12 @@ bool ASFGC_Hero_AreaHeal_Ground::OnActive_Implementation(
 			GroundNiagara,
 			SpawnLocation,
 			Rot,
-			FVector(1.f),
+			FVector(1.f), //크기
 			true,
 			true
 		);
 	}
-
-	//=========== Niagara 없으면 Cascade 사용 ===========//
+	//Cascade 대체
 	else if(GroundCascade)
 	{
 		SpawnedCascadeComp = UGameplayStatics::SpawnEmitterAtLocation(
@@ -59,12 +61,12 @@ bool ASFGC_Hero_AreaHeal_Ground::OnActive_Implementation(
 			GroundCascade,
 			SpawnLocation,
 			Rot,
-			FVector(1.f),
+			FVector(1.f), //크기
 			true
 		);
 	}
 
-	//=========== Sound ===========//
+	//사운드
 	if(GroundSound)
 	{
 		SpawnedAudioComp = UGameplayStatics::SpawnSoundAtLocation(
@@ -76,20 +78,23 @@ bool ASFGC_Hero_AreaHeal_Ground::OnActive_Implementation(
 
 	return true;
 }
+//================================================
 
+
+//=====================OnRemove=====================
 bool ASFGC_Hero_AreaHeal_Ground::OnRemove_Implementation(
 	AActor* MyTarget,
 	const FGameplayCueParameters& Parameters)
 {
-	// Niagara 정리
+	//Niagara 정리
 	if(SpawnedNiagaraComp)
 	{
-		SpawnedNiagaraComp->Deactivate(); 
+		SpawnedNiagaraComp->Deactivate();
 		SpawnedNiagaraComp->DestroyComponent();
 		SpawnedNiagaraComp = nullptr;
 	}
 
-	// Cascade 정리
+	//Cascade 정리
 	if(SpawnedCascadeComp)
 	{
 		SpawnedCascadeComp->DeactivateSystem();
@@ -97,7 +102,7 @@ bool ASFGC_Hero_AreaHeal_Ground::OnRemove_Implementation(
 		SpawnedCascadeComp = nullptr;
 	}
 
-	// Sound 정리
+	//Sound 정리
 	if(SpawnedAudioComp)
 	{
 		SpawnedAudioComp->Stop();
@@ -107,3 +112,4 @@ bool ASFGC_Hero_AreaHeal_Ground::OnRemove_Implementation(
 
 	return true;
 }
+//================================================

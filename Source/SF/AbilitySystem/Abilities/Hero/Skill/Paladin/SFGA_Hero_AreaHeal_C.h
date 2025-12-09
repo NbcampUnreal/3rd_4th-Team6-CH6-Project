@@ -2,12 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/Hero/Skill/SFGA_Skill_Melee.h"
+#include "GameplayTagContainer.h"
 #include "SFGA_Hero_AreaHeal_C.generated.h"
 
-class UParticleSystem;
-class USoundBase;
-class UAnimMontage;
 class UGameplayEffect;
+class UAnimMontage;
 class UNiagaraSystem;
 class UNiagaraComponent;
 class USkeletalMeshComponent;
@@ -21,65 +20,64 @@ public:
 	USFGA_Hero_AreaHeal_C(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
-	//Ability 실행
+
+	//=====================Ability Lifecycle============================
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo,
-		const FGameplayEventData* TriggerEventData
-	) override;
-	
-	//Ability 종료
+		const FGameplayEventData* TriggerEventData) override;
+
 	virtual void EndAbility(
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		bool bReplicateEndAbility,
-		bool bWasCancelled
-	) override;
+		bool bWasCancelled) override;
+	//===================================================================
 
-	//이펙트 & 타격 발생
+	//=====================이벤트 수신 (번개 타격 타이밍)===============
 	UFUNCTION()
 	void OnLightningImpact(FGameplayEventData Payload);
-	
-	UPROPERTY(EditDefaultsOnly, Category="SF|GameplayEffect")
-	TSubclassOf<UGameplayEffect> DamageGE;
-	
-	//몽타주 종료 시 실행
+	//===================================================================
+
 	UFUNCTION()
 	void OnMontageEnded();
 
-	//스킬 애님 몽타주
-	UPROPERTY(EditDefaultsOnly, Category="SF|Animation")
-	TObjectPtr<UAnimMontage> LightningMontage;
+	//=====================현재 장착 무기 메쉬 찾기=======================
+	USkeletalMeshComponent* FindCurrentWeaponMesh(class ASFCharacterBase* OwnerChar) const;
+	//===================================================================
 
-	//FX
-	UPROPERTY(EditDefaultsOnly, Category="SF|Effect")
-	UParticleSystem* LightningEffect1;
-	UPROPERTY(EditDefaultsOnly, Category="SF|Effect")
-	UParticleSystem* LightningEffect2;
+protected:
 
-	//Sound
-	UPROPERTY(EditDefaultsOnly, Category="SF|Sound")
-	USoundBase* LightningSound1;
-	UPROPERTY(EditDefaultsOnly, Category="SF|Sound")
-	USoundBase* LightningSound2;
+	//=====================Gameplay Tags===============================
+	UPROPERTY(EditAnywhere, Category="SF|Tags")
+	FGameplayTag LightningCueTag; //FX 호출용 GC 태그
 
-	//GE
-	UPROPERTY(EditDefaultsOnly, Category="SF|GameplayEffect")
-	TSubclassOf<UGameplayEffect> DebuffGE;
+	UPROPERTY(EditAnywhere, Category="SF|Tags")
+	FGameplayTag LightningEventTag;	//실제 로직 수행 AnimNotify GameplayEvent 태그
+	//==================================================================
 
-	//스킬 설정
-	UPROPERTY(EditDefaultsOnly, Category="SF|Damage")
-	float BaseDamage = 40.f;
+	//=====================Gameplay 설정===============================
+	UPROPERTY(EditAnywhere, Category="SF|Gameplay")
+	float BaseDamage = 40.f; //기본 데미지
 
-	UPROPERTY(EditDefaultsOnly, Category="SF|Damage")
-	float StrikeDistance = 300.f;
+	UPROPERTY(EditAnywhere, Category="SF|Gameplay")
+	float StrikeDistance = 300.f; //공격 소환 거리
 
-	UPROPERTY(EditDefaultsOnly, Category="SF|Damage")
-	float StrikeRadius = 200.f;
+	UPROPERTY(EditAnywhere, Category="SF|Gameplay")
+	float StrikeRadius = 200.f; //공격 범위
 
-	//===================== Trail 관련 =====================
+	UPROPERTY(EditAnywhere, Category="SF|Gameplay")
+	TSubclassOf<UGameplayEffect> DebuffGE; //디버프 GE 적용
+	//==================================================================
+
+	//=====================Animation===============================
+	UPROPERTY(EditAnywhere, Category="SF|Animation")
+	UAnimMontage* LightningMontage;
+	//==================================================================
+
+	//=====================Trail FX===============================
 	UPROPERTY(EditDefaultsOnly, Category="SF|VFX")
 	UNiagaraSystem* SwordTrailFX;
 
@@ -88,8 +86,5 @@ protected:
 
 	FTimerHandle TrailUpdateHandle;
 	FTimerHandle TrailFadeHandle;
-	//=====================================================
-
-	//현재 장착 무기 메쉬(예: BP_OneHandSword의 SKM_OneHandSword_001) 찾기
-	USkeletalMeshComponent* FindCurrentWeaponMesh(ASFCharacterBase* OwnerChar) const;
+	//==================================================================
 };

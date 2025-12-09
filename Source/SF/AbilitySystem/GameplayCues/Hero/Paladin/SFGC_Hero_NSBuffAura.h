@@ -9,51 +9,49 @@ class UNiagaraComponent;
 class USoundBase;
 class UAudioComponent;
 
-/**
- * Aura Heal GameplayCue (각 플레이어에 적용되는 지속형 Buff Aura)
- * - OnActive  : 최초 1회 FX 생성
- * - WhileActive : 유지 (Tick 아님 → 성능 부담 없음)
- * - OnRemove : FX/Sound 제거 및 Cleanup
- */
 UCLASS()
 class SF_API ASFGC_Hero_NSBuffAura : public AGameplayCueNotify_Actor
 {
 	GENERATED_BODY()
 
 public:
-	ASFGC_Hero_NSBuffAura();
+	ASFGC_Hero_NSBuffAura(); //생성자
 
 protected:
 
-	/*================ Aura Niagara FX ================*/
+	//=====================VFX=====================
 	UPROPERTY(EditAnywhere, Category="Aura|VFX")
-	UNiagaraSystem* AuraNiagaraFX;
+	UNiagaraSystem* AuraNiagaraFX; //나이아가라 FX
 
 	UPROPERTY(Transient)
-	UNiagaraComponent* AuraComponent;
+	UNiagaraComponent* AuraComponent; //생성된 Aura Niagara
+	//================================================
 
-
-	/*================ Optional Loop Sound ================*/
+	//=====================Loop Sound=====================
 	UPROPERTY(EditAnywhere, Category="Aura|Sound")
-	USoundBase* AuraLoopSound;
+	USoundBase* AuraLoopSound; //루프 사운드
 
 	UPROPERTY(Transient)
-	UAudioComponent* AuraAudioComp;
+	UAudioComponent* AuraAudioComp; //생성된 오디오컴포넌트
+	//================================================
 
+	//=====================Transform=====================
+	UPROPERTY(EditAnywhere, Category="Aura|Transform")
+	FVector AuraLocationOffset = FVector(0.f,0.f,-90.f); //위치 오프셋
+	//================================================
 
 public:
 
 	virtual bool OnActive_Implementation(
 		AActor* Target,
-		const FGameplayCueParameters& Parameters) override;
+		const FGameplayCueParameters& Parameters) override; //처음 시작
 
-	//🔥 WhileActive 추가 (Aura 유지 목적)
 	virtual bool WhileActive_Implementation(
 		AActor* Target,
-		const FGameplayCueParameters& Parameters) override;
+		const FGameplayCueParameters& Parameters) override; //지속 유지
 
 	virtual bool OnRemove_Implementation(
 		AActor* Target,
-		const FGameplayCueParameters& Parameters) override;
-
+		const FGameplayCueParameters& Parameters) override; //종료
 };
+//============================================================

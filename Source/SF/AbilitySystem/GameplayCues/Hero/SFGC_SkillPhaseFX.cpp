@@ -7,9 +7,10 @@
 #include "SFSkillFXTypes.h"
 #include "AbilitySystem/GamePlayCues/Hero/SFSkillFXTypes.h"
 
-//================== 바닥 위치 계산 ==================
+//=====================바닥 위치 계산=====================
 FVector USFGC_SkillPhaseFX::GetFloorLocationForActor(AActor* Target) const
 {
+	//타겟 없음
 	if (!Target)
 	{
 		return FVector::ZeroVector;
@@ -28,25 +29,25 @@ FVector USFGC_SkillPhaseFX::GetFloorLocationForActor(AActor* Target) const
 	FHitResult HitResult;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(SFGC_SkillPhaseFX_FloorTrace), false, Target);
 
+	//바닥 감지
 	if (World->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params))
 	{
 		return HitResult.ImpactPoint;
 	}
 
-	//바닥을 못 찾으면 캐릭터 위치 사용
+	//Trace 실패 → Actor 위치 사용
 	return ActorLocation;
 }
+//========================================================
 
-//================== GameplayCue 처리 ==================
-// - EventType: 주로 Executed를 사용(AnimNotify에서 호출할 때)
-// - Parameters.SourceObject: USFDA_SkillPhaseFX*
-// - Parameters.RawMagnitude: ESFSkillFXPhase를 float로 변환한 값
-//======================================================
-void USFGC_SkillPhaseFX::HandleGameplayCue(AActor* Target,
-                                           EGameplayCueEvent::Type EventType,
-                                           const FGameplayCueParameters& Parameters)
+
+//=====================GameplayCue 처리===================
+void USFGC_SkillPhaseFX::HandleGameplayCue(
+	AActor* Target,
+	EGameplayCueEvent::Type EventType,
+	const FGameplayCueParameters& Parameters)
 {
-	//AnimNotify에서 주로 Executed로 들어올 것을 예상
+	//실행 가능한 이벤트만 처리
 	if (EventType != EGameplayCueEvent::Executed &&
 	    EventType != EGameplayCueEvent::OnActive &&
 	    EventType != EGameplayCueEvent::WhileActive)
@@ -54,12 +55,13 @@ void USFGC_SkillPhaseFX::HandleGameplayCue(AActor* Target,
 		return;
 	}
 
+	//타겟 없음
 	if (!Target)
 	{
 		return;
 	}
 
-	//FX DataAsset 가져오기
+	//FX DataAsset 추출
 	const USFDA_SkillPhaseFX* FXData = Cast<USFDA_SkillPhaseFX>(Parameters.SourceObject);
 	if (!FXData)
 	{
@@ -73,18 +75,16 @@ void USFGC_SkillPhaseFX::HandleGameplayCue(AActor* Target,
 	switch (PhaseIndex)
 	{
 	case static_cast<int32>(ESFSkillFXPhase::CastStart):
-		Phase = ESFSkillFXPhase::CastStart;
-		break;
+		Phase = ESFSkillFXPhase::CastStart; break;
+
 	case static_cast<int32>(ESFSkillFXPhase::CastLoop):
-		Phase = ESFSkillFXPhase::CastLoop;
-		break;
-	case static_cast<int32>(ESFSkillFXPhase::Activate):
+		Phase = ESFSkillFXPhase::CastLoop; break;
+
 	default:
-		Phase = ESFSkillFXPhase::Activate;
-		break;
+		Phase = ESFSkillFXPhase::Activate; break;
 	}
 
-	//해당 페이즈 FX 세트 가져오기
+	//FX 세트 가져오기
 	const FSFSkillPhaseFX& PhaseFX = FXData->GetFXForPhase(Phase);
 
 	UWorld* World = Target->GetWorld();
@@ -93,42 +93,46 @@ void USFGC_SkillPhaseFX::HandleGameplayCue(AActor* Target,
 		return;
 	}
 
-	//스폰 위치: 캐릭터 발밑 바닥
+	//스폰 위치(발밑 기준)
 	const FVector SpawnLocation = GetFloorLocationForActor(Target);
 	const FRotator SpawnRotation = Target->GetActorRotation();
 
-	//나이아가라 FX
+	//=====================Niagara========================
 	if (PhaseFX.NiagaraSystem)
 	{
-		auto NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			World,
 			PhaseFX.NiagaraSystem,
 			SpawnLocation,
-			Target->GetActorRotation(),
-			PhaseFX.FXScale             // << 🔥 크기 적용
+			SpawnRotation,
+			PhaseFX.FXScale	//크기 적용
 		);
 	}
+	//====================================================
 
-	//캐스케이드 파티클 FX
+	//=====================Cascade========================
 	if (PhaseFX.CascadeSystem)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(
 			World,
 			PhaseFX.CascadeSystem,
 			SpawnLocation,
-			Target->GetActorRotation(),
-			PhaseFX.FXScale             // << 🔥 크기 적용
+			SpawnRotation,
+			PhaseFX.FXScale	//크기 적용
 		);
 	}
+	//====================================================
 
-	//사운드 FX
+	//=====================Sound==========================
 	if (PhaseFX.Sound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(
 			World,
 			PhaseFX.Sound,
 			SpawnLocation,
-			PhaseFX.SoundVolume         // << 🔥 볼륨 적용
+			PhaseFX.SoundVolume	//볼륨 적용
 		);
 	}
+	//====================================================
 }
+//========================================================

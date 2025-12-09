@@ -19,7 +19,6 @@ public:
 protected:
 
 //=========================Ability Data=========================
-//스킬 공통 정보(몽타주/버프/레벨)
 	UPROPERTY(EditDefaultsOnly, Category="SF|Animation")
 	UAnimMontage* BuffMontage;
 
@@ -28,11 +27,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="SF|BuffEffect")
 	int32 BuffLevel = 1;
-//==============================================================
+//================================================================
 
 
-//=========================GameplayCue Tags=========================
-//Skill Event → GroundCue → AuraCue 로 이어지는 구조
+//======================GameplayCue Tags==========================
 	UPROPERTY(EditDefaultsOnly, Category="SF|Cue")
 	FGameplayTag StartEventTag;
 
@@ -41,18 +39,21 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="SF|Cue")
 	FGameplayTag AuraCueTag;
-//=================================================================
+//================================================================
 
 
-//=========================Aura Tracking=========================
-//Aura가 적용된 Actor 목록 및 GE Handle 저장
+//======================Aura Tracking(임시)========================
 	UPROPERTY()
 	TMap<AActor*, FActiveGameplayEffectHandle> ActiveAuraEffects;
 //================================================================
 
 
-//==========================Skill Event==========================
-//GameplayEvent를 수신하면 GroundCue 실행 후 로직 호출
+//====================모션 캔슬 버그 방지 플래그=====================
+	UPROPERTY()
+	bool bSkillActivatedByEvent = false; // Notify 이후 TRUE
+//================================================================
+	
+//========================Event Handler===========================
 	UFUNCTION()
 	void OnReceivedSkillEvent(FGameplayEventData Payload);
 
@@ -60,19 +61,24 @@ protected:
 	void OnSkillEventTriggered();
 	virtual void OnSkillEventTriggered_Implementation();
 //================================================================
+	
+//========================Montage Delegate========================
+	UFUNCTION()
+	void OnMontageInterrupted();
 
-
-//=======================Aura Process============================
-//Player 태그가 있는 Actor만 Aura 및 GE 적용
+	UFUNCTION()
+	void OnMontageBlendOut();
+//================================================================
+	
+//========================Buff Handling===========================
 	virtual void ApplyAura(AActor* Target);
 	virtual void RemoveAura(AActor* Target);
 //================================================================
 
-
+	
 public:
 
-//=======================Ability Lifecycle=======================
-//활성화 & 종료(몽타주 재생/큐 제거/Aura 제거 처리)
+//========================Ability Lifecycle=======================
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
@@ -85,5 +91,5 @@ public:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
-//===============================================================
+//================================================================
 };

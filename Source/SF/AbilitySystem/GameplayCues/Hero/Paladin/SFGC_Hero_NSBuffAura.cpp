@@ -8,71 +8,74 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SFGC_Hero_NSBuffAura)
 
+//=====================생성자=====================
 ASFGC_Hero_NSBuffAura::ASFGC_Hero_NSBuffAura()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = false; //Tick 없음
+	bAutoDestroyOnRemove = true; //OnRemove 후 자동 정리
 
 	AuraComponent = nullptr;
 	AuraAudioComp = nullptr;
-
-	// WhileActive 사용 시 Recommended
-	bAutoDestroyOnRemove = true;
 }
+//================================================
 
+
+//=====================OnActive=====================
 bool ASFGC_Hero_NSBuffAura::OnActive_Implementation(
 	AActor* Target,
 	const FGameplayCueParameters& Parameters)
 {
 	if(!Target) return false;
 
-	//======= 이미 Aura가 있을 경우 다시 생성 금지 (중복 방지 핵심) =======
-	if(AuraComponent && AuraComponent->IsActive())
-		return false; //WhileActive 유지중이므로 새로운 생성 X
+	//이미 Aura가 있다면 중복 생성 방지
+	if(AuraComponent && AuraComponent->IsActive()) return false;
 
 	USceneComponent* AttachComp = nullptr;
+	if(ACharacter* Char = Cast<ACharacter>(Target)) AttachComp = Char->GetMesh();
+	else AttachComp = Target->GetRootComponent();
 
-	if(ACharacter* Char = Cast<ACharacter>(Target))
-		AttachComp = Char->GetMesh();
-	else
-		AttachComp = Target->GetRootComponent();
-
-
-	//============ Niagara Aura Spawn ============//
+	//=====================Niagara FX=====================
 	if(AuraNiagaraFX)
 	{
 		AuraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
 			AuraNiagaraFX,
 			AttachComp,
 			NAME_None,
-			FVector::ZeroVector,
+			AuraLocationOffset,
 			FRotator::ZeroRotator,
-			EAttachLocation::SnapToTarget,
+			EAttachLocation::KeepRelativeOffset,
 			false
 		);
 	}
+	//================================================
 
-	//============ Optional Loop Sound ============//
+	//=====================Loop Sound=====================
 	if(AuraLoopSound)
 	{
 		AuraAudioComp = UGameplayStatics::SpawnSoundAttached(
 			AuraLoopSound,
 			AttachComp
 		);
-		AuraAudioComp->bAutoDestroy = false;
+		AuraAudioComp->bAutoDestroy = false; //OnRemove에서 직접 정리
 	}
+	//================================================
 
 	return true;
 }
+//================================================
 
+
+//=====================WhileActive=====================
 bool ASFGC_Hero_NSBuffAura::WhileActive_Implementation(
 	AActor* Target,
 	const FGameplayCueParameters& Parameters)
 {
-	//🔥 아무 것도 안함 = 유지 목적
-	//Tick 아님 → 성능 부담 없음
 	return true;
 }
+//================================================
 
+
+//=====================OnRemove=====================
 bool ASFGC_Hero_NSBuffAura::OnRemove_Implementation(
 	AActor* Target,
 	const FGameplayCueParameters& Parameters)
@@ -93,3 +96,4 @@ bool ASFGC_Hero_NSBuffAura::OnRemove_Implementation(
 
 	return true;
 }
+//================================================
