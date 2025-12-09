@@ -35,10 +35,10 @@ void USFPasswordInputWidget::NativeConstruct()
     //============================================================================
 
     //==================================UI 초기값==================================
-    if (PasswordInputBox)
-    {
-        PasswordInputBox->SetText(FText::FromString(TEXT("비밀번호를 입력하세요")));
-    }
+    //if (PasswordInputBox)
+    //{
+    //    PasswordInputBox->SetText(FText::FromString(TEXT("비밀번호를 입력하세요")));
+    //}
     //============================================================================
 }
 

@@ -55,9 +55,9 @@ void USFRoomListEntryWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
     SessionInfo = Item->Data;
     
     if (RoomNameText) RoomNameText->SetText(FText::FromString(SessionInfo.RoomName));
-    if (PlayerCountText) PlayerCountText->SetText(FText::FromString(FString::Printf(TEXT("👥 %d/%d"), SessionInfo.CurrentPlayers, SessionInfo.MaxPlayers)));
+    if (PlayerCountText) PlayerCountText->SetText(FText::FromString(FString::Printf(TEXT("%d/%d"), SessionInfo.CurrentPlayers, SessionInfo.MaxPlayers)));
     if (HostNameText) HostNameText->SetText(FText::FromString(SessionInfo.HostName));
-    if (ProtectedIndicator) ProtectedIndicator->SetText(SessionInfo.bIsPasswordProtected ? FText::FromString(TEXT("🔒")) : FText::FromString(TEXT("—")));
+    if (ProtectedIndicator) ProtectedIndicator->SetText(SessionInfo.bIsPasswordProtected ? FText::FromString(TEXT("Private")) : FText::FromString(TEXT("Public")));
 }   
 //========================================================================
 
