@@ -248,6 +248,17 @@ void ASFEnemy::SetLastAttacker(AActor* Attacker)
 	}
 	
 	LastAttacker = Attacker;
+
+	// [추가] 공격자가 있다면 컨트롤러에게 타겟 강제 변경 요청
+	if (Attacker)
+	{
+		// 내 컨트롤러를 ASFEnemyController로 캐스팅하여 함수 호출
+		if (ASFEnemyController* AIC = Cast<ASFEnemyController>(GetController()))
+		{
+			AIC->SetTargetForce(Attacker);
+		}
+	}
+
 	OnRep_LastAttacker();
 }
 
@@ -262,3 +273,4 @@ void ASFEnemy::OnRep_LastAttacker()
 		}
 	}
 }
+
