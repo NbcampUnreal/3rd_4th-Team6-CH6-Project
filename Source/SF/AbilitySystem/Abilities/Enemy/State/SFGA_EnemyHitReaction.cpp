@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystem/Attributes/SFPrimarySet.h"
+#include "AbilitySystem/GameplayCues/SFGameplayCueTags.h"
 #include "AbilitySystem/GameplayEffect/SFGameplayEffectContext.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Character/SFCharacterGameplayTags.h"
@@ -44,7 +45,7 @@ void USFGA_EnemyHitReaction::ActivateAbility(const FGameplayAbilitySpecHandle Ha
         EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
         return;
     }
-
+    
    
     float Damage = TriggerEventData->EventMagnitude;
     if (Damage <= 0.f)
@@ -53,6 +54,11 @@ void USFGA_EnemyHitReaction::ActivateAbility(const FGameplayAbilitySpecHandle Ha
         return;
     }
 
+    if (MontageTask && MontageTask->IsActive())
+    {
+        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+        return;
+    }
     
     FVector HitLocation = ExtractHitLocationFromEvent(TriggerEventData);
     FVector AttackDir   = ExtractHitDirectionFromEvent(TriggerEventData);
@@ -91,9 +97,30 @@ void USFGA_EnemyHitReaction::ActivateAbility(const FGameplayAbilitySpecHandle Ha
             MontageTask->OnCancelled.AddDynamic(this, &USFGA_EnemyHitReaction::OnMontageCancelled);
 
             MontageTask->ReadyForActivation();
-            return;
+         
         }
     }
+    if (SelectedMontage && ASC)
+    {
+        
+        FGameplayCueParameters CueParams;
+        CueParams.Location = HitLocation;
+
+        const USFPrimarySet* Set = ASC->GetSet<USFPrimarySet>();
+        if (Set)
+        {
+            float MaxHealth = Set->GetMaxHealth();
+            float DamageRatio = Damage / MaxHealth;
+            
+            FGameplayTag TypeTag = (DamageRatio > 0.2f) ? SFGameplayTags::GameplayCue_HitReaction_Heavy : SFGameplayTags::GameplayCue_HitReaction_Light;
+    
+            CueParams.AggregatedSourceTags.AddTag(TypeTag);
+        }
+        
+        ASC->ExecuteGameplayCue(SFGameplayTags::GameplayCue_HitReaction_Type_Enemy, CueParams);
+        return;
+    }
+
 
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }

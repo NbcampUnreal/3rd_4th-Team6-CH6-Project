@@ -3,4 +3,11 @@
 namespace SFGameplayTags
 {
 	UE_DEFINE_GAMEPLAY_TAG(GameplayCue_Skill_HeartBreaker_Charging, TEXT("GameplayCue.Skill.HeartBreaker.Charging"))
+	
+	UE_DEFINE_GAMEPLAY_TAG(GameplayCue_HitReaction, TEXT("GameplayCue.HitReaction"))
+	UE_DEFINE_GAMEPLAY_TAG(GameplayCue_HitReaction_Type_Player, TEXT("GameplayCue.HitReaction.Type.Player"))
+	UE_DEFINE_GAMEPLAY_TAG(GameplayCue_HitReaction_Type_Enemy, TEXT("GameplayCue.HitReaction.Type.Enemy"))
+	UE_DEFINE_GAMEPLAY_TAG(GameplayCue_HitReaction_Type_Normal, TEXT("GameplayCue.HitReaction.Type.Normal"))
+	UE_DEFINE_GAMEPLAY_TAG(GameplayCue_HitReaction_Heavy, TEXT("GameplayCue.HitReaction.Heavy"))
+	UE_DEFINE_GAMEPLAY_TAG(GameplayCue_HitReaction_Light, TEXT("GameplayCue.HitReaction.Light"))
 }
