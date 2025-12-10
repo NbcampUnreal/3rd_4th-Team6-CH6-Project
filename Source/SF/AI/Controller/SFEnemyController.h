@@ -33,6 +33,11 @@ public:
 	USFEnemyCombatComponent* GetCombatComponent() const { return CombatComponent; }
 
 	void InitializeController();
+
+	// [추가] 외부(Pawn)에서 강제로 타겟을 설정하고 즉시 전투 상태로 전환하는 함수
+	UFUNCTION(BlueprintCallable, Category = "AI|Combat")
+	void SetTargetForce(AActor* NewTarget);
+
 protected:
 
 	virtual void PreInitializeComponents() override;
