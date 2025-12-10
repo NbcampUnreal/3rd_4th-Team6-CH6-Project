@@ -16,6 +16,7 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_HitReaction, "GameplayEvent.HitReaction");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Death, "GameplayEvent.Death");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Parry, "GameplayEvent.Parry");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Parried, "GameplayEvent.Parried");
 	
 	
 

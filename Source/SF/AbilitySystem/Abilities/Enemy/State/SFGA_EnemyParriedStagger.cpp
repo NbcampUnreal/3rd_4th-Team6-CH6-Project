@@ -15,7 +15,7 @@ USFGA_EnemyParriedStagger::USFGA_EnemyParriedStagger()
 	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_Parried);
 	
 	FAbilityTriggerData Trigger;
-	Trigger.TriggerTag = SFGameplayTags::GameplayEvent_Parry;
+	Trigger.TriggerTag = SFGameplayTags::GameplayEvent_Parried;
 	Trigger.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(Trigger);
 	
