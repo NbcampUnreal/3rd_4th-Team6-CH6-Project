@@ -26,7 +26,8 @@ protected:
 	
 	UFUNCTION(BlueprintCallable, Category = "SF|Ability")
 	void ProcessHitResult(FHitResult HitResult, float Damage, ASFEquipmentBase* WeaponActor);
-	
+
+	UFUNCTION(BlueprintCallable, Category = "SF|Ability") 
 	void ResetHitActors();
 
 	void DrawDebugHitPoint(const FHitResult& HitResult);
