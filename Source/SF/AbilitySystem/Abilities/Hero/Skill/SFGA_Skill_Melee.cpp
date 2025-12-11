@@ -41,11 +41,11 @@ void USFGA_Skill_Melee::ParseTargetData(const FGameplayAbilityTargetDataHandle& 
 					TargetCharacter = Cast<ASFCharacterBase>(HitActor->GetOwner());
 				}
 
-			 // TODO : 적대 관계 확인 - 적대가 아닌 대상은 공격하지 않음 (아군 보호)
-			 // if (TargetCharacter && (GetSFCharacterFromActorInfo()->GetTeamAttitudeTowards(*TargetCharacter) != ETeamAttitude::Hostile))
-			 // {
-			 // 	continue;
-			 // }
+				// 적대 관계 확인 - 적대가 아닌 대상은 공격하지 않음 (아군 보호)
+				if (TargetCharacter && (GetSFCharacterFromActorInfo()->GetTeamAttitudeTowards(*TargetCharacter) != ETeamAttitude::Hostile))
+				{
+					continue;
+				}
 				
 				// 중복 히트 방지를 위해 이미 히트된 액터인지 확인
 				AActor* SelectedActor = TargetCharacter ? TargetCharacter : HitActor;

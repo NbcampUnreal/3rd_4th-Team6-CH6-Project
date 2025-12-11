@@ -71,6 +71,12 @@ void ASFGameMode::PostLogin(APlayerController* NewPlayer)
 			}
 		}
 	}
+
+	if (ASFPlayerState* PS = NewPlayer->GetPlayerState<ASFPlayerState>())
+	{
+		// 기본 팀 설정 
+		PS->SetGenericTeamId(FGenericTeamId(SFTeamID::Player));
+	}
     
 	// 공통 함수 호출 (Seamless Travel과 동일한 로직)
 	SetupPlayerPawnDataLoading(NewPlayer);

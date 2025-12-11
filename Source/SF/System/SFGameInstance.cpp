@@ -1,7 +1,9 @@
 #include "SFGameInstance.h"
 
+#include "GenericTeamAgentInterface.h"
 #include "SFInitGameplayTags.h"
 #include "Components/GameFrameworkComponentManager.h"
+#include "Team/SFTeamTypes.h"
 
 void USFGameInstance::Init()
 {
@@ -18,6 +20,7 @@ void USFGameInstance::Init()
 		ComponentManager->RegisterInitState(SFGameplayTags::InitState_GameplayReady, false, SFGameplayTags::InitState_DataInitialized);
 	}
 
+	InitTeamAttitudeSolver();
 	LoadEnemyDataTable();
 }
 
@@ -38,6 +41,27 @@ void USFGameInstance::LoadLevelAndListen(TSoftObjectPtr<UWorld> Level)
 		//GetWorld()->ServerTravel(LevelURL.ToString() + "?listen");
 		GetWorld()->ServerTravel(LevelURL.ToString(), true);
 	}
+}
+
+void USFGameInstance::InitTeamAttitudeSolver()
+{
+	// Player vs Enemy = Hostile
+	FGenericTeamId::SetAttitudeSolver([](FGenericTeamId A, FGenericTeamId B) -> ETeamAttitude::Type
+	{
+		if (A == B)
+		{
+			return ETeamAttitude::Friendly;
+		}
+		
+		// Player(0) vs Enemy(1) = Hostile
+		if ((A == FGenericTeamId(SFTeamID::Player) && B == FGenericTeamId(SFTeamID::Enemy)) ||
+			(A == FGenericTeamId(SFTeamID::Enemy) && B == FGenericTeamId(SFTeamID::Player)))
+		{
+			return ETeamAttitude::Hostile;
+		}
+        
+		return ETeamAttitude::Neutral;
+	});
 }
 
 void USFGameInstance::LoadEnemyDataTable()

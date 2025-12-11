@@ -15,5 +15,6 @@ class SF_API ASFHero : public ASFCharacterBase
 	GENERATED_BODY()
 
 public:
-	
+	virtual FGenericTeamId GetGenericTeamId() const override;
+	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override {}
 };

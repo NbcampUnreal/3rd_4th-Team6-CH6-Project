@@ -1,5 +1,6 @@
 #include "SFPlayerState.h"
 
+#include "GenericTeamAgentInterface.h"
 #include "SFLogChannels.h"
 #include "SFPlayerController.h"
 #include "SFPlayerInfoTypes.h"
@@ -42,11 +43,26 @@ void ASFPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PawnData, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MyPlayerConnectionType, SharedParams)
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MyTeamID, SharedParams);
 }
 
 void ASFPlayerState::Reset()
 {
 	Super::Reset();
+}
+
+void ASFPlayerState::SetGenericTeamId(const FGenericTeamId& NewTeamID)
+{
+	if (HasAuthority())
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, MyTeamID, this);
+		MyTeamID = NewTeamID;
+	}
+}
+
+FGenericTeamId ASFPlayerState::GetGenericTeamId() const
+{
+	return MyTeamID;
 }
 
 void ASFPlayerState::ClientInitialize(AController* C)
@@ -71,6 +87,7 @@ void ASFPlayerState::CopyProperties(APlayerState* PlayerState)
 	}
 
 	NewPlayerState->SetPlayerSelection(PlayerSelection);
+	NewPlayerState->SetGenericTeamId(MyTeamID);
 
 	if (SavedASCData.IsValid())
 	{

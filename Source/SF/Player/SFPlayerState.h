@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
+#include "GenericTeamAgentInterface.h"
 #include "SFPlayerInfoTypes.h"
 #include "GameFramework/PlayerState.h"
 #include "Save/SFPersistentDataType.h"
+#include "Team/SFTeamTypes.h"
 #include "SFPlayerState.generated.h"
 
 class USFCombatSet_Hero;
@@ -39,12 +41,17 @@ enum class ESFPlayerConnectionType : uint8
  * 
  */
 UCLASS()
-class SF_API ASFPlayerState : public APlayerState, public IAbilitySystemInterface
+class SF_API ASFPlayerState : public APlayerState, public IAbilitySystemInterface, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 	
 public:
 	ASFPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	//~ IGenericTeamAgentInterface
+    virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;
+    virtual FGenericTeamId GetGenericTeamId() const override;
+    //~ End IGenericTeamAgentInterface
 
 	UFUNCTION(BlueprintCallable, Category = "SF|PlayerState")
 	ASFPlayerController* GetSFPlayerController() const;
@@ -130,6 +137,9 @@ private:
 
 	UPROPERTY(Replicated)
 	ESFPlayerConnectionType MyPlayerConnectionType;
+
+	UPROPERTY(Replicated)
+	FGenericTeamId MyTeamID = FGenericTeamId(SFTeamID::Player);
 
 	UPROPERTY()
 	uint8 bPawnDataLoaded : 1;
