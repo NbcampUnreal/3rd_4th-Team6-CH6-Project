@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "SFPawnData.h"
 
 USFPawnData::USFPawnData(const FObjectInitializer& ObjectInitializer)
@@ -22,9 +19,15 @@ TArray<TSubclassOf<USFGameplayAbility>> USFPawnData::GetUpgradeOptionsForSlot(FG
 
 FGameplayTag USFPawnData::GetUpgradeSlotTagForStage(int32 StageIndex) const
 {
-	if (UpgradeSlotOrder.IsValidIndex(StageIndex))
+	int32 Index = StageIndex - 1;
+	if (Index < 0 || Index >= UpgradeSlotOrder.Num())
 	{
-		return UpgradeSlotOrder[StageIndex];
+		Index = 0;
+	}
+	
+	if (UpgradeSlotOrder.IsValidIndex(Index))
+	{
+		return UpgradeSlotOrder[Index];
 	}
 	return FGameplayTag();
 }

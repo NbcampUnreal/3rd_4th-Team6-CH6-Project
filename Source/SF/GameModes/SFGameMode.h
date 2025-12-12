@@ -39,6 +39,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SF|GameMode")
 	void ActivatePortal();
 
+	UFUNCTION(BlueprintCallable, Category = "SF|GameMode")
+	void NotifyStageClear();
+
 	/** GameState에서 호출하는 Travel 요청 */
 	void RequestTravelToNextStage(TSoftObjectPtr<UWorld> NextStageLevel);
 

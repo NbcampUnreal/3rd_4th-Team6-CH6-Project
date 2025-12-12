@@ -9,6 +9,7 @@
 #include "Team/SFTeamTypes.h"
 #include "SFPlayerState.generated.h"
 
+class USFGameplayAbility;
 class USFCombatSet_Hero;
 class USFPrimarySet_Hero;
 struct FStreamableHandle;
@@ -99,9 +100,18 @@ public:
 	// Seamless Travel 후 ASC 데이터 복원
 	void RestorePersistedAbilityData();
 
+	// 스킬 업그레이드 요청 (클라이언트 → 서버)
+	UFUNCTION(Server, Reliable)
+	void Server_RequestSkillUpgrade(TSubclassOf<USFGameplayAbility> NewAbilityClass, FGameplayTag InputTag);
+
 private:
 	void OnPawnDataLoadComplete(const USFPawnData* LoadedPawnData);
 
+	void ApplySkillUpgrade(TSubclassOf<USFGameplayAbility> NewAbilityClass, FGameplayTag InputTag);
+
+	UFUNCTION()
+	void OnRep_PawnData();
+	
 	UFUNCTION()
 	virtual void OnRep_PlayerSelection();
 
@@ -117,7 +127,7 @@ public:
 private:
 	
 	// 어빌리티 시스템 컴포넌트에서 PawnData를 참조해서 능력을 부여하기 위해 캐싱을 해놓음
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_PawnData)
 	TObjectPtr<const USFPawnData> PawnData;
 
 	UPROPERTY(ReplicatedUsing = OnRep_PlayerSelection)

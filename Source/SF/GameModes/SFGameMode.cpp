@@ -5,6 +5,7 @@
 #include "SFGameState.h"
 #include "SFLogChannels.h"
 #include "SFPortalManagerComponent.h"
+#include "SFStageManagerComponent.h"
 #include "Player/SFPlayerInfoTypes.h"
 #include "Player/SFPlayerState.h"
 #include "Character/Hero/SFHeroDefinition.h"
@@ -344,6 +345,17 @@ void ASFGameMode::ActivatePortal()
 	}
 }
 
+void ASFGameMode::NotifyStageClear()
+{
+	if (ASFGameState* SFGameState = GetGameState<ASFGameState>())
+	{
+		if (USFStageManagerComponent* StageManager = SFGameState->GetStageManager())
+		{
+			StageManager->NotifyStageClear();
+		}
+	}
+}
+
 void ASFGameMode::RequestTravelToNextStage(TSoftObjectPtr<UWorld> NextStageLevel)
 {
 	if (!HasAuthority())
@@ -381,5 +393,6 @@ void ASFGameMode::OnAllEnemiesDefeated()
 {
 	UE_LOG(LogSF, Warning, TEXT("[GameMode] Stage cleared! Activating portal..."));
 
+	NotifyStageClear();
 	ActivatePortal();
 }
