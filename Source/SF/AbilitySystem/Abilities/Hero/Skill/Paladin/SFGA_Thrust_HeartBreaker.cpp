@@ -78,6 +78,8 @@ void USFGA_Thrust_HeartBreaker::ActivateAbility(const FGameplayAbilitySpecHandle
 	StartChargingCue();
 	StartPhaseTimer();
 
+	SetCameraMode(CameraModeClass);
+
 	// 서버인 경우 클라이언트로부터 TargetData(차지 페이즈, 위치) 수신 대기
 	if (ActorInfo->IsNetAuthority())
 	{
@@ -486,6 +488,8 @@ float USFGA_Thrust_HeartBreaker::GetPhaseRushDistance() const
 
 void USFGA_Thrust_HeartBreaker::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	ClearCameraMode();
+	
 	// 타이머 정리
 	if (UWorld* World = GetWorld())
 	{

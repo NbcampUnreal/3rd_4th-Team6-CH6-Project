@@ -1,9 +1,22 @@
 #include "SFGameplayAbility.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemLog.h"
 #include "AbilitySystem/SFAbilitySystemComponent.h"
+#include "Camera/SFCameraMode.h"
 #include "Character/SFCharacterBase.h"
+#include "Character/Hero/SFHeroComponent.h"
 #include "Player/SFPlayerController.h"
+
+#define ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(FunctionName, ReturnValue)																				\
+{																																						\
+	if (!ensure(IsInstantiated()))																														\
+	{																																					\
+	ABILITY_LOG(Error, TEXT("%s: " #FunctionName " cannot be called on a non-instanced ability. Check the instancing policy."), *GetPathName());		\
+	return ReturnValue;																																	\
+	}																																					\
+}
+
 
 USFGameplayAbility::USFGameplayAbility(const FObjectInitializer& ObjectInitializer)
 {
@@ -24,6 +37,11 @@ ASFPlayerController* USFGameplayAbility::GetSFPlayerControllerFromActorInfo() co
 ASFCharacterBase* USFGameplayAbility::GetSFCharacterFromActorInfo() const
 {
 	return (CurrentActorInfo ? Cast<ASFCharacterBase>(CurrentActorInfo->AvatarActor.Get()) : nullptr);
+}
+
+USFHeroComponent* USFGameplayAbility::GetHeroComponentFromActorInfo() const
+{
+	return (CurrentActorInfo ? USFHeroComponent::FindHeroComponent(CurrentActorInfo->AvatarActor.Get()) : nullptr);
 }
 
 ETeamAttitude::Type USFGameplayAbility::GetAttitudeTowards(AActor* Target) const
@@ -109,5 +127,31 @@ void USFGameplayAbility::TryActivateAbilityOnSpawn(const FGameplayAbilityActorIn
 				ASC->TryActivateAbility(Spec.Handle);
 			}
 		}
+	}
+}
+
+void USFGameplayAbility::SetCameraMode(TSubclassOf<USFCameraMode> CameraMode)
+{
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(SetCameraMode, );
+
+	if (USFHeroComponent* HeroComponent = GetHeroComponentFromActorInfo())
+	{
+		HeroComponent->SetAbilityCameraMode(CameraMode, CurrentSpecHandle);
+		ActiveCameraMode = CameraMode;
+	}
+}
+
+void USFGameplayAbility::ClearCameraMode()
+{
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(ClearCameraMode, );
+
+	if (ActiveCameraMode)
+	{
+		if (USFHeroComponent* HeroComponent = GetHeroComponentFromActorInfo())
+		{
+			HeroComponent->ClearAbilityCameraMode(CurrentSpecHandle);
+		}
+
+		ActiveCameraMode = nullptr;
 	}
 }

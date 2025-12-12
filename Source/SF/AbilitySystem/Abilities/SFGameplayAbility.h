@@ -5,6 +5,8 @@
 #include "Abilities/GameplayAbility.h"
 #include "SFGameplayAbility.generated.h"
 
+class USFHeroComponent;
+class USFCameraMode;
 class UInputMappingContext;
 class USFAbilitySystemComponent;
 class ASFCharacterBase;
@@ -36,6 +38,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "SF|Ability")
 	ASFCharacterBase* GetSFCharacterFromActorInfo() const;
+
+	UFUNCTION(BlueprintCallable, Category = "SF|Ability")
+	USFHeroComponent* GetHeroComponentFromActorInfo() const;
 	
 	ESFAbilityActivationPolicy GetActivationPolicy() const { return ActivationPolicy; }
 
@@ -48,6 +53,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SF|Ability|Team")
 	ETeamAttitude::Type GetAttitudeTowards(AActor* Target) const;
+
+	UFUNCTION(BlueprintCallable, Category = "SF|Ability|Camera")
+	void SetCameraMode(TSubclassOf<USFCameraMode> CameraMode);
+
+	UFUNCTION(BlueprintCallable, Category = "SF|Ability|Camera")
+	void ClearCameraMode();
+	
 protected:
 	//~UGameplayAbility interface
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
@@ -60,6 +72,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SF|AbilityID")
 	FName AbilityID;
+
+	// Current camera mode set by the ability.
+	TSubclassOf<USFCameraMode> ActiveCameraMode;
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SF|Ability")

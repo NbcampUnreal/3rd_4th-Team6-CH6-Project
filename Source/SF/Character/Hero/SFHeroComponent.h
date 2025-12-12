@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayAbilitySpecHandle.h"
 #include "Components/GameFrameworkInitStateInterface.h"
 #include "Components/PawnComponent.h"
 #include "Templates/SubclassOf.h"
@@ -29,10 +30,10 @@ public:
 	static USFHeroComponent* FindHeroComponent(const AActor* Actor) { return (Actor ? Actor->FindComponentByClass<USFHeroComponent>() : nullptr); }
 	
 	/** Overrides the camera from an active gameplay ability */
-	//void SetAbilityCameraMode(TSubclassOf<ULCCameraMode> CameraMode, const FGameplayAbilitySpecHandle& OwningSpecHandle);
+	void SetAbilityCameraMode(TSubclassOf<USFCameraMode> CameraMode, const FGameplayAbilitySpecHandle& OwningSpecHandle);
 	
 	/** Clears the camera override if it is set */
-	//void ClearAbilityCameraMode(const FGameplayAbilitySpecHandle& OwningSpecHandle);
+	void ClearAbilityCameraMode(const FGameplayAbilitySpecHandle& OwningSpecHandle);
 	
 	/** The name of the extension event sent via UGameFrameworkComponentManager when ability inputs are ready to bind */
 	static const FName NAME_BindInputsNow;
@@ -78,9 +79,9 @@ protected:
 	FVector LastInputDirection;
 	
 	/** Camera mode set by an ability. */
-	// UPROPERTY()
-	// TSubclassOf<ULCCameraMode> AbilityCameraMode;
+	UPROPERTY()
+	TSubclassOf<USFCameraMode> AbilityCameraMode;
 	
 	/** Spec handle for the last ability to set a camera mode. */
-	//FGameplayAbilitySpecHandle AbilityCameraModeOwningSpecHandle;
+	FGameplayAbilitySpecHandle AbilityCameraModeOwningSpecHandle;
 };
