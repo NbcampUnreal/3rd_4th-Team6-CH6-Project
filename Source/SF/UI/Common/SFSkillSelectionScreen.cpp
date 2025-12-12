@@ -93,25 +93,43 @@ void USFSkillSelectionScreen::OnCardSelected(int32 CardIndex, TSubclassOf<USFGam
     if (SelectedAbilityClass && CurrentUpgradeSlotTag.IsValid())
     {
         // PlayerState의 스킬 교체 RPC 호출
-        APlayerController* PC = GetOwningPlayer();
-        if (PC)
+        if (ASFPlayerState* PS = GetOwningPlayerState<ASFPlayerState>())
         {
-            if (ASFPlayerState* SFPS = PC->GetPlayerState<ASFPlayerState>())
+            PS->Server_RequestSkillUpgrade(SelectedAbilityClass, CurrentUpgradeSlotTag);
+        }
+        
+    }
+
+    TArray<URewardCardBase*> Cards = { RewardCard_01, RewardCard_02, RewardCard_03 };
+    for (int32 i = 0; i < Cards.Num(); ++i)
+    {
+        if (Cards[i])
+        {
+            Cards[i]->SetButtonEnabled(false);
+            
+            if (i != CardIndex)
             {
-                SFPS->Server_RequestSkillUpgrade(SelectedAbilityClass, CurrentUpgradeSlotTag);
+                Cards[i]->SetVisibility(ESlateVisibility::Collapsed);
+            }
+            else
+            {
+                // 선택된 카드의 애니메이션 완료 바인딩
+                Cards[i]->OnSelectAnimationFinished.AddDynamic(this, &ThisClass::CloseSelection);
             }
         }
     }
 
-    // UI 닫기 (BP에서 구현)
-    OnSelectionComplete();
+    if (APlayerController* PC = GetOwningPlayer())
+    {
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->bShowMouseCursor = false;
+    }
+
 }
 
-void USFSkillSelectionScreen::OnSelectionComplete()
+void USFSkillSelectionScreen::CloseSelection()
 {
-    // BP 이벤트 (애니메이션 등)
-    OnSelectionComplete_BP();
-
-    // PlayerController에서 UI 닫기
     OnSelectionCompleteDelegate.Broadcast();
 }
+
+

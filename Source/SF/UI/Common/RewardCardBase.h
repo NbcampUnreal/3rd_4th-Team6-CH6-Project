@@ -14,6 +14,7 @@ class UButton;
 
 // 리워드 카드 선택시 선택된 어빌리티 정보 전달 델리게이트 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRewardCardSelectedSignature, int32, CardIndex, TSubclassOf<USFGameplayAbility>, SelectedAbilityClass);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSelectAnimationFinished);
 
 // =========================================================
 // [임시 데이터 영역]
@@ -26,25 +27,6 @@ enum class ETempCardRarity : uint8
 	Uncommon,
 	Rare,
 	Epic
-};
-
-// TODO 임시 카드 정보 Struct 삭제 예정
-USTRUCT(BlueprintType)
-struct FTempCardInfo
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText CardName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText Description;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UTexture2D* Icon;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	ETempCardRarity Rarity;
 };
 
 // =========================================================
@@ -82,10 +64,10 @@ protected:
 
 public:
 	virtual void NativeConstruct() override;
-
-	// TODO : 삭제 예정, 카드 데이터 연동 함수
-	UFUNCTION(BlueprintCallable, Category = "UI|Function")
-	void SetCardData(const FTempCardInfo& InData);
+	virtual void NativeDestruct() override;
+	
+	UFUNCTION(BlueprintCallable)
+	void SetButtonEnabled(bool bEnabled);
 
 	// 어빌리티 클래스로 카드 데이터 설정
 	UFUNCTION(BlueprintCallable, Category = "UI|Function")
@@ -95,9 +77,17 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI|Animation")
 	void PlayCardReveal();
 
+public:
+
+	UFUNCTION(BlueprintCallable, Category = "SF|UI")
+	void NotifyAnimationComplete();
+	
 	// 카드 정보 전달 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "UI|Event")
 	FOnRewardCardSelectedSignature OnCardSelectedDelegate;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnSelectAnimationFinished OnSelectAnimationFinished;
 
 protected:
 	
@@ -108,6 +98,8 @@ protected:
 	// 몇 번째 카드인지 저장하는 변수
 	UPROPERTY(BlueprintReadWrite, Category = "UI|Data")
 	int32 CurrentCardIndex;
+
+	FTimerHandle ButtonEnableTimerHandle;
 	
 private:
 

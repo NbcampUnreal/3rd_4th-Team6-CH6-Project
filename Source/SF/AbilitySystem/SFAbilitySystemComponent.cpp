@@ -480,9 +480,9 @@ void USFAbilitySystemComponent::SaveGameplayEffectsToData(FSFSavedAbilitySystemD
 			continue;
 		}
 
-		// Infinite  어빌리티 재부여 시 자동 적용되므로 저장 x
+		// TODO : Infinite  어빌리티 재부여 시 자동 적용되므로 저장 안하도록 다시 구현 필요
 		// TODO : Ability를 통해 부여된 Effect가 아닌 Passive GE인 경우 필터링 구현하여 저장하도록 함 
-		if (EffectDef->DurationPolicy == EGameplayEffectDurationType::Infinite || EffectDef->DurationPolicy == EGameplayEffectDurationType::Instant)
+		if (EffectDef->DurationPolicy == EGameplayEffectDurationType::Instant)
 		{
 			continue;
 		}
@@ -491,7 +491,7 @@ void USFAbilitySystemComponent::SaveGameplayEffectsToData(FSFSavedAbilitySystemD
 		// 남은 시간 계산 EndTime - CurrentWorldTime
 		const float RemainingTime = ActiveEffect.GetTimeRemaining(CurrentWorldTime);
 
-		if (RemainingTime <= 0.f)
+		if (EffectDef->DurationPolicy == EGameplayEffectDurationType::HasDuration && RemainingTime <= 0.f)
 		{
 			continue;
 		}
@@ -520,10 +520,23 @@ void USFAbilitySystemComponent::RestoreGameplayEffectsFromData(const FSFSavedAbi
 
 	for (const FSFSavedGameplayEffect& SavedEffect : InData.SavedGameplayEffects)
 	{
-		if (!SavedEffect.EffectClass || SavedEffect.RemainingDuration <= 0.f)
+		if (!SavedEffect.EffectClass)
 		{
 			continue;
 		}
+
+		const UGameplayEffect* EffectCDO = SavedEffect.EffectClass->GetDefaultObject<UGameplayEffect>();
+		if (!EffectCDO)
+		{
+			continue;
+		}
+	
+		// HasDuration인데 시간이 다 된 경우만 스킵
+		if (EffectCDO->DurationPolicy == EGameplayEffectDurationType::HasDuration && SavedEffect.RemainingDuration <= 0.f)
+		{
+			continue;
+		}
+
 
 		FGameplayEffectContextHandle EffectContext = MakeEffectContext();
 		EffectContext.AddSourceObject(GetOwner());
@@ -543,7 +556,10 @@ void USFAbilitySystemComponent::RestoreGameplayEffectsFromData(const FSFSavedAbi
 
 		// SetDuration으로 남은 시간만큼만 지속되도록 설정
 		// LockDuration을 true로 하여 다른 곳에서 변경하지 못하게 함
-		Spec->SetDuration(SavedEffect.RemainingDuration, true);
+		if (EffectCDO->DurationPolicy == EGameplayEffectDurationType::HasDuration)
+		{
+			Spec->SetDuration(SavedEffect.RemainingDuration, true);
+		}
 
 		// 스택 설정 (스택 가능한 GE인 경우)
 		if (SavedEffect.StackCount > 1)

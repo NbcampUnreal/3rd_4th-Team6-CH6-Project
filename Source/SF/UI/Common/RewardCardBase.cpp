@@ -18,23 +18,42 @@ void URewardCardBase::NativeConstruct()
 	{
 		Btn_Click->OnClicked.AddDynamic(this, &URewardCardBase::OnCardClicked); 
 	}
-	
+
+	Btn_Click->SetIsEnabled(false);
+
+	// 1초 후 활성화
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+		   ButtonEnableTimerHandle,
+		   FTimerDelegate::CreateWeakLambda(this, [this]()
+		   {
+			  if (Btn_Click)
+			  {
+				 Btn_Click->SetIsEnabled(true);
+			  }
+		   }),
+		   1.0f,
+		   false
+		);
+	}
 }
 
-// TODO : 삭제 예정, 카드 데이터 연동 함수
-void URewardCardBase::SetCardData(const FTempCardInfo& InData)
+void URewardCardBase::NativeDestruct()
 {
-	if (Text_Title) Text_Title->SetText(InData.CardName);
-	if (Text_Desc) Text_Desc->SetText(InData.Description);
-
-	if (Image_Icon && InData.Icon)
+	if (UWorld* World = GetWorld())
 	{
-		Image_Icon->SetBrushFromTexture(InData.Icon);
+		World->GetTimerManager().ClearTimer(ButtonEnableTimerHandle);
 	}
+    
+	Super::NativeDestruct();
+}
 
-	if (Border_Frame && RarityColors.Contains(InData.Rarity))
+void URewardCardBase::SetButtonEnabled(bool bEnabled)
+{
+	if (Btn_Click)
 	{
-		Border_Frame->SetBrushColor(RarityColors[InData.Rarity]);
+		Btn_Click->SetIsEnabled(bEnabled);
 	}
 }
 
@@ -75,6 +94,17 @@ void URewardCardBase::OnCardClicked()
 {
 	UE_LOG(LogTemp, Warning, TEXT("%d 번 카드 선택!"), CurrentCardIndex);
 
+	if (Btn_Click)
+	{
+		Btn_Click->SetIsEnabled(false);
+	}
+
 	// 선택된 카드 정보 전달
 	OnCardSelectedDelegate.Broadcast(CurrentCardIndex, CachedAbilityClass);
 }
+
+void URewardCardBase::NotifyAnimationComplete()
+{
+	OnSelectAnimationFinished.Broadcast();
+}
+

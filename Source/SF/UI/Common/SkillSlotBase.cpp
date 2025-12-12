@@ -165,22 +165,18 @@ float USkillSlotBase::GetActiveCooldownDuration(UAbilitySystemComponent* ASC, UG
 		return 0.f;
 	}
 
-	FGameplayEffectQuery Query;
-	Query.MakeQuery_MatchAnyOwningTags(*CooldownTags);
-    
+	FGameplayEffectQuery const Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(*CooldownTags);
 	TArray<FActiveGameplayEffectHandle> ActiveHandles = ASC->GetActiveEffects(Query);
 	if (ActiveHandles.Num() > 0)
 	{
 		if (const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(ActiveHandles[0]))
 		{
-			if (const UGameplayEffect* GEDef = ActiveGE->Spec.Def)
-			{
-				float Duration = 0.f;
-				GEDef->DurationMagnitude.GetStaticMagnitudeIfPossible(ActiveGE->Spec.GetLevel(), Duration);
-				return Duration;
-			}
+			float Duration = 0.f;
+			ActiveGE->Spec.Def->DurationMagnitude.GetStaticMagnitudeIfPossible(ActiveGE->Spec.GetLevel(), Duration);
+			return Duration;
 		}
 	}
+	
 	return 0.f;
 }
 

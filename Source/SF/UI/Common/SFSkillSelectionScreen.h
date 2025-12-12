@@ -31,11 +31,8 @@ protected:
 	UFUNCTION()
 	void OnCardSelected(int32 CardIndex, TSubclassOf<USFGameplayAbility> SelectedAbilityClass);
 
-	// BP에서 애니메이션 등 처리용
-	UFUNCTION(BlueprintImplementableEvent, Category = "SF|UI")
-	void OnSelectionComplete_BP();
-
-	void OnSelectionComplete();
+	UFUNCTION(BlueprintCallable, Category = "SF|UI")
+	void CloseSelection();
 
 public:
 	

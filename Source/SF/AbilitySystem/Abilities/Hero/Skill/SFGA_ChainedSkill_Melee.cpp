@@ -134,8 +134,11 @@ void USFGA_ChainedSkill_Melee::OnChainMontageInterrupted()
 {
 	RemoveChainEffects();
 
-	// TODO : 몽타주 재생(스킬 발동 완료)이전에 방해를 받아서 멈추는 경우 게임 디자인에 따라서 스킬 연계 불가능 하도록 고려 
-	//RemoveComboState();
+	if (IsLastChain(ExecutingChainIndex))
+	{
+		CompleteCombo(this);
+	}
+
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
