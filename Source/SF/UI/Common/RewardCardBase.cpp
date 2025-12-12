@@ -3,6 +3,7 @@
 
 #include "UI/Common/RewardCardBase.h"
 
+#include "AbilitySystem/Abilities/SFGameplayAbility.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/Border.h"
@@ -20,6 +21,7 @@ void URewardCardBase::NativeConstruct()
 	
 }
 
+// TODO : 삭제 예정, 카드 데이터 연동 함수
 void URewardCardBase::SetCardData(const FTempCardInfo& InData)
 {
 	if (Text_Title) Text_Title->SetText(InData.CardName);
@@ -36,10 +38,43 @@ void URewardCardBase::SetCardData(const FTempCardInfo& InData)
 	}
 }
 
+void URewardCardBase::SetCardDataFromAbility(TSubclassOf<USFGameplayAbility> InAbilityClass, int32 InCardIndex)
+{
+	CurrentCardIndex = InCardIndex;
+	CachedAbilityClass = InAbilityClass;
+
+	if (!InAbilityClass)
+	{
+		return;
+	}
+
+	// CDO에서 정보 읽기
+	const USFGameplayAbility* AbilityCDO = InAbilityClass->GetDefaultObject<USFGameplayAbility>();
+	if (!AbilityCDO)
+	{
+		return;
+	}
+
+	if (Text_Title)
+	{
+		Text_Title->SetText(AbilityCDO->Name);
+	}
+
+	if (Text_Desc)
+	{
+		Text_Desc->SetText(AbilityCDO->Description);
+	}
+
+	if (Image_Icon && AbilityCDO->Icon)
+	{
+		Image_Icon->SetBrushFromTexture(AbilityCDO->Icon);
+	}
+}
+
 void URewardCardBase::OnCardClicked()
 {
 	UE_LOG(LogTemp, Warning, TEXT("%d 번 카드 선택!"), CurrentCardIndex);
 
-	// 선택된 카드 데이터 전달 델리게이트 구현 예정
-	//OnCardSelectedDelegate.Broadcast(CurrentCardIndex);
+	// 선택된 카드 정보 전달
+	OnCardSelectedDelegate.Broadcast(CurrentCardIndex, CachedAbilityClass);
 }

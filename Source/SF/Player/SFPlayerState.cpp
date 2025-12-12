@@ -6,6 +6,7 @@
 #include "SFPlayerInfoTypes.h"
 #include "AbilitySystem/SFAbilitySet.h"
 #include "AbilitySystem/SFAbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/SFGameplayAbility.h"
 #include "AbilitySystem/Attributes/Hero/SFCombatSet_Hero.h"
 #include "AbilitySystem/Attributes/Hero/SFPrimarySet_Hero.h"
 #include "Character/SFPawnData.h"
@@ -35,13 +36,13 @@ void ASFPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, PlayerSelection);
+	DOREPLIFETIME(ThisClass, PawnData);
 	DOREPLIFETIME(ThisClass, Credits);
 	DOREPLIFETIME(ThisClass, bIsReadyForTravel);
 	
 	FDoRepLifetimeParams SharedParams;
 	SharedParams.bIsPushBased = true;
-
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PawnData, SharedParams);
+	
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MyPlayerConnectionType, SharedParams)
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MyTeamID, SharedParams);
 }
@@ -211,6 +212,8 @@ void ASFPlayerState::OnPawnDataLoadComplete(const USFPawnData* LoadedPawnData)
 	OnPawnDataLoaded.Broadcast(LoadedPawnData);
 }
 
+
+
 void ASFPlayerState::SetPawnData(const USFPawnData* InPawnData)
 {
 	check(InPawnData);
@@ -226,7 +229,6 @@ void ASFPlayerState::SetPawnData(const USFPawnData* InPawnData)
 		return;
 	}
 
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PawnData, this);
 	PawnData = InPawnData;
 
 	const bool bHasSavedAbilities = HasSavedAbilitySystemData();
@@ -311,6 +313,70 @@ void ASFPlayerState::RestorePersistedAbilityData()
 
 	// 버퍼 비우기
 	SavedASCData.Reset();
+}
+
+void ASFPlayerState::Server_RequestSkillUpgrade_Implementation(TSubclassOf<USFGameplayAbility> NewAbilityClass, FGameplayTag InputTag)
+{
+	if (!NewAbilityClass || !InputTag.IsValid())
+	{
+		UE_LOG(LogSF, Warning, TEXT("Server_RequestSkillUpgrade: Invalid parameters"));
+		return;
+	}
+
+	// 유효성 검증: PawnData의 UpgradeOptions에 해당 어빌리티가 있는지 확인
+	if (PawnData)
+	{
+		TArray<TSubclassOf<USFGameplayAbility>> ValidOptions = PawnData->GetUpgradeOptionsForSlot(InputTag);
+		if (!ValidOptions.Contains(NewAbilityClass))
+		{
+			return;
+		}
+	}
+
+	ApplySkillUpgrade(NewAbilityClass, InputTag);
+}
+
+void ASFPlayerState::ApplySkillUpgrade(TSubclassOf<USFGameplayAbility> NewAbilityClass, FGameplayTag InputTag)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	// 기존 어빌리티에서 레벨 가져오고 제거
+	int32 InheritedLevel = 1;
+	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+		{
+			InheritedLevel = Spec.Level;
+			AbilitySystemComponent->ClearAbility(Spec.Handle);
+			UE_LOG(LogSF, Log, TEXT("Removed old ability, inherited level: %d"), InheritedLevel);
+			break;
+		}
+	}
+
+	// 새 어빌리티 부여 (레벨 계승)
+	USFGameplayAbility* AbilityCDO = NewAbilityClass->GetDefaultObject<USFGameplayAbility>();
+	FGameplayAbilitySpec NewSpec(AbilityCDO, InheritedLevel);
+	NewSpec.GetDynamicSpecSourceTags().AddTag(InputTag);
+    
+	AbilitySystemComponent->GiveAbility(NewSpec);
+}
+
+void ASFPlayerState::OnRep_PawnData()
+{
+	if (PawnData)
+	{
+		bPawnDataLoaded = true;
+
+		OnPawnDataLoaded.Broadcast(PawnData);
+	}
 }
 
 void ASFPlayerState::OnRep_PlayerSelection()

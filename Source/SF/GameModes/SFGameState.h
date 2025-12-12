@@ -8,7 +8,7 @@
 
 class USFPortalManagerComponent;
 class USFEnemyManagerComponent;
-class ASFPortal;
+class USFStageManagerComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateChangedDelegate, APlayerState*, PlayerState);
 
@@ -31,6 +31,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SF|GameState")
 	USFEnemyManagerComponent* GetEnemyManager() const { return EnemyManager; }
 
+	UFUNCTION(BlueprintPure, Category = "SF|GameState")
+	USFStageManagerComponent* GetStageManager() const { return StageManager; }
+	
 protected:
 
 	//~AGameStateBase interface
@@ -54,4 +57,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USFEnemyManagerComponent> EnemyManager;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USFStageManagerComponent> StageManager;
 };

@@ -2,8 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "System/Data/SFStageInfo.h"
 #include "SFPlayerController.generated.h"
 
+struct FSFStageInfo;
+class USFSkillSelectionScreen;
 class USFLoadingCheckComponent;
 class ASFPlayerState;
 class USFAbilitySystemComponent;
@@ -58,9 +61,28 @@ protected:
 	TObjectPtr<UUserWidget> InGameMenuInstance;
 
 	void ToggleInGameMenu();
-	
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|SkillSelection")
+	TSubclassOf<USFSkillSelectionScreen> SkillSelectionScreenClass;
+
+	UPROPERTY()
+	TObjectPtr<USFSkillSelectionScreen> SkillSelectionScreenInstance;
+
+	UFUNCTION()
+	void HandleStageCleared(const FSFStageInfo& ClearedStageInfo);
+
+	UFUNCTION()
+	void OnSkillSelectionComplete();
+
+	void ShowSkillSelectionScreen(int32 StageIndex);
+	void HideSkillSelectionScreen();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USFLoadingCheckComponent> LoadingCheckComponent;
+
+	// 스테이지 클리어 대기 (PawnData 미로드 시)
+	bool bPendingStageCleared = false;
+	FSFStageInfo PendingStageInfo;
+	FDelegateHandle PawnDataLoadedHandle;
 };

@@ -20,6 +20,7 @@ public:
 	ASFGameMode();
 	
 	// PIE 테스트용 PostLogin(Lobby 없이 InGame 진입시)
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void InitGameState() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void HandleSeamlessTravelPlayer(AController*& Controller) override;
@@ -27,6 +28,7 @@ public:
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* Controller) override;
 	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
 	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
 	virtual void StartPlay() override;
 
@@ -36,6 +38,9 @@ public:
 	/** 스테이지 클리어 시 포탈 활성화 */
 	UFUNCTION(BlueprintCallable, Category = "SF|GameMode")
 	void ActivatePortal();
+
+	UFUNCTION(BlueprintCallable, Category = "SF|GameMode")
+	void NotifyStageClear();
 
 	/** GameState에서 호출하는 Travel 요청 */
 	void RequestTravelToNextStage(TSoftObjectPtr<UWorld> NextStageLevel);
@@ -69,4 +74,7 @@ private:
 	float PortalActivationDelay = 5.0f;
 
 	FTimerHandle PortalActivationTimerHandle;
+
+	UPROPERTY()
+	TArray<APlayerStart*> AssignedPlayerStarts;
 };
