@@ -6,13 +6,14 @@
 #include "Blueprint/UserWidget.h"
 #include "RewardCardBase.generated.h"
 
+class USFGameplayAbility;
 class UTextBlock;
 class UImage;
 class UBorder;
 class UButton;
 
-// 리워드 카드 선택시 선택된 카드 정보 전달 델리게이트 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRewardCardSelectedSignature, int32, CardIndex);
+// 리워드 카드 선택시 선택된 어빌리티 정보 전달 델리게이트 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRewardCardSelectedSignature, int32, CardIndex, TSubclassOf<USFGameplayAbility>, SelectedAbilityClass);
 
 // =========================================================
 // [임시 데이터 영역]
@@ -27,7 +28,7 @@ enum class ETempCardRarity : uint8
 	Epic
 };
 
-// 2. 임시 카드 정보 Struct
+// TODO 임시 카드 정보 Struct 삭제 예정
 USTRUCT(BlueprintType)
 struct FTempCardInfo
 {
@@ -82,9 +83,13 @@ protected:
 public:
 	virtual void NativeConstruct() override;
 
-	// 카드 데이터 연동 함수
+	// TODO : 삭제 예정, 카드 데이터 연동 함수
 	UFUNCTION(BlueprintCallable, Category = "UI|Function")
 	void SetCardData(const FTempCardInfo& InData);
+
+	// 어빌리티 클래스로 카드 데이터 설정
+	UFUNCTION(BlueprintCallable, Category = "UI|Function")
+	void SetCardDataFromAbility(TSubclassOf<USFGameplayAbility> InAbilityClass, int32 InCardIndex);
 
 	// 카드 그래픽 애니메이션 함수 -> BP상에서 구현
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI|Animation")
@@ -93,6 +98,12 @@ public:
 	// 카드 정보 전달 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "UI|Event")
 	FOnRewardCardSelectedSignature OnCardSelectedDelegate;
+
+protected:
+	
+	// 캐싱된 어빌리티 클래스 (선택 시 전달용)
+	UPROPERTY(BlueprintReadOnly, Category = "UI|Data")
+	TSubclassOf<USFGameplayAbility> CachedAbilityClass;
 
 	// 몇 번째 카드인지 저장하는 변수
 	UPROPERTY(BlueprintReadWrite, Category = "UI|Data")

@@ -296,8 +296,8 @@ void USFEnemyCombatComponent::UpdateCombatRangeTags()
 	float GuardRange = CachedCombatSet->GetGuardRange();
 
 	// [디버그 3] 실제 값 확인 (이 로그가 핵심입니다)
-	UE_LOG(LogTemp, Log, TEXT("DEBUG: Dist: %.2f / Melee: %.2f / Guard: %.2f / MeleeTag: %d"), 
-		Distance, MeleeRange, GuardRange, (Distance <= MeleeRange));
+	//UE_LOG(LogTemp, Log, TEXT("DEBUG: Dist: %.2f / Melee: %.2f / Guard: %.2f / MeleeTag: %d"), 
+	//	Distance, MeleeRange, GuardRange, (Distance <= MeleeRange));
 
 	SetGameplayTagStatus(SFGameplayTags::AI_Range_Melee, Distance <= MeleeRange);
 	SetGameplayTagStatus(SFGameplayTags::AI_Range_Guard, Distance <= GuardRange);
