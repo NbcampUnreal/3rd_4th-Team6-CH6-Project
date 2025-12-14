@@ -209,6 +209,8 @@ public:
 
 	bool IsStackActivate() const { return bIsActive; }
 
+	bool IsStackEmpty() const { return CameraModeStack.Num() == 0; }
+
 	// 새로운 카메라 모드를 스택의 맨 위에 추가 (푸시).
 	void PushCameraMode(TSubclassOf<USFCameraMode> CameraModeClass);
 

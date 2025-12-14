@@ -22,6 +22,8 @@ enum class ESFAbilityActivationPolicy : uint8
 	WhileInputActive,
 	/** avatar가 생성되었을 경우, 바로 할당(패시브 스킬 등) */
 	OnSpawn,
+	/** Event 발생시 활성화 되는 어빌리티 타입*/
+	Manual 
 };
 
 UCLASS()
