@@ -35,7 +35,7 @@ ASFEnemyController::ASFEnemyController(const FObjectInitializer& ObjectInitializ
 
     // 감지할 대상 유형
     SightConfig->DetectionByAffiliation.bDetectEnemies = true;
-    SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
+    SightConfig->DetectionByAffiliation.bDetectFriendlies = false;
     SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
 
     // 시야 감지 지속 시간
@@ -245,6 +245,12 @@ void ASFEnemyController::SetTargetForce(AActor* NewTarget)
         return;
     }
 
+    // TargetTag가 설정되어 있다면, 해당 태그가 없는 대상은 무시
+    if (!TargetTag.IsNone() && !NewTarget->ActorHasTag(TargetTag))
+    {
+        return;
+    }
+    
     // 1. 내부 타겟 변수 업데이트
     TargetActor = NewTarget;
     
