@@ -37,7 +37,8 @@ USFEnemyAnimInstance::USFEnemyAnimInstance(const FObjectInitializer& ObjectIniti
 	, PreviousWorldVelocity2D(FVector::ZeroVector)
 	, PreviousRotation(FRotator::ZeroRotator)
 	, PreviousRemainingTurnYaw(0.0f)
-	,SmoothedRootYawOffset(0.0f)
+	, SmoothedRootYawOffset(0.0f)
+	, TurnAngle(90.0f)
 {
 }
 
@@ -393,12 +394,22 @@ void USFEnemyAnimInstance::ProcessAccumulateMode(float DeltaYaw)
 	RootYawOffset += (-DeltaYaw);
 	RootYawOffset = NormalizeAxis(RootYawOffset);
 
-	// 임계값 초과 시 Turn In Place 애니메이션 트리거
-	if (FMath::Abs(RootYawOffset) > TurnInPlaceThreshold)
+	float AbsOffset = FMath::Abs(RootYawOffset);
+
+	// 180도 Turn 체크 (135도 이상)
+	if (AbsOffset > TurnInPlaceThreshold_180)
 	{
 		bIsTurningInPlace = true;
-		TurnDirection = RootYawOffset > 0.0f ? 1.0f : -1.0f; 
-		
+		TurnDirection = RootYawOffset > 0.0f ? 1.0f : -1.0f;
+		TurnAngle = 180.0f;
+		RootYawOffsetMode = ERootYawOffsetMode::Hold;
+	}
+	// 90도 Turn 체크 (90도 ~ 135도)
+	else if (AbsOffset > TurnInPlaceThreshold)
+	{
+		bIsTurningInPlace = true;
+		TurnDirection = RootYawOffset > 0.0f ? 1.0f : -1.0f;
+		TurnAngle = 90.0f;
 		RootYawOffsetMode = ERootYawOffsetMode::Hold;
 	}
 }
@@ -438,6 +449,7 @@ void USFEnemyAnimInstance::OnTurnInPlaceCompleted()
 	// BlendOut 모드로 전환
 	RootYawOffsetMode = ERootYawOffsetMode::BlendOut;
 	bIsTurningInPlace = false;
+	TurnAngle = 90.0f; // 초기화
 }
 
 float USFEnemyAnimInstance::NormalizeAxis(float Angle)

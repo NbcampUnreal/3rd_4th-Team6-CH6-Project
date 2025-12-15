@@ -191,6 +191,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Turn In Place")
     float TurnInPlaceThreshold = 90.0f;
 
+    // 180도 Turn 트리거 임계값
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Turn In Place")
+    float TurnInPlaceThreshold_180 = 135.0f;
+
     // BlendOut 속도
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Turn In Place")
     float BlendOutSpeed = 5.0f;
@@ -202,6 +206,10 @@ protected:
     // 회전 방향 (Left: -1, Right: 1)
     UPROPERTY(BlueprintReadOnly, Category = "Turn In Place")
     float TurnDirection = 0.0f;
+
+    // Turn 각도 (90.0 or 180.0)
+    UPROPERTY(BlueprintReadOnly, Category = "Turn In Place")
+    float TurnAngle = 90.0f;
 
     // 그래프 관련 변수들
     UPROPERTY(BlueprintReadWrite, Category = "Turn In Place")

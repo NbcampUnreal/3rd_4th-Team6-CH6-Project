@@ -205,7 +205,7 @@ void USFGA_Enemy_Melee::EndAbility(
 		{
 			if (AnimInstance->Montage_IsPlaying(AttackTypeMontage.AnimMontage))
 			{
-				AnimInstance->Montage_Stop(0.2f, AttackTypeMontage.AnimMontage);
+				AnimInstance->Montage_Stop(0.0f, AttackTypeMontage.AnimMontage);
 			}
 		}
 	}

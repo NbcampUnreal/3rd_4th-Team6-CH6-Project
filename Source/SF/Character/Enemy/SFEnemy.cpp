@@ -50,6 +50,17 @@ ASFEnemy::ASFEnemy(const FObjectInitializer& ObjectInitializer)
 	SetNetUpdateFrequency(100.f);
 	//사실 PlayerState에서 Ability세팅할때랑 똑같이 세팅을 라이라에서는 하는것 같다
 	
+    bUseControllerRotationYaw = false;  // 컨트롤러 회전을 직접 따라가지 않음
+    
+    if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+    {
+    	// 부드러운 회전 활성화
+        MoveComp->bUseControllerDesiredRotation = true;  
+    	// 이동 방향으로 자동 회전 비활성화
+        MoveComp->bOrientRotationToMovement = false;     
+    	// 회전 속도 설정
+        MoveComp->RotationRate = FRotator(0.0f, 180.0f, 0.0f);  
+    }
 	
 }
 
