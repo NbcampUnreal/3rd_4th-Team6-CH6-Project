@@ -54,16 +54,10 @@ void USFGA_EnemyHitReaction::ActivateAbility(const FGameplayAbilitySpecHandle Ha
         return;
     }
 
-    if (MontageTask && MontageTask->IsActive())
-    {
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
-        return;
-    }
-    
     FVector HitLocation = ExtractHitLocationFromEvent(TriggerEventData);
     FVector AttackDir   = ExtractHitDirectionFromEvent(TriggerEventData);
 
-    
+
     UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
     if (!ASC)
     {
@@ -78,12 +72,35 @@ void USFGA_EnemyHitReaction::ActivateAbility(const FGameplayAbilitySpecHandle Ha
         return;
     }
 
+    // 파티클 먼저 실행 (항상 실행됨)
+    FGameplayCueParameters CueParams;
+    CueParams.Location = HitLocation;
 
+    const USFPrimarySet* Set = ASC->GetSet<USFPrimarySet>();
+    if (Set)
+    {
+        float MaxHealth = Set->GetMaxHealth();
+        float DamageRatio = Damage / MaxHealth;
+
+        FGameplayTag TypeTag = (DamageRatio > 0.2f) ? SFGameplayTags::GameplayCue_HitReaction_Heavy : SFGameplayTags::GameplayCue_HitReaction_Light;
+
+        CueParams.AggregatedSourceTags.AddTag(TypeTag);
+    }
+
+    ASC->ExecuteGameplayCue(SFGameplayTags::GameplayCue_HitReaction_Type_Enemy, CueParams);
+
+    // 몽타주가 이미 재생 중이면 몽타주만 스킵하고 종료
+    if (MontageTask && MontageTask->IsActive())
+    {
+        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+        return;
+    }
+
+    // 몽타주 재생
     FVector Forward = Character->GetActorForwardVector();
     float Dot = FVector::DotProduct(Forward, AttackDir);  // 1 = 정면, -1 = 뒤
 
     UAnimMontage* SelectedMontage = (Dot < 0.f) ? BackHitMontage : FrontHitMontage;
-
 
     if (SelectedMontage)
     {
@@ -97,30 +114,9 @@ void USFGA_EnemyHitReaction::ActivateAbility(const FGameplayAbilitySpecHandle Ha
             MontageTask->OnCancelled.AddDynamic(this, &USFGA_EnemyHitReaction::OnMontageCancelled);
 
             MontageTask->ReadyForActivation();
-         
+            return;
         }
     }
-    if (SelectedMontage && ASC)
-    {
-        
-        FGameplayCueParameters CueParams;
-        CueParams.Location = HitLocation;
-
-        const USFPrimarySet* Set = ASC->GetSet<USFPrimarySet>();
-        if (Set)
-        {
-            float MaxHealth = Set->GetMaxHealth();
-            float DamageRatio = Damage / MaxHealth;
-            
-            FGameplayTag TypeTag = (DamageRatio > 0.2f) ? SFGameplayTags::GameplayCue_HitReaction_Heavy : SFGameplayTags::GameplayCue_HitReaction_Light;
-    
-            CueParams.AggregatedSourceTags.AddTag(TypeTag);
-        }
-        
-        ASC->ExecuteGameplayCue(SFGameplayTags::GameplayCue_HitReaction_Type_Enemy, CueParams);
-        return;
-    }
-
 
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
