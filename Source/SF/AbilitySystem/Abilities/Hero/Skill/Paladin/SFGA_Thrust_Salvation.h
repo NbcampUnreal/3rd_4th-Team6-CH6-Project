@@ -25,6 +25,11 @@ protected:
 	void ApplyBuffToAlly(UAbilitySystemComponent* TargetASC);
 	
 private:
+	
+	// 돌진 몽타주 완료 후 ShieldBash 몽타주로 전환
+	UFUNCTION()
+	void OnThrustMontageCompleted();
+	
 	// 캐릭터 전방에 캡슐 오버랩 검사 수행 및 넉백 효과를 위한 GameplayEvent_Knockback 이벤트 전송
 	UFUNCTION()
 	void OnShieldBashEffectBegin(FGameplayEventData Payload);
@@ -35,8 +40,11 @@ private:
 protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="SF|Animation")
+	TObjectPtr<UAnimMontage> ThrustMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category="SF|Animation")
 	TObjectPtr<UAnimMontage> ShieldBashMontage;
-	
+
 	// 보호막 및 이속 버프 GE
 	UPROPERTY(EditDefaultsOnly, Category="SF|Effect")
 	TSubclassOf<UGameplayEffect> BuffEffectClass;

@@ -36,19 +36,55 @@ void USFGA_Thrust_Salvation::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		CancelAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true);
 	}
 
-	if (UAbilityTask_PlayMontageAndWait* ShieldBashMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("ShieldBashMontage"), ShieldBashMontage, 1.f, NAME_None, true))
-	{
-		ShieldBashMontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished); 
-		ShieldBashMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);   
-		ShieldBashMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageFinished);
-		ShieldBashMontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageFinished); 
-		ShieldBashMontageTask->ReadyForActivation();
-	}
-
 	if (UAbilityTask_WaitGameplayEvent* ShieldBashEffectBeginTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, SFGameplayTags::GameplayEvent_Montage_Begin, nullptr, true, true))
 	{
 		ShieldBashEffectBeginTask->EventReceived.AddDynamic(this, &ThisClass::OnShieldBashEffectBegin);
 		ShieldBashEffectBeginTask->ReadyForActivation();
+	}
+
+	// 돌진 몽타주 시작
+	if (ThrustMontage)
+	{
+		if (UAbilityTask_PlayMontageAndWait* ThrustTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this, TEXT("ThrustMontage"), ThrustMontage, 1.f, NAME_None, false))
+		{
+			ThrustTask->OnCompleted.AddDynamic(this, &ThisClass::OnThrustMontageCompleted);
+			ThrustTask->OnBlendOut.AddDynamic(this, &ThisClass::OnThrustMontageCompleted);
+			ThrustTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageFinished);
+			ThrustTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageFinished);
+			ThrustTask->ReadyForActivation();
+		}
+	}
+	// 돌진 몽타주가 없으면 바로 ShieldBash로
+	else if (ShieldBashMontage)
+	{
+		OnThrustMontageCompleted();
+	}
+	else
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+	}
+}
+
+
+void USFGA_Thrust_Salvation::OnThrustMontageCompleted()
+{
+	if (!ShieldBashMontage)
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+		return;
+	}
+	
+	if (UAbilityTask_PlayMontageAndWait* ShieldBashTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+		this, TEXT("ShieldBashMontage"), ShieldBashMontage, 1.f, NAME_None, true))
+	{
+		ShieldBashTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageFinished);
+		ShieldBashTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageFinished);
+		ShieldBashTask->OnInterrupted.AddDynamic(this, &ThisClass::OnMontageFinished);
+		ShieldBashTask->OnCancelled.AddDynamic(this, &ThisClass::OnMontageFinished);
+		ShieldBashTask->ReadyForActivation();
+
+		SetCameraMode(CameraModeClass);
 	}
 }
 
@@ -164,5 +200,8 @@ void USFGA_Thrust_Salvation::OnMontageFinished()
 
 void USFGA_Thrust_Salvation::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	DisableCameraYawLimitsForActiveMode();
+	ClearCameraMode();
+	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
