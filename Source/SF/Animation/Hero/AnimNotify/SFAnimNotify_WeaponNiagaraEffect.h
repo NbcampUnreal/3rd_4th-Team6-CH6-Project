@@ -16,10 +16,16 @@ public:
 	USFAnimNotify_WeaponNiagaraEffect();
 
 	virtual void Notify(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+
+protected:
+	virtual UFXSystemComponent* SpawnEffect(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation);
 	
 private:
 	USkeletalMeshComponent* GetWeaponMeshComponent(USkeletalMeshComponent* CharacterMeshComponent) const;
 
 	UPROPERTY(EditAnywhere)
 	FGameplayTag EquipmentSlotTag;
+
+	UPROPERTY(EditAnywhere)
+	TEnumAsByte<EAttachLocation::Type> AttachLocationType = EAttachLocation::KeepRelativeOffset;
 };

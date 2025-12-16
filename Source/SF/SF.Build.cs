@@ -42,7 +42,8 @@ public class SF : ModuleRules
             "Json",
 			"JsonUtilities",
 			"Niagara",
-			"NiagaraAnimNotifies"
+			"NiagaraAnimNotifies",
+			"EngineCameras"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

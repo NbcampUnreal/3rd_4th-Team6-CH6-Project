@@ -204,3 +204,23 @@ FGenericTeamId ASFCharacterBase::GetGenericTeamId() const
 	return FGenericTeamId(SFTeamID::NoTeam);
 }
 
+FSFInteractionInfo ASFCharacterBase::GetPreInteractionInfo(const FSFInteractionQuery& InteractionQuery) const
+{
+	return InteractionInfo;
+}
+
+bool ASFCharacterBase::CanInteraction(const FSFInteractionQuery& InteractionQuery) const
+{
+	// TODO : 공통적으로 상호작용 가능한지 판별을 위한 코드 구상
+	return ISFInteractable::CanInteraction(InteractionQuery);
+}
+
+void ASFCharacterBase::GetMeshComponents(TArray<UMeshComponent*>& OutMeshComponents) const
+{
+	// 자식 클래스에서 추가적인 Mesh 존재시 해당 함수 오버라이드 하여 직접 OutMeshComponents에 추가해주어야 함
+	if (GetMesh()->GetSkeletalMeshAsset())
+	{
+		OutMeshComponents.Add(GetMesh());
+	}
+}
+

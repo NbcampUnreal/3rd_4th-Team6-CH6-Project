@@ -47,6 +47,7 @@ namespace SFGameplayTags
 
 
 	// ========== Hero Ability Tags ==========
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Interact_Active);
 
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Hero_Dodge);
 	

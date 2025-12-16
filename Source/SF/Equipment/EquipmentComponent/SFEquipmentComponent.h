@@ -6,6 +6,7 @@
 #include "Equipment/SFEquipmentTypes.h"
 #include "SFEquipmentComponent.generated.h"
 
+class ASFEquipmentBase;
 class USFAbilitySystemComponent;
 class ASFCharacterBase;
 class USFEquipmentInstance;
@@ -42,9 +43,9 @@ public:
 	void InitializeEquipment();
 
 	virtual USFEquipmentInstance* FindEquipmentInstance(FGameplayTag EquipmentTag) const;
-
 	virtual USFEquipmentInstance* FindEquipmentInstanceBySlot(FGameplayTag SlotTag) const;
-
+	void GetAllEquippedActors(TArray<AActor*>& OutActors) const;
+	
 	bool IsSlotEquipmentMatchesTag(const FGameplayTag& SlotTag, const FGameplayTag& CheckingTag) const;
 
 protected:
