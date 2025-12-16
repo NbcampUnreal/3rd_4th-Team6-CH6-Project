@@ -7,6 +7,8 @@
 #include "Character/SFCharacterBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AnimCharacterMovementLibrary.h"
+#include "KismetAnimationLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SFEnemyAnimInstance)
 
@@ -114,23 +116,23 @@ void USFEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	const FVector Acceleration = CachedMovementComponent->GetCurrentAcceleration();
 	CachedWorldAcceleration2D = FVector(Acceleration.X, Acceleration.Y, 0.0f);
 
-	// Turn In Place 커브 처리 
+	// Turn In Place 커브 처리
 	if (bIsTurningInPlace)
 	{
 		float CurrentRemainingYaw = GetCurveValue(FName("RemainingTurnYaw"));
 		float DeltaYaw = PreviousRemainingTurnYaw - CurrentRemainingYaw;
-		
+
 		if (FMath::Abs(DeltaYaw) > UE_SMALL_NUMBER)
 		{
 			ProcessRemainingTurnYaw(DeltaYaw);
 		}
-		
+
 		PreviousRemainingTurnYaw = CurrentRemainingYaw;
 	}
 	else
 	{
-		// Turn이 시작될 때 초기화
-		PreviousRemainingTurnYaw = 0.0f;
+		// Turn이 시작될 때 초기화 - TurnAngle로 초기화하여 첫 프레임에 반대 방향으로 가는 문제 방지
+		PreviousRemainingTurnYaw = TurnAngle;
 	}
 }
 
@@ -183,14 +185,14 @@ void USFEnemyAnimInstance::UpdateLocationData(float DeltaSeconds)
 	DisplacementSinceLastUpdate = FVector::Dist(WorldLocation, PreviousWorldLocation);
 
 	// Displacement Speed 계산
+	float TargetSpeed = 0.0f;
 	if (DeltaSeconds > 0.0f)
 	{
-		DisplacementSpeed = DisplacementSinceLastUpdate / DeltaSeconds;
+		TargetSpeed = DisplacementSinceLastUpdate / DeltaSeconds;
 	}
-	else
-	{
-		DisplacementSpeed = 0.0f;
-	}
+
+	// 부드럽게 보간하여 애니메이션 튐 방지
+	DisplacementSpeed = FMath::FInterpTo(DisplacementSpeed, TargetSpeed, DeltaSeconds, 5.0f);
 }
 
 void USFEnemyAnimInstance::UpdateRotationData()
@@ -201,26 +203,47 @@ void USFEnemyAnimInstance::UpdateRotationData()
 void USFEnemyAnimInstance::UpdateVelocityData()
 {
 	WorldVelocity2D = CachedWorldVelocity2D;
-	
+
 	// Local 좌표계로 변환
-	LocalVelocity2D = CachedRotation.UnrotateVector(WorldVelocity2D);
-	
+	FVector TargetLocalVelocity = CachedRotation.UnrotateVector(WorldVelocity2D);
+
 	// Velocity 체크
-	const float VelocityLength = LocalVelocity2D.Size();
-	
-	if (VelocityLength > 1.0f)
+	const float VelocityLength = TargetLocalVelocity.Size();
+	bHasVelocity = VelocityLength > 1.0f;
+
+	// 로컬 좌표계 각도 계산
+	float TargetAngle = FMath::RadiansToDegrees(FMath::Atan2(TargetLocalVelocity.Y, TargetLocalVelocity.X));
+
+	// 부드럽게 보간하여 애니메이션 튐 방지
+	const UWorld* World = GetWorld();
+	if (World && bHasVelocity)
 	{
-		bHasVelocity = true;
+		const float DeltaTime = World->GetDeltaSeconds();
+
+		// Velocity 벡터 보간
+		LocalVelocity2D = FMath::VInterpTo(LocalVelocity2D, TargetLocalVelocity, DeltaTime, 5.0f);
+
+		// 각도 보간 (180도 점프 방지를 위해 FInterpAngle 사용)
+		LocalVelocityDirectionAngle = FMath::FInterpTo(
+			LocalVelocityDirectionAngle,
+			TargetAngle,
+			DeltaTime,
+			10.0f  
+		);
 	}
 	else
 	{
-		bHasVelocity = false;
+		// 정지 상태면 즉시 업데이트
+		LocalVelocity2D = TargetLocalVelocity;
+		LocalVelocityDirectionAngle = TargetAngle;
 	}
 
-	// 로컬 좌표계 각도
-	LocalVelocityDirectionAngle = FMath::RadiansToDegrees(FMath::Atan2(LocalVelocity2D.Y, LocalVelocity2D.X));
-
-	LocalVelocityDirection = GetCardinalDirectionFromAngle(LocalVelocityDirectionAngle, CardinalDirectionDeadZone, LocalVelocityDirection, bWasMovingLastFrame);
+	LocalVelocityDirection = GetCardinalDirectionFromAngle(
+		LocalVelocityDirectionAngle,
+		CardinalDirectionDeadZone,
+		LocalVelocityDirection,
+		bWasMovingLastFrame
+	);
 
 	bWasMovingLastFrame = bHasVelocity;
 }
@@ -261,6 +284,9 @@ void USFEnemyAnimInstance::UpdateAccelerationData()
 	// Acceleration 체크
 	const float AccelerationLength = LocalAcceleration2D.Size();
 	bHasAcceleration = AccelerationLength > 1.0f;
+	// PreviousWorldVelocity 업데이트 (다음 프레임을 위해)
+	PreviousWorldVelocity2D = CachedWorldVelocity2D;
+	
 }
 
 bool USFEnemyAnimInstance::ShouldDistanceMatchStop() const
@@ -402,7 +428,14 @@ void USFEnemyAnimInstance::ProcessAccumulateMode(float DeltaYaw)
 		bIsTurningInPlace = true;
 		TurnDirection = RootYawOffset > 0.0f ? 1.0f : -1.0f;
 		TurnAngle = 180.0f;
+
+		// RootYawOffset을 정확히 180도로 스냅하여 애니메이션과 정확히 일치시킴
+		RootYawOffset = TurnDirection * 180.0f;
+
 		RootYawOffsetMode = ERootYawOffsetMode::Hold;
+
+		// 커브 초기값 설정 (반대 방향으로 가는 문제 방지)
+		PreviousRemainingTurnYaw = 180.0f;
 	}
 	// 90도 Turn 체크 (90도 ~ 135도)
 	else if (AbsOffset > TurnInPlaceThreshold)
@@ -410,7 +443,14 @@ void USFEnemyAnimInstance::ProcessAccumulateMode(float DeltaYaw)
 		bIsTurningInPlace = true;
 		TurnDirection = RootYawOffset > 0.0f ? 1.0f : -1.0f;
 		TurnAngle = 90.0f;
+
+		// RootYawOffset을 정확히 90도로 스냅하여 애니메이션과 정확히 일치시킴
+		RootYawOffset = TurnDirection * 90.0f;
+
 		RootYawOffsetMode = ERootYawOffsetMode::Hold;
+
+		// 커브 초기값 설정 (반대 방향으로 가는 문제 방지)
+		PreviousRemainingTurnYaw = 90.0f;
 	}
 }
 
