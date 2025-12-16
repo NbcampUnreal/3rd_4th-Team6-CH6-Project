@@ -178,6 +178,7 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Acceleration Data")
     FVector LocalAcceleration2D;
 
+
     //Turn In Place Data
     // RootYawOffset 모드
     UPROPERTY(BlueprintReadWrite, Category = "Turn In Place")
