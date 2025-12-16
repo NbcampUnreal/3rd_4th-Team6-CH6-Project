@@ -9,6 +9,8 @@
 #include "Equipment/SFEquipmentTags.h"
 #include "Equipment/EquipmentInstance/SFEquipmentInstance.h"
 #include "Net/UnrealNetwork.h"
+#include "Weapons/Actor/SFEquipmentBase.h"
+#include "Weapons/Actor/SFMeleeWeaponActor.h"
 
 
 USFEquipmentComponent::USFEquipmentComponent(const FObjectInitializer& ObjectInitializer)
@@ -227,6 +229,20 @@ USFEquipmentInstance* USFEquipmentComponent::FindEquipmentInstanceBySlot(FGamepl
 		}
 	}
 	return nullptr;
+}
+
+void USFEquipmentComponent::GetAllEquippedActors(TArray<AActor*>& OutActors) const
+{
+	OutActors.Reset();
+
+	const TArray<FSFAppliedEquipmentEntry>& CurrentEquipmentList = EquipmentList.Entries;
+	for (const FSFAppliedEquipmentEntry& Entry : CurrentEquipmentList)
+	{
+		if (Entry.Instance)
+		{
+			OutActors.Append(Entry.Instance->GetSpawnedActors());
+		}
+	}
 }
 
 void USFEquipmentComponent::UnequipItemByInstance(USFEquipmentInstance* EquipmentInstance)

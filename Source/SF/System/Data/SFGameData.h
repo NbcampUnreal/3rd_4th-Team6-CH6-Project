@@ -35,4 +35,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Default Gameplay Effects")
 	TSoftClassPtr<UGameplayEffect> AttributeModifierGameplayEffect;
+
+	
 };

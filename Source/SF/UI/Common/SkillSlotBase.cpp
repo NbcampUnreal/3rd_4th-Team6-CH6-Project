@@ -296,51 +296,81 @@ float USkillSlotBase::GetActiveCooldownDuration(UAbilitySystemComponent* ASC, UG
 // 현재 스킬의 활성화(버프) 상태 체크 로직
 bool USkillSlotBase::GetCurrentSkillActiveDuration(UAbilitySystemComponent* ASC, float& OutRemaining, float& OutTotal)
 {
-	FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(CachedAbilitySpecHandle);
-	if (!Spec || !Spec->Ability) return false;
-	
-	// 스킬 자체가 가진 태그(AbilityTags)를 기준으로 활성 효과 검색
-	FGameplayTagContainer AbilityTags = Spec->Ability->AbilityTags;
-	if (AbilityTags.Num() == 0) return false;
+    FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(CachedAbilitySpecHandle);
+    if (!Spec || !Spec->Ability) return false;
 
-	FGameplayEffectQuery Query;
-	Query.MakeQuery_MatchAnyOwningTags(AbilityTags);
+    // 1. 연계 스킬인 경우: ComboStateEffect의 남은 시간 반환
+    if (const ISFChainedSkill* ChainedSkill = Cast<ISFChainedSkill>(Spec->Ability))
+    {
+        TSubclassOf<UGameplayEffect> ComboStateClass = ChainedSkill->GetComboStateEffectClass();
+        if (ComboStateClass)
+        {
+            // ComboStateEffect가 적용되어 있는지 확인
+            FGameplayEffectQuery Query;
+            Query.EffectDefinition = ComboStateClass;
+            
+            TArray<FActiveGameplayEffectHandle> ActiveHandles = ASC->GetActiveEffects(Query);
+            
+            for (const FActiveGameplayEffectHandle& Handle : ActiveHandles)
+            {
+                const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(Handle);
+                if (ActiveGE)
+                {
+                    float Duration = ActiveGE->GetDuration();
+                    float Remaining = ActiveGE->GetTimeRemaining(ASC->GetWorld()->GetTimeSeconds());
+                    
+                    if (Duration > 0.f && Remaining > 0.f)
+                    {
+                        OutRemaining = Remaining;
+                        OutTotal = Duration;
+                        return true;
+                    }
+                }
+            }
+        }
+    }
 
-	TArray<FActiveGameplayEffectHandle> ActiveHandles = ASC->GetActiveEffects(Query);
+    // 2. 일반 스킬: 기존 로직 (AbilityTags 기반)
+    FGameplayTagContainer AbilityTags = Spec->Ability->AbilityTags;
+    if (AbilityTags.Num() == 0) return false;
 
-	float MaxDuration = 0.f;
-	float MaxRemaining = 0.f;
-	bool bFound = false;
+    FGameplayEffectQuery Query;
+    Query.MakeQuery_MatchAnyOwningTags(AbilityTags);
 
-	for (const FActiveGameplayEffectHandle& Handle : ActiveHandles)
-	{
-		const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(Handle);
-		if (ActiveGE)
-		{
-			float Duration = ActiveGE->GetDuration();
-			float Remaining = ActiveGE->GetTimeRemaining(ASC->GetWorld()->GetTimeSeconds());
+    TArray<FActiveGameplayEffectHandle> ActiveHandles = ASC->GetActiveEffects(Query);
 
-			// 지속시간이 있고(즉발X, 무한X) 시간이 남은 경우만
-			if (Duration > 0.f && Remaining > 0.f)
-			{
-				if (Remaining < MaxRemaining)
-				{
-					MaxRemaining = Remaining;
-					MaxDuration = Duration;
-					bFound = true;
-				}
-			}
-		}
-	}
+    float MaxDuration = 0.f;
+    float MaxRemaining = 0.f;
+    bool bFound = false;
 
-	if (bFound)
-	{
-		OutRemaining = MaxRemaining;
-		OutTotal = MaxDuration;
-		return true;
-	}
+    for (const FActiveGameplayEffectHandle& Handle : ActiveHandles)
+    {
+        const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(Handle);
+        if (ActiveGE)
+        {
+            float Duration = ActiveGE->GetDuration();
+            float Remaining = ActiveGE->GetTimeRemaining(ASC->GetWorld()->GetTimeSeconds());
 
-	return false;
+            if (Duration > 0.f && Remaining > 0.f)
+            {
+                if (Remaining < MaxRemaining || !bFound)
+                {
+                    MaxRemaining = Remaining;
+                    MaxDuration = Duration;
+                    bFound = true;
+                }
+            }
+        }
+    }
+
+    if (bFound)
+    {
+        OutRemaining = MaxRemaining;
+        OutTotal = MaxDuration;
+        return true;
+    }
+
+    return false;
 }
 
 void USkillSlotBase::OnAbilityChanged(FGameplayAbilitySpecHandle AbilitySpecHandle, bool bGiven)

@@ -6,13 +6,14 @@
 #include "GenericTeamAgentInterface.h"
 #include "GameFramework/Character.h"
 #include "MotionWarpingComponent.h"
+#include "Interaction/SFInteractable.h"
 #include "SFCharacterBase.generated.h"
 
 class USFPawnExtensionComponent;
 class USFAbilitySystemComponent;
 
 UCLASS()
-class SF_API ASFCharacterBase : public ACharacter, public IAbilitySystemInterface, public IGameplayTagAssetInterface,public IGenericTeamAgentInterface
+class SF_API ASFCharacterBase : public ACharacter, public IAbilitySystemInterface, public IGameplayTagAssetInterface,public IGenericTeamAgentInterface, public ISFInteractable
 {
 	GENERATED_BODY()
 
@@ -73,6 +74,16 @@ protected:
 
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+public:
+	// ~ Begin ISFInteractable
+	virtual FSFInteractionInfo GetPreInteractionInfo(const FSFInteractionQuery& InteractionQuery) const override;
+	virtual bool CanInteraction(const FSFInteractionQuery& InteractionQuery) const override;
+	virtual void GetMeshComponents(TArray<UMeshComponent*>& OutMeshComponents) const override;
+	// ~ End ISFInteractable
+
+protected:
+	UPROPERTY(EditDefaultsOnly, Category="SF|Interaction")
+	FSFInteractionInfo InteractionInfo;
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Character", Meta = (AllowPrivateAccess = "true"))
