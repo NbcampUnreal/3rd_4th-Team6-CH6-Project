@@ -7,6 +7,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Save/SFPersistentDataType.h"
 #include "Team/SFTeamTypes.h"
+#include "Character/Hero/Component/SFPermanentUpgradeComponent.h"
+#include "System/Data/SFPermanentUpgradeTypes.h"
 #include "SFPlayerState.generated.h"
 
 class USFGameplayAbility;
@@ -38,9 +40,6 @@ enum class ESFPlayerConnectionType : uint8
 	InactivePlayer
 };
 
-/**
- * 
- */
 UCLASS()
 class SF_API ASFPlayerState : public APlayerState, public IAbilitySystemInterface, public IGenericTeamAgentInterface
 {
@@ -50,9 +49,9 @@ public:
 	ASFPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//~ IGenericTeamAgentInterface
-    virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;
-    virtual FGenericTeamId GetGenericTeamId() const override;
-    //~ End IGenericTeamAgentInterface
+	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;
+	virtual FGenericTeamId GetGenericTeamId() const override;
+	//~ End IGenericTeamAgentInterface
 
 	UFUNCTION(BlueprintCallable, Category = "SF|PlayerState")
 	ASFPlayerController* GetSFPlayerController() const;
@@ -63,7 +62,7 @@ public:
 
 	void StartLoadingPawnData();
 	bool IsPawnDataLoaded() const { return bPawnDataLoaded; }
-	
+
 	template <class T>
 	const T* GetPawnData() const { return Cast<T>(PawnData); }
 	void SetPawnData(const USFPawnData* InPawnData);
@@ -77,7 +76,7 @@ public:
 	//~AActor interface
 	virtual void PostInitializeComponents() override;
 	//~End of AActor interface
-	
+
 	//~APlayerState interface
 	virtual void Reset() override;
 	virtual void ClientInitialize(AController* C) override;
@@ -93,10 +92,10 @@ public:
 
 	// 트래블 직전에 데이터를 미리 저장하는 함수
 	void SavePersistedData();
-	
-	// 저장된 어빌리티 시스템 데이터가 있는지 (초기 PawnData AbilitySet 부여 스킵 판단용) 
+
+	// 저장된 어빌리티 시스템 데이터가 있는지 (초기 PawnData AbilitySet 부여 스킵 판단용)
 	bool HasSavedAbilitySystemData() const { return SavedASCData.IsValid(); }
-	
+
 	// Seamless Travel 후 ASC 데이터 복원
 	void RestorePersistedAbilityData();
 
@@ -104,28 +103,42 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestSkillUpgrade(TSubclassOf<USFGameplayAbility> NewAbilityClass, FGameplayTag InputTag);
 
+	//=====Permanent Upgrade=====
+	// 강화 데이터(서버에서만 확정). 실 데이터는 클라이언트 PlayFab 로드 후 Server RPC로 전달됨.
+	void SetPermanentUpgradeData(const FSFPermanentUpgradeData& InData);
+	const FSFPermanentUpgradeData& GetPermanentUpgradeData() const { return PermanentUpgradeData; }
+
+	// 클라이언트 → 서버 업그레이드 데이터 제출
+	UFUNCTION(Server, Reliable)
+	void Server_SubmitPermanentUpgradeData(const FSFPermanentUpgradeData& InData);
+	//===========================
+
 private:
 	void OnPawnDataLoadComplete(const USFPawnData* LoadedPawnData);
-
 	void ApplySkillUpgrade(TSubclassOf<USFGameplayAbility> NewAbilityClass, FGameplayTag InputTag);
 
 	UFUNCTION()
 	void OnRep_PawnData();
-	
+
 	UFUNCTION()
 	virtual void OnRep_PlayerSelection();
 
 	UFUNCTION()
 	void OnRep_IsReadyForTravel();
-	
+
+	// Permanent upgrade apply helper
+	void TryApplyPermanentUpgrade();
+	static bool ArePermanentUpgradeDataEqual(const FSFPermanentUpgradeData& A, const FSFPermanentUpgradeData& B);
+
 public:
 	FOnPawnDataLoaded OnPawnDataLoaded;
 
 	UPROPERTY(BlueprintAssignable, Category = "SF|Events")
 	FOnPlayerInfoChangedDelegate OnPlayerInfoChanged;
 
+	void OnPawnReadyForPermanentUpgrade();
+
 private:
-	
 	// 어빌리티 시스템 컴포넌트에서 PawnData를 참조해서 능력을 부여하기 위해 캐싱을 해놓음
 	UPROPERTY(ReplicatedUsing = OnRep_PawnData)
 	TObjectPtr<const USFPawnData> PawnData;
@@ -153,14 +166,35 @@ private:
 
 	UPROPERTY()
 	uint8 bPawnDataLoaded : 1;
-    
+
 	TSharedPtr<FStreamableHandle> PawnDataHandle;
 
-	// 재화 
+	// 재화
 	UPROPERTY(Replicated)
 	int32 Credits = 0;
 
 	// Seamless Travel 간 ASC 데이터 저장용
 	UPROPERTY()
 	FSFSavedAbilitySystemData SavedASCData;
+
+	//=====Permanent Upgrade=====
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<USFPermanentUpgradeComponent> PermanentUpgradeComponent;
+
+	// 강화 데이터 Replicate
+	UPROPERTY(Replicated)
+	FSFPermanentUpgradeData PermanentUpgradeData;
+
+	// "데이터를 서버가 받았다" 플래그 (값이 0이어도 받았으면 true)
+	bool bPermanentUpgradeDataReceived = false;
+
+	// 마지막으로 적용했던 데이터 (중복 적용 방지)
+	bool bHasLastAppliedPermanentUpgradeData = false;
+	FSFPermanentUpgradeData LastAppliedPermanentUpgradeData;
+	//===========================
+
+protected:
+	// Permanent Upgrade
+	UFUNCTION()
+	void OnAbilitySystemInitialized();
 };
