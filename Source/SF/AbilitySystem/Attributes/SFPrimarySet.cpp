@@ -22,6 +22,8 @@ void USFPrimarySet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
     DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Health, COND_None, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxHealth, COND_None, REPNOTIFY_Always);
     DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MoveSpeed, COND_None, REPNOTIFY_Always);
+    
+    DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MoveSpeedPercent, COND_None, REPNOTIFY_Always);
 }
 
 bool USFPrimarySet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data)
@@ -166,4 +168,9 @@ void USFPrimarySet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 void USFPrimarySet::OnRep_MoveSpeed(const FGameplayAttributeData& OldValue)
 {
     GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MoveSpeed, OldValue);
+}
+
+void USFPrimarySet::OnRep_MoveSpeedPercent(const FGameplayAttributeData& OldValue)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MoveSpeedPercent, OldValue);
 }

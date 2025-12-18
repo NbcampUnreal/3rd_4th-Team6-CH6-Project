@@ -6,6 +6,8 @@
 namespace SFGameplayTags
 {
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_HeartBreaker_Charging)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_Buff)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_Wave)
 	
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_HitReaction);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_HitReaction_Type_Player);

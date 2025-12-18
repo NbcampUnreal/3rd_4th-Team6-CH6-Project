@@ -4,8 +4,45 @@
 #include "SFGA_Thrust_Base.h"
 #include "SFGA_Thrust_HeartBreaker.generated.h"
 
-class UAbilityTask_PlayMontageAndWait;
-class UAbilityTask_WaitGameplayEvent;
+USTRUCT(BlueprintType)
+struct FSFChargePhaseInfo
+{
+	GENERATED_BODY()
+
+	// 이 Phase에서 다음 Phase로 넘어가는 시간 (마지막 Phase에서는 무시됨)
+	UPROPERTY(EditDefaultsOnly, Category="Charging", meta=(ClampMin="0.0"))
+	float ChargeTimeToNext = 0.5f;
+
+	// UI 표시 색상
+	UPROPERTY(EditDefaultsOnly, Category="UI")
+	FLinearColor PhaseColor = FLinearColor::White;
+
+	// 데미지 배율
+	UPROPERTY(EditDefaultsOnly, Category="Combat", meta=(ClampMin="0.0"))
+	float DamageMultiplier = 1.f;
+
+	// 돌진 거리 배율
+	UPROPERTY(EditDefaultsOnly, Category="Combat", meta=(ClampMin="0.0"))
+	float RushDistanceScale = 1.f;
+
+	// 공격 시 회전 보간 속도
+	UPROPERTY(EditDefaultsOnly, Category="Combat", meta=(ClampMin="0.0"))
+	float AttackInterpSpeed = 15.f;
+
+	// 슬라이딩 모드
+	UPROPERTY(EditDefaultsOnly, Category="Movement")
+	ESFSlidingMode SlidingMode = ESFSlidingMode::Normal;
+
+	// 카메라 모드
+	UPROPERTY(EditDefaultsOnly, Category="Camera")
+	TSubclassOf<USFCameraMode> CameraMode;
+
+	// 돌진 몽타주
+	UPROPERTY(EditDefaultsOnly, Category="Animation")
+	TObjectPtr<UAnimMontage> RushMontage;
+};
+
+
 /**
  * 
  */
@@ -20,23 +57,24 @@ public:
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
-
 	virtual void OnTrace(FGameplayEventData Payload) override;
 
 	float GetPhaseDamage() const;
 	float GetPhaseRushDistance() const;
-
+	float GetPhaseAttackInterpSpeed() const;
+	ESFSlidingMode GetPhaseSlidingMode() const;
+	UAnimMontage* GetPhaseRushMontage() const;
+	TSubclassOf<USFCameraMode> GetPhaseCameraMode() const;
+	FLinearColor GetPhaseColor() const;
+	
 	UFUNCTION()
 	void OnKeyReleased(float TimeHeld);
 	
 	void OnServerTargetDataReceivedCallback(const FGameplayAbilityTargetDataHandle& DataHandle, FGameplayTag ActivationTag);
 
-	void SetupMotionWarpingTarget(const FVector& TargetLocation);
 	void ExecuteRushAttack();
 
 	int32 CalculatePhase(float TimeHeld) const;
-	FVector CalculateRushTargetLocation() const;
-	FRotator CalculateRushTargetRotation() const;
 	
 	UFUNCTION()
 	void OnRushMontageFinished();
@@ -63,44 +101,23 @@ protected:
 
 protected:
 
+	// Phase 별 데이터 설정
+	UPROPERTY(EditDefaultsOnly, Category="SF|PhaseInfo")
+	TArray<FSFChargePhaseInfo> PhaseInfos;
+
 	// 차징 몽타주 (Start → Loop)
 	UPROPERTY(EditDefaultsOnly, Category="SF|Animation")
 	TObjectPtr<UAnimMontage> ChargingMontage;
 	
-	// Phase별 Rush 몽타주 (Index = Phase)
-	UPROPERTY(EditDefaultsOnly, Category = "SF|Animation")
-	TArray<TObjectPtr<UAnimMontage>> RushAttackMontages;
+	// 차징 중 회전 보간 속도 (느리게)
+	UPROPERTY(EditDefaultsOnly, Category="SF|Startup")
+	float ChargingInterpSpeed = 3.f;
 
-	// Phase 전환 시간 배열 ([0] Phase 1 → Phase 2 전환 시간 [1] Phase 2 → Phase 3 전환 시간)
-	UPROPERTY(EditDefaultsOnly, Category="SF|PhaseInfo", EditFixedSize)
-	TArray<float> PhaseTimes;
-
-	// Phase별 UI의 프로그레스 바 색 ([0] Phase 1 색상, [1]: Phase 2 색상, [2]: Phase 3 색상)
-	UPROPERTY(EditDefaultsOnly, Category="SF|PhaseInfo", EditFixedSize)
-	TArray<FLinearColor> PhaseColors;
-
-	// Phase별 데미지 배율 ([0]: Phase 1, [1]: Phase 2, [2]: Phase 3)
-	UPROPERTY(EditDefaultsOnly, Category="SF|PhaseInfo")
-	TArray<float> PhaseDamageMultipliers;
-
-	// Phase별 돌진 거리 배율
-	UPROPERTY(EditDefaultsOnly, Category="SF|PhaseInfo")
-	TArray<float> PhaseRushDistanceScales;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Camera")
-	TArray<TSubclassOf<USFCameraMode>> PhaseCameraModes;
-
-	UPROPERTY(EditDefaultsOnly, Category = "SF|PhaseInfo")
-	TArray<ESFSlidingMode> PhaseSlidingModes;
-
-	UPROPERTY(EditDefaultsOnly, Category="SF|PhaseInfo")
+	UPROPERTY(EditDefaultsOnly, Category="SF|Startup")
 	float BaseRushDistance = 124.f;
-
-	UPROPERTY(EditDefaultsOnly, Category="SF|MotionWarping")
-	FName WarpTargetName = TEXT("RushTarget");
-
+	
 	// 슈퍼아머 GE
-	UPROPERTY(EditDefaultsOnly, Category="Buff")
+	UPROPERTY(EditDefaultsOnly, Category="SF|Buff")
 	TSubclassOf<UGameplayEffect> SuperArmorEffectClass;
 
 	UPROPERTY(EditDefaultsOnly, Category="SF|GameplayCue")

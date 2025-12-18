@@ -4,11 +4,16 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "AbilitySystem/SFAbilitySystemComponent.h"
+#include "AbilitySystem/GameplayCues/Data/SFDA_WaveEffectData.h"
+#include "AbilitySystem/GameplayCues/Data/SFDA_BuffAuraEffectData.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Character/SFCharacterBase.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Libraries/SFCollisionLibrary.h"
+#include "Libraries/SFDrawShapeLibrary.h"
 #include "System/SFAssetManager.h"
 
 USFGA_Thrust_Salvation::USFGA_Thrust_Salvation(FObjectInitializer const& ObjectInitializer)
@@ -103,10 +108,10 @@ void USFGA_Thrust_Salvation::OnShieldBashEffectBegin(FGameplayEventData Payload)
 	}
 
 	// 공격 범위 계산(공격 중심 위치: 캐릭터 위치에서 전방으로 Distance만큼 이동한 위치)
-	FVector CapsulePosition = SourceCharacter->GetActorLocation() + (SourceCharacter->GetActorForwardVector() * Distance);
+	FVector CapsulePosition = SourceCharacter->GetActorLocation() + (SourceCharacter->GetActorForwardVector() * AttackDistance);
 
 	// 공격 범위 반경: 캐릭터 캡슐 반경에 RadiusMultiplier를 곱한 값
-	float Radius = SourceCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius() * RadiusMultiplier;
+	float Radius = SourceCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius() * AttackRadiusMultiplier;
 
 	// 공격 범위 높이: 캐릭터 캡슐 높이와 동일
 	float HalfHeight = SourceCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
@@ -123,11 +128,8 @@ void USFGA_Thrust_Salvation::OnShieldBashEffectBegin(FGameplayEventData Payload)
 	TArray<AActor*> ActorsToIgnore = { SourceCharacter };
 	TArray<AActor*> OverlappedActors;
 
-	if (!UKismetSystemLibrary::CapsuleOverlapActors(this, CapsulePosition, Radius, HalfHeight, ObjectTypeQueries, ASFCharacterBase::StaticClass(), ActorsToIgnore, OverlappedActors))
-	{
-		return;
-	}
-
+	UKismetSystemLibrary::CapsuleOverlapActors(this, CapsulePosition, Radius, HalfHeight, ObjectTypeQueries, ASFCharacterBase::StaticClass(), ActorsToIgnore, OverlappedActors);
+	
 	// 각 타겟에게 데미지 및 넉백 효과 적용
 	for (AActor* OverlappedActor : OverlappedActors)
 	{
@@ -149,12 +151,9 @@ void USFGA_Thrust_Salvation::OnShieldBashEffectBegin(FGameplayEventData Payload)
 		{
 			ApplyDamageAndKnockback(SourceCharacter, TargetCharacter, TargetASC);
 		}
-		else if (Attitude == ETeamAttitude::Friendly)
-		{
-			// 아군 버프(자기 자신 제외)
-			ApplyBuffToAlly(TargetASC);
-		}
 	}
+
+	ApplyWaveEffectAndAllyBuff();
 }
 
 void USFGA_Thrust_Salvation::ApplyDamageAndKnockback(ASFCharacterBase* Source, ASFCharacterBase* Target, UAbilitySystemComponent* TargetASC)
@@ -179,18 +178,129 @@ void USFGA_Thrust_Salvation::ApplyDamageAndKnockback(ASFCharacterBase* Source, A
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, SFGameplayTags::GameplayEvent_Knockback, KnockbackPayload);
 }
 
-void USFGA_Thrust_Salvation::ApplyBuffToAlly(UAbilitySystemComponent* TargetASC)
+void USFGA_Thrust_Salvation::ApplyWaveEffectAndAllyBuff()
 {
-	if (!BuffEffectClass)
+	ASFCharacterBase* SourceCharacter = GetSFCharacterFromActorInfo();
+	if (!SourceCharacter)
 	{
 		return;
 	}
-    
-	FGameplayEffectSpecHandle BuffSpec = MakeOutgoingGameplayEffectSpec(BuffEffectClass);
-	if (BuffSpec.IsValid())
+
+	USFAbilitySystemComponent* SourceASC = GetSFAbilitySystemComponentFromActorInfo();
+	if (!SourceASC)
 	{
-		TargetASC->ApplyGameplayEffectSpecToSelf(*BuffSpec.Data.Get());
+		return;
 	}
+
+	const FVector SourceLocation = SourceCharacter->GetActorLocation();
+	const FVector ForwardDir = SourceCharacter->GetActorForwardVector();
+	
+	// 파장 VFX + 사운드 재생
+	if (WaveEffectCueTag.IsValid() && WaveEffectData)
+	{
+		FGameplayCueParameters CueParams;
+		CueParams.Location = SourceCharacter->GetActorLocation();
+		CueParams.Normal = FVector::UpVector;
+		CueParams.Instigator = SourceCharacter;
+		CueParams.RawMagnitude = WaveForwardRadius;
+		CueParams.SourceObject = WaveEffectData;
+
+		SourceASC->ExecuteGameplayCue(WaveEffectCueTag, CueParams);
+	}
+
+	// 아군 버프 (서버에서만)
+	if (!HasAuthority(&CurrentActivationInfo) || !BuffEffectClass)
+	{
+		return;
+	}
+
+	// 자기 자신 버프
+	if (bBuffSelf)
+	{
+		ApplyBuffToAlly(SourceASC, SourceASC);
+	}
+	
+	// 타원형 오버랩
+	TArray<AActor*> OverlappedActors;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+
+	USFCollisionLibrary::EllipseOverlapActors(
+		this,
+		SourceLocation,
+		ForwardDir,
+		WaveForwardRadius,
+		WaveSideRadius,
+		WaveHalfHeight,
+		ObjectTypes,
+		ASFCharacterBase::StaticClass(),
+		TArray<AActor*>{ SourceCharacter },
+		OverlappedActors
+	);
+
+#if WITH_EDITOR
+	if (bShowDebug)
+	{
+		// 타원 디버그 드로우
+		USFDrawShapeLibrary::DrawDebugEllipse(
+		this,
+		SourceLocation,
+		ForwardDir,
+		SourceCharacter->GetActorRightVector(),
+		WaveForwardRadius,
+		WaveSideRadius,
+		WaveHalfHeight, 
+		FColor::Green,
+		2.0f,
+		2.0f);
+	}
+#endif
+
+	for (AActor* Actor : OverlappedActors)
+	{
+		ASFCharacterBase* TargetCharacter = Cast<ASFCharacterBase>(Actor);
+		if (!TargetCharacter)
+		{
+			continue;
+		}
+
+		// 아군인지 확인
+		ETeamAttitude::Type Attitude = SourceCharacter->GetTeamAttitudeTowards(*TargetCharacter);
+		if (Attitude != ETeamAttitude::Friendly)
+		{
+			continue;
+		}
+
+		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetCharacter);
+		if (TargetASC)
+		{
+			ApplyBuffToAlly(SourceASC, TargetASC);
+		}
+	}
+}
+
+void USFGA_Thrust_Salvation::ApplyBuffToAlly(UAbilitySystemComponent* SourceASC, UAbilitySystemComponent* TargetASC)
+{
+	if (!BuffEffectClass || !TargetASC || !SourceASC)
+	{
+		return;
+	}
+
+	FGameplayEffectSpecHandle BuffSpec = MakeOutgoingGameplayEffectSpec(BuffEffectClass);
+	if (!BuffSpec.IsValid())
+	{
+		return;
+	}
+
+	// EffectContext에 Payload로 Niagara + Sound 설정
+	if (BuffAuraEffectData)
+	{
+		FGameplayEffectContextHandle ContextHandle = SourceASC->MakeEffectContext();
+		ContextHandle.AddSourceObject(BuffAuraEffectData);
+		BuffSpec.Data->SetContext(ContextHandle);
+	}
+
+	TargetASC->ApplyGameplayEffectSpecToSelf(*BuffSpec.Data.Get());
 }
 
 void USFGA_Thrust_Salvation::OnMontageFinished()

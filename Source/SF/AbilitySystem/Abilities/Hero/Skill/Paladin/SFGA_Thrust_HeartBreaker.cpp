@@ -8,8 +8,8 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "AbilitySystem/SFAbilitySystemComponent.h"
 #include "Character/SFCharacterBase.h"
-#include "MotionWarpingComponent.h"
 #include "AbilitySystem/GameplayEffect/Hero/EffectContext/SFTargetDataTypes.h"
+#include "AbilitySystem/Tasks/Combat/SFAbilityTask_UpdateWarpTarget.h"
 #include "Camera/SFCameraMode.h"
 #include "Character/Hero/SFHeroComponent.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
@@ -21,16 +21,32 @@
 USFGA_Thrust_HeartBreaker::USFGA_Thrust_HeartBreaker(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	PhaseTimes.SetNum(2);
-	PhaseColors.SetNum(3);
+	bUseWindupWarp = true;
+	bUseEquipmentWarpSettings = false;
+	
+	WarpTargetNameOverride = TEXT("AttackTarget");
+	WarpRangeOverride = 124.f;  
+	RotationInterpSpeedOverride = 1.f;
+	MaxWindupTurnAngleOverride = 180.f;
 }
 
 void USFGA_Thrust_HeartBreaker::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
+	if (PhaseInfos.IsValidIndex(0))
+	{
+		WarpRangeOverride = BaseRushDistance * PhaseInfos[0].RushDistanceScale;
+	}
+	else
+	{
+		WarpRangeOverride = BaseRushDistance;
+	}
+
+	RotationInterpSpeedOverride = ChargingInterpSpeed;
+	
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	AbilityStartTime = GetWorld()->GetTimeSeconds();
-	MaxPhaseIndex = PhaseTimes.Num(); 
+	MaxPhaseIndex = PhaseInfos.Num() > 0 ? PhaseInfos.Num() - 1 : 0;
 	
 	ResetCharge();
 	
@@ -68,11 +84,12 @@ void USFGA_Thrust_HeartBreaker::ActivateAbility(const FGameplayAbilitySpecHandle
 			WaitInputReleaseTask->ReadyForActivation();
 		}
 		
-		for (float PhaseTime : PhaseTimes)
+		// TotalChargeTime 계산 (마지막 Phase 제외)
+		TotalChargeTime = 0.f;
+		for (int32 i = 0; i < PhaseInfos.Num() - 1; ++i)
 		{
-			TotalChargeTime += PhaseTime;
+			TotalChargeTime += PhaseInfos[i].ChargeTimeToNext;
 		}
-		
 		// UI 표시
 		BroadcastUIConstruct(true);
 	}
@@ -80,7 +97,7 @@ void USFGA_Thrust_HeartBreaker::ActivateAbility(const FGameplayAbilitySpecHandle
 	StartChargingCue();
 	StartPhaseTimer();
 
-	if (PhaseCameraModes.Num() > 0)
+	if (GetPhaseCameraMode())
 	{
 		UpdateCameraModeForPhase(0);
 	}
@@ -120,9 +137,9 @@ void USFGA_Thrust_HeartBreaker::StartPhaseTimer()
 		return;
 	}
 	
-	if (PhaseTimes.IsValidIndex(CurrentPhaseIndex))
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
 	{
-		float PhaseTime = PhaseTimes[CurrentPhaseIndex];
+		float PhaseTime = PhaseInfos[CurrentPhaseIndex].ChargeTimeToNext;
 		// TODO: 공격 속도 적용 필요 시 여기서 계산(UI 표시)
 		// PhaseTime /= GetAttackSpeed();
 		GetWorld()->GetTimerManager().SetTimer(
@@ -142,6 +159,11 @@ void USFGA_Thrust_HeartBreaker::OnPhaseTimePassed()
 	if (CurrentPhaseIndex > MaxPhaseIndex)
 	{
 		CurrentPhaseIndex = MaxPhaseIndex;
+	}
+
+	if (WarpTargetTask)
+	{
+		WarpTargetTask->SetRange(GetPhaseRushDistance());
 	}
 
 	if (IsLocallyControlled())
@@ -169,40 +191,31 @@ void USFGA_Thrust_HeartBreaker::OnKeyReleased(float TimeHeld)
 	// 카메라 Yaw 제한 선 해제
 	DisableCameraYawLimits();
 
-	// TimeHeld를 기준으로 페이즈 재확정 (UI 타이머와 미세한 오차가 있을 수 있으므로)
 	CurrentPhaseIndex = CalculatePhase(TimeHeld);
 
-	// Motion Warping 타겟 위치/회전 계산
-	FVector TargetLocation = CalculateRushTargetLocation();
-	FRotator TargetRotation = CalculateRushTargetRotation();
+	// 공격 Phase에 맞는 InterpSpeed 적용
+	if (WarpTargetTask)
+	{
+		WarpTargetTask->SetInterpSpeed(GetPhaseAttackInterpSpeed());
+	}
 
-	// 서버로 보낼 TargetData 패키징 
+	// PhaseIndex만 서버로 전송 (MW 데이터는 CMC에서 처리)
 	FScopedPredictionWindow ScopedPrediction(GetAbilitySystemComponentFromActorInfo());
 	
 	FSFGameplayAbilityTargetData_ChargePhase* NewData = new FSFGameplayAbilityTargetData_ChargePhase();
 	NewData->PhaseIndex = CurrentPhaseIndex;
-	NewData->RushTargetLocation = TargetLocation;
-	NewData->RushTargetRotation = TargetRotation;
 	FGameplayAbilityTargetDataHandle DataHandle(NewData);
 
-	// 서버로 전송
 	GetAbilitySystemComponentFromActorInfo()->ServerSetReplicatedTargetData(
-			GetCurrentAbilitySpecHandle(), 
-			GetCurrentActivationInfo().GetActivationPredictionKey(), 
-			DataHandle, 
-			FGameplayTag(), 
-			GetAbilitySystemComponentFromActorInfo()->ScopedPredictionKey);
+		GetCurrentAbilitySpecHandle(), 
+		GetCurrentActivationInfo().GetActivationPredictionKey(), 
+		DataHandle, 
+		FGameplayTag(), 
+		GetAbilitySystemComponentFromActorInfo()->ScopedPredictionKey);
 	
-	// 클라이언트인 경우 반응성을 위해 즉시 예측 실행
+	// 클라이언트 예측 실행
 	if (!GetAvatarActorFromActorInfo()->HasAuthority())
 	{
-		SetupMotionWarpingTarget(TargetLocation);
-
-		if (ASFCharacterBase* Character = GetSFCharacterFromActorInfo())
-		{
-			Character->SetActorRotation(TargetRotation);
-		}
-		
 		ExecuteRushAttack();
 	}
 }
@@ -222,64 +235,36 @@ void USFGA_Thrust_HeartBreaker::OnServerTargetDataReceivedCallback(const FGamepl
 		return;
 	}
 
+	// Phase 검증
 	float ServerElapsedTime = GetWorld()->GetTimeSeconds() - AbilityStartTime;
 	int32 ServerCalculatedPhase = CalculatePhase(ServerElapsedTime);
 
-	// 오차 검증 (네트워크 RTT 고려하여 클라이언트 페이즈가 서버보다 1단계 정도 까지만 허용)
 	if (ReceivedData->PhaseIndex > ServerCalculatedPhase + 1) 
 	{
-		// 오차를 벗어난 경우
 		CurrentPhaseIndex = ServerCalculatedPhase;
 	}
 	else
 	{
-		// 오차를 허용한 경우
 		CurrentPhaseIndex = ReceivedData->PhaseIndex;
 	}
 
 	StopChargingCue();
-	SetupMotionWarpingTarget(ReceivedData->RushTargetLocation);
-
-	if (ASFCharacterBase* Character = GetSFCharacterFromActorInfo())
-	{
-		Character->SetActorRotation(ReceivedData->RushTargetRotation);
-	}
-	
 	ExecuteRushAttack();
-}
-
-void USFGA_Thrust_HeartBreaker::SetupMotionWarpingTarget(const FVector& TargetLocation)
-{
-	if (ASFCharacterBase* SFCharacter = GetSFCharacterFromActorInfo())
-    {
-        if (UMotionWarpingComponent* MW = SFCharacter->GetMotionWarpingComponent())
-        {
-        	MW->AddOrUpdateWarpTargetFromLocation(WarpTargetName, TargetLocation);
-        }
-    }
 }
 
 void USFGA_Thrust_HeartBreaker::ExecuteRushAttack()
 {
-	if (PhaseSlidingModes.IsValidIndex(CurrentPhaseIndex))
-	{
-		ApplySlidingMode(PhaseSlidingModes[CurrentPhaseIndex]);
-	}
+	ApplySlidingMode(GetPhaseSlidingMode());
 	
-	UAnimMontage* RushAttackMontage = nullptr;
-	
-	if (RushAttackMontages.IsValidIndex(CurrentPhaseIndex))
-	{
-		RushAttackMontage = RushAttackMontages[CurrentPhaseIndex];
-	}
+	UAnimMontage* RushMontage = GetPhaseRushMontage();
 	
 	// 돌진 몽타주 재생
-	if (RushAttackMontage)
+	if (RushMontage)
 	{
 		if (UAbilityTask_PlayMontageAndWait* RushMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this,
 			TEXT("RushAttackMontage"),
-			RushAttackMontage,
+			RushMontage,
 			1.f,
 			NAME_None,
 			true))
@@ -298,55 +283,15 @@ void USFGA_Thrust_HeartBreaker::ExecuteRushAttack()
 int32 USFGA_Thrust_HeartBreaker::CalculatePhase(float TimeHeld) const
 {
 	float CumulativeTime = 0.f;
-	for (int32 i = 0; i < PhaseTimes.Num(); ++i)
+	for (int32 i = 0; i < PhaseInfos.Num() - 1; ++i)
 	{
-		CumulativeTime += PhaseTimes[i];
+		CumulativeTime += PhaseInfos[i].ChargeTimeToNext;
 		if (TimeHeld < CumulativeTime)
 		{
 			return i; 
 		}
 	}
 	return MaxPhaseIndex;
-}
-
-FVector USFGA_Thrust_HeartBreaker::CalculateRushTargetLocation() const
-{
-	ASFCharacterBase* SFCharacter = GetSFCharacterFromActorInfo();
-	if (!SFCharacter)
-	{
-		return FVector::ZeroVector;
-	}
-
-	float Dist = GetPhaseRushDistance();
-    
-	// 로컬 플레이어의 마지막 입력 의도 방향 가져오기
-	FVector AttackDirection = SFCharacter->GetLastInputDirection();
-
-	// 입력이 없다면 캐릭터의 전방 사용
-	if (AttackDirection.IsNearlyZero())
-	{
-		AttackDirection = SFCharacter->GetActorForwardVector();
-	}
-
-	return SFCharacter->GetActorLocation() + (AttackDirection * Dist);
-}
-
-FRotator USFGA_Thrust_HeartBreaker::CalculateRushTargetRotation() const
-{
-	ASFCharacterBase* SFCharacter = GetSFCharacterFromActorInfo();
-	if (!SFCharacter)
-	{
-		return FRotator::ZeroRotator;
-	}
-
-	FVector AttackDirection = SFCharacter->GetLastInputDirection();
-	
-	if (AttackDirection.IsNearlyZero())
-	{
-		AttackDirection = SFCharacter->GetActorForwardVector();
-	}
-
-	return AttackDirection.Rotation();
 }
 
 void USFGA_Thrust_HeartBreaker::OnTrace(FGameplayEventData Payload)
@@ -399,30 +344,33 @@ void USFGA_Thrust_HeartBreaker::ResetCharge()
 
 void USFGA_Thrust_HeartBreaker::BroadcastUIConstruct(bool bShow)
 {
-	UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(this);
+	if (UGameplayMessageSubsystem::HasInstance(this))
+	{
+		UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(this);
 
-	FSFSkillProgressInfoMessage ProgressInfoMessage;
-	ProgressInfoMessage.bShouldShow = bShow;
-	ProgressInfoMessage.DisplayName = Name;
-	ProgressInfoMessage.PhaseColor = PhaseColors[CurrentPhaseIndex];
-	ProgressInfoMessage.TotalSkillTime = TotalChargeTime;
-	MessageSubsystem.BroadcastMessage(SFGameplayTags::Message_Skill_ProgressInfoChanged, ProgressInfoMessage);
+		FSFSkillProgressInfoMessage ProgressInfoMessage;
+		ProgressInfoMessage.bShouldShow = bShow;
+		ProgressInfoMessage.DisplayName = Name;
+		ProgressInfoMessage.PhaseColor = GetPhaseColor();
+		ProgressInfoMessage.TotalSkillTime = TotalChargeTime;
+		MessageSubsystem.BroadcastMessage(SFGameplayTags::Message_Skill_ProgressInfoChanged, ProgressInfoMessage);
+	}
 }
 
 void USFGA_Thrust_HeartBreaker::BroadcastUIRefresh(int32 NewPhaseIndex)
 {
-	UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(this);
-
-	if (CurrentPhaseIndex < PhaseTimes.Num())
+	if (UGameplayMessageSubsystem::HasInstance(this))
 	{
+		UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(this);
 		FSFSkillProgressRefreshMessage Message;
-		Message.PhaseColor = PhaseColors[NewPhaseIndex];
-		MessageSubsystem.BroadcastMessage(SFGameplayTags::Message_Skill_ProgressRefresh, Message);
-	}
-	else
-	{
-		FSFSkillProgressRefreshMessage Message;
-		Message.PhaseColor = PhaseColors[MaxPhaseIndex];
+		if (PhaseInfos.IsValidIndex(NewPhaseIndex))
+		{
+			Message.PhaseColor = PhaseInfos[NewPhaseIndex].PhaseColor;
+		}
+		else
+		{
+			Message.PhaseColor = FLinearColor::White;
+		}
 		MessageSubsystem.BroadcastMessage(SFGameplayTags::Message_Skill_ProgressRefresh, Message);
 	}
 }
@@ -492,28 +440,79 @@ void USFGA_Thrust_HeartBreaker::StopChargingCue()
 
 void USFGA_Thrust_HeartBreaker::UpdateCameraModeForPhase(int32 PhaseIndex)
 {
-	if (PhaseCameraModes.IsValidIndex(PhaseIndex) && PhaseCameraModes[PhaseIndex])
+	TSubclassOf<USFCameraMode> CameraMode = nullptr;
+	if (PhaseInfos.IsValidIndex(PhaseIndex))
 	{
-		SetCameraMode(PhaseCameraModes[PhaseIndex]);
+		CameraMode = PhaseInfos[PhaseIndex].CameraMode;
+	}
+	
+	if (CameraMode)
+	{
+		SetCameraMode(CameraMode);
 	}
 }
 
 float USFGA_Thrust_HeartBreaker::GetPhaseDamage() const
 {
-	if (PhaseDamageMultipliers.IsValidIndex(CurrentPhaseIndex))
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
 	{
-		return BaseDamage * PhaseDamageMultipliers[CurrentPhaseIndex];
+		return BaseDamage * PhaseInfos[CurrentPhaseIndex].DamageMultiplier;
 	}
 	return BaseDamage;
 }
 
 float USFGA_Thrust_HeartBreaker::GetPhaseRushDistance() const
 {
-	if (PhaseRushDistanceScales.IsValidIndex(CurrentPhaseIndex))
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
 	{
-		return BaseRushDistance * PhaseRushDistanceScales[CurrentPhaseIndex];
+		return BaseRushDistance * PhaseInfos[CurrentPhaseIndex].RushDistanceScale;
 	}
 	return BaseRushDistance;
+}
+
+float USFGA_Thrust_HeartBreaker::GetPhaseAttackInterpSpeed() const
+{
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
+	{
+		return PhaseInfos[CurrentPhaseIndex].AttackInterpSpeed;
+	}
+	return 15.f;
+}
+
+ESFSlidingMode USFGA_Thrust_HeartBreaker::GetPhaseSlidingMode() const
+{
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
+	{
+		return PhaseInfos[CurrentPhaseIndex].SlidingMode;
+	}
+	return ESFSlidingMode::Normal;
+}
+
+UAnimMontage* USFGA_Thrust_HeartBreaker::GetPhaseRushMontage() const
+{
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
+	{
+		return PhaseInfos[CurrentPhaseIndex].RushMontage;
+	}
+	return nullptr;
+}
+
+TSubclassOf<USFCameraMode> USFGA_Thrust_HeartBreaker::GetPhaseCameraMode() const
+{
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
+	{
+		return PhaseInfos[CurrentPhaseIndex].CameraMode;
+	}
+	return nullptr;
+}
+
+FLinearColor USFGA_Thrust_HeartBreaker::GetPhaseColor() const
+{
+	if (PhaseInfos.IsValidIndex(CurrentPhaseIndex))
+	{
+		return PhaseInfos[CurrentPhaseIndex].PhaseColor;
+	}
+	return FLinearColor::White;
 }
 
 void USFGA_Thrust_HeartBreaker::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
@@ -544,15 +543,6 @@ void USFGA_Thrust_HeartBreaker::EndAbility(const FGameplayAbilitySpecHandle Hand
 			ASC->RemoveActiveGameplayEffect(SuperArmorEffectHandle);
 		}
 		SuperArmorEffectHandle.Invalidate();
-	}
-
-	// Motion Warping 타겟 제거
-	if (ASFCharacterBase* SFCharacter = GetSFCharacterFromActorInfo())
-	{
-		if (UMotionWarpingComponent* MotionWarpingComp = SFCharacter->FindComponentByClass<UMotionWarpingComponent>())
-		{
-			MotionWarpingComp->RemoveWarpTarget(WarpTargetName);
-		}
 	}
 
 	// 타겟 데이터 델리게이트 해제

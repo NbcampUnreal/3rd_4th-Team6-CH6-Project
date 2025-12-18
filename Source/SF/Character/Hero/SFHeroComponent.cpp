@@ -251,6 +251,7 @@ void USFHeroComponent::InitializePlayerInput(UInputComponent* PlayerInputCompone
 					LCIC->BindAbilityActions(InputConfig, this,&ThisClass::Input_AbilityInputTagStarted, &ThisClass::Input_AbilityInputTagPressed, &ThisClass::Input_AbilityInputTagReleased, /*out*/ BindHandles);
 
 					LCIC->BindNativeAction(InputConfig, SFGameplayTags::InputTag_Move, ETriggerEvent::Triggered, this, &ThisClass::Input_Move, /*bLogIfNotFound=*/ false);
+					LCIC->BindNativeAction(InputConfig, SFGameplayTags::InputTag_Move, ETriggerEvent::Completed, this, &ThisClass::Input_MoveCompleted, /*bLogIfNotFound=*/ false);
 					LCIC->BindNativeAction(InputConfig, SFGameplayTags::InputTag_Look_Mouse, ETriggerEvent::Triggered, this, &ThisClass::Input_LookMouse, /*bLogIfNotFound=*/ false);
 					LCIC->BindNativeAction(InputConfig, SFGameplayTags::InputTag_Crouch, ETriggerEvent::Triggered, this, &ThisClass::Input_Crouch, /*bLogIfNotFound=*/ false);
 				}
@@ -338,23 +339,28 @@ void USFHeroComponent::Input_Move(const FInputActionValue& InputActionValue)
 	// 로컬 플레이어의 입력 의도 방향 계산
 	LastInputDirection = WorldDirection.GetSafeNormal();
 	
-	if (const USFPawnExtensionComponent* PawnExtComp = USFPawnExtensionComponent::FindPawnExtensionComponent(Pawn))
-	{
-		if (const USFAbilitySystemComponent* SFASC = PawnExtComp->GetSFAbilitySystemComponent())
-		{
-			// "Character.State.Attacking" 태그를 가지고 있다면?
-			// (GA_Hero_ComboAttack의 Activation Owned Tag에 이 태그가 있어야 함)
-			if (SFASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Attacking)) 
-			{
-				return; // 입력을 처리하지 않고 함수를 강제 종료 -> 이동 불가
-			}
-		}
-	}
+	// if (const USFPawnExtensionComponent* PawnExtComp = USFPawnExtensionComponent::FindPawnExtensionComponent(Pawn))
+	// {
+	// 	if (const USFAbilitySystemComponent* SFASC = PawnExtComp->GetSFAbilitySystemComponent())
+	// 	{
+	// 		// "Character.State.Attacking" 태그를 가지고 있다면?
+	// 		// (GA_Hero_ComboAttack의 Activation Owned Tag에 이 태그가 있어야 함)
+	// 		if (SFASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Attacking)) 
+	// 		{
+	// 			return; // 입력을 처리하지 않고 함수를 강제 종료 -> 이동 불가
+	// 		}
+	// 	}
+	// }
 
 	if (WorldDirection.IsNearlyZero() == false)
 	{
 		Pawn->AddMovementInput(WorldDirection, 1.0f);
 	}
+}
+
+void USFHeroComponent::Input_MoveCompleted(const FInputActionValue& InputActionValue)
+{
+	LastInputDirection = FVector::ZeroVector;
 }
 
 void USFHeroComponent::Input_LookMouse(const FInputActionValue& InputActionValue)
