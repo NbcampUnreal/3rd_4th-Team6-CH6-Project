@@ -27,6 +27,10 @@ ASFPlayerState::ASFPlayerState(const FObjectInitializer& ObjectInitializer)
 
 	PrimarySet = CreateDefaultSubobject<USFPrimarySet_Hero>(TEXT("PrimarySet"));
 	CombatSet = CreateDefaultSubobject<USFCombatSet_Hero>(TEXT("CombatSet"));
+
+	//Upgrade
+	PermanentUpgradeComponent =
+		CreateDefaultSubobject<USFPermanentUpgradeComponent>(TEXT("PermanentUpgradeComponent"));
 	
 	SetNetUpdateFrequency(100.f);
 }
@@ -39,6 +43,7 @@ void ASFPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	DOREPLIFETIME(ThisClass, PawnData);
 	DOREPLIFETIME(ThisClass, Credits);
 	DOREPLIFETIME(ThisClass, bIsReadyForTravel);
+	DOREPLIFETIME(ThisClass, PermanentUpgradeData);
 	
 	FDoRepLifetimeParams SharedParams;
 	SharedParams.bIsPushBased = true;
@@ -89,6 +94,10 @@ void ASFPlayerState::CopyProperties(APlayerState* PlayerState)
 
 	NewPlayerState->SetPlayerSelection(PlayerSelection);
 	NewPlayerState->SetGenericTeamId(MyTeamID);
+
+	// Permanent Upgrade 데이터도 SeamlessTravel/InactivePlayer에 이어받도록 복사
+	NewPlayerState->PermanentUpgradeData = PermanentUpgradeData;
+	NewPlayerState->bPermanentUpgradeDataReceived = bPermanentUpgradeDataReceived;
 
 	if (SavedASCData.IsValid())
 	{
@@ -249,7 +258,10 @@ void ASFPlayerState::SetPawnData(const USFPawnData* InPawnData)
 			}
 		}
 	}
-	
+
+	// 강화는 "서버가 PlayFab 데이터를 수신한 이후"에만 적용되어야 함
+	TryApplyPermanentUpgrade();
+
 	ForceNetUpdate();
 }
 
@@ -394,3 +406,118 @@ void ASFPlayerState::OnRep_IsReadyForTravel()
 	MessageSubsystem.BroadcastMessage(SFGameplayTags::Message_Player_TravelReadyChanged, Message);
 }
 
+void ASFPlayerState::OnAbilitySystemInitialized()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[PermanentUpgrade] OnAbilitySystemInitialized CALLED"));
+	
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[PermanentUpgrade] OnAbilitySystemInitialized -> TryApply")
+	);
+
+	TryApplyPermanentUpgrade();
+}
+
+void ASFPlayerState::SetPermanentUpgradeData(const FSFPermanentUpgradeData& InData)
+{
+	PermanentUpgradeData = InData;
+
+	UE_LOG(LogTemp, Warning, TEXT("[PermanentUpgrade] SetPermanentUpgradeData CALLED | Wrath=%d Pride=%d Lust=%d Sloth=%d Greed=%d"),
+		InData.Wrath, InData.Pride, InData.Lust, InData.Sloth, InData.Greed);
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 값이 0이어도 "데이터 수신 완료"로 취급해야 함
+	bPermanentUpgradeDataReceived = true;
+
+	TryApplyPermanentUpgrade();
+}
+void ASFPlayerState::Server_SubmitPermanentUpgradeData_Implementation(const FSFPermanentUpgradeData& InData)
+{
+	// Owning Client → Server
+	SetPermanentUpgradeData(InData);
+}
+
+bool ASFPlayerState::ArePermanentUpgradeDataEqual(const FSFPermanentUpgradeData& A, const FSFPermanentUpgradeData& B)
+{
+	return A.Wrath == B.Wrath
+		&& A.Pride == B.Pride
+		&& A.Lust == B.Lust
+		&& A.Sloth == B.Sloth
+		&& A.Greed == B.Greed;
+}
+
+void ASFPlayerState::TryApplyPermanentUpgrade()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[PermanentUpgrade] TryApply | Auth=%d Received=%d ASC=%s Avatar=%s Comp=%s"),
+		HasAuthority() ? 1 : 0,
+		bPermanentUpgradeDataReceived ? 1 : 0,
+		AbilitySystemComponent ? TEXT("Y") : TEXT("N"),
+		(AbilitySystemComponent && AbilitySystemComponent->GetAvatarActor()) ? TEXT("Y") : TEXT("N"),
+		PermanentUpgradeComponent ? TEXT("Y") : TEXT("N")
+	);
+	
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// ★ 핵심: 서버가 "데이터를 받았다"는 사실이 먼저여야 함
+	if (!bPermanentUpgradeDataReceived)
+	{
+		return;
+	}
+
+	if (!AbilitySystemComponent || !PermanentUpgradeComponent)
+	{
+		return;
+	}
+
+	// ASC가 아직 Pawn/Avatar에 바인딩 안되었으면 적용해도 효과가 씹히거나, 이후 재적용이 막힐 수 있음
+	if (!AbilitySystemComponent->GetAvatarActor())
+	{
+		return;
+	}
+
+	if (bHasLastAppliedPermanentUpgradeData && ArePermanentUpgradeDataEqual(LastAppliedPermanentUpgradeData, PermanentUpgradeData))
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[PermanentUpgrade] TryApply | Wrath=%d Pride=%d Lust=%d Sloth=%d Greed=%d"),
+		PermanentUpgradeData.Wrath,
+		PermanentUpgradeData.Pride,
+		PermanentUpgradeData.Lust,
+		PermanentUpgradeData.Sloth,
+		PermanentUpgradeData.Greed);
+
+	PermanentUpgradeComponent->ApplyUpgradeBonuses(AbilitySystemComponent, PermanentUpgradeData);
+
+	bHasLastAppliedPermanentUpgradeData = true;
+	LastAppliedPermanentUpgradeData = PermanentUpgradeData;
+}
+
+void ASFPlayerState::OnPawnReadyForPermanentUpgrade()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[PermanentUpgrade] OnPawnReadyForPermanentUpgrade")
+	);
+
+	TryApplyPermanentUpgrade();
+}

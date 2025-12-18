@@ -22,4 +22,7 @@ public:
 	
 	virtual FGenericTeamId GetGenericTeamId() const override;
 	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override {}
+
+protected:
+	virtual void OnAbilitySystemInitialized() override;
 };

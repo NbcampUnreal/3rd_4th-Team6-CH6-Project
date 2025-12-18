@@ -4,9 +4,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Core/PlayFabClientAPI.h"
 #include "Core/PlayFabClientDataModels.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonWriter.h"
-#include "Serialization/JsonSerializer.h"
+#include "TimerManager.h"
 #include "SFPlayFabSubsystem.generated.h"
 
 //=========================세이브 데이터(임시)===========================
@@ -57,20 +55,39 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="SF|PlayFab")
 	void LoadPlayerData();
+
+	UFUNCTION()
+	const FPlayerStats& GetPlayerStats() const { return PlayerStats; }
 	//====================================================================
 
+public:
+	void ResetPermanentUpgradeSendState();
+	void StartRetrySendPermanentUpgradeDataToServer();
+	
 private:
 	FPlayerStats PlayerStats;
+	bool bHasLoadedPlayerData = false;
 
 	//===========================PlayFab 로그인============================
 	void LoginToPlayFab();
 	void OnLoginSuccess(const PlayFab::ClientModels::FLoginResult& Result);
 	void OnLoginError(const PlayFab::FPlayFabCppError& Error);
 	//====================================================================
-	
+
 	//========================저장 & 로드 콜백 함수==========================
 	void OnDataSaved(const PlayFab::ClientModels::FUpdateUserDataResult& Result);
 	void OnSaveError(const PlayFab::FPlayFabCppError& Error);
 	void OnDataLoaded(const PlayFab::ClientModels::FGetUserDataResult& Result);
+	//====================================================================
+
+	//========================업그레이드 데이터 서버 전송======================
+	void TrySendPermanentUpgradeDataToServer();
+
+	FTimerHandle RetrySendUpgradeTimerHandle;
+	int32 RetrySendUpgradeAttempts = 0;
+	static constexpr int32 MaxRetrySendUpgradeAttempts = 30;
+
+	// ✅ 추가: 매치/재입장 시 재전송 제어용 플래그
+	bool bPermanentUpgradeSent = false;
 	//====================================================================
 };

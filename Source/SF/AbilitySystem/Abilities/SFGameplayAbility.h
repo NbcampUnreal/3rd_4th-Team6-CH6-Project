@@ -84,6 +84,9 @@ protected:
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	//~End of UGameplayAbility interface
 
+	// 스킬이 발동될 때 실행되는 함수 (언리얼 BP상의 Event ActivateAbility와 동일)
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+
 protected:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SF|AbilityActivation")
@@ -107,6 +110,15 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="SF|AbilityInfo")
 	FText Description;
+
+	// 지속시간(Duration) 지정 용도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SF|Duration")
+	TSubclassOf<UGameplayEffect> DurationGameplayEffectClass;
+
+	// [옵션] 혹자동으로 켜지지 않도록 스킬 별도 구분 용도 토글
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SF|Duration")
+	bool bAutoApplyDurationEffect = true;
+
 
 private:
 	// 원본 모드 저장

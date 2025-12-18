@@ -26,3 +26,19 @@ FGenericTeamId ASFHero::GetGenericTeamId() const
 	}
 	return FGenericTeamId(SFTeamID::Player);
 }
+
+void ASFHero::OnAbilitySystemInitialized()
+{
+	Super::OnAbilitySystemInitialized();
+
+	if (ASFPlayerState* PS = GetPlayerState<ASFPlayerState>())
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[PermanentUpgrade] SFHero OnAbilitySystemInitialized -> Notify PlayerState")
+		);
+
+		PS->OnPawnReadyForPermanentUpgrade();
+	}
+}

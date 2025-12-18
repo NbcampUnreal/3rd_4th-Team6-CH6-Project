@@ -6,6 +6,7 @@
 #include "SFLogChannels.h"
 #include "SFPortalManagerComponent.h"
 #include "SFStageManagerComponent.h"
+#include "System/SFPlayFabSubsystem.h"
 #include "Player/SFPlayerInfoTypes.h"
 #include "Player/SFPlayerState.h"
 #include "Character/Hero/SFHeroDefinition.h"
@@ -22,8 +23,17 @@ ASFGameMode::ASFGameMode()
 void ASFGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
-
+	
 	AssignedPlayerStarts.Empty();
+
+	if (USFGameInstance* GI = Cast<USFGameInstance>(GetGameInstance()))
+	{
+		if (USFPlayFabSubsystem* PF = GI->GetSubsystem<USFPlayFabSubsystem>())
+		{
+			PF->ResetPermanentUpgradeSendState();
+			PF->StartRetrySendPermanentUpgradeDataToServer();
+		}
+	}
 }
 
 void ASFGameMode::InitGameState()
@@ -84,10 +94,13 @@ void ASFGameMode::PostLogin(APlayerController* NewPlayer)
 
 	if (ASFPlayerState* PS = NewPlayer->GetPlayerState<ASFPlayerState>())
 	{
-		// 기본 팀 설정 
+		// 기본 팀 설정
 		PS->SetGenericTeamId(FGenericTeamId(SFTeamID::Player));
+
+		// PermanentUpgradeData는 클라이언트에서 PlayFab 로드 완료 후 Server RPC로 전송됨
+		// (서버에서 GameInstance Subsystem을 읽어 적용하면 플레이어별 값이 구분되지 않음)
 	}
-    
+	
 	// 공통 함수 호출 (Seamless Travel과 동일한 로직)
 	SetupPlayerPawnDataLoading(NewPlayer);
 }

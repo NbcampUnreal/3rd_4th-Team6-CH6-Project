@@ -50,7 +50,7 @@ protected:
 	TObjectPtr<UProgressBar> PB_Cooldown;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UImage> Img_SkillBorder;
+	TObjectPtr<UImage> Img_SkillBorder_Active;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_CooldownCount;
