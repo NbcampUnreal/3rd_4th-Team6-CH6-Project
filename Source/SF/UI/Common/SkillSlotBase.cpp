@@ -23,11 +23,11 @@ void USkillSlotBase::NativeOnWidgetControllerSet()
 	{
 		Text_CooldownCount->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	if (Img_SkillBorder)
+	if (Img_SkillBorder_Active)
 	{
-		Img_SkillBorder->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		Img_SkillBorder_Active->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
-		if (UMaterialInstanceDynamic* DMI = Img_SkillBorder->GetDynamicMaterial())
+		if (UMaterialInstanceDynamic* DMI = Img_SkillBorder_Active->GetDynamicMaterial())
 		{
 			DMI->SetScalarParameterValue(FName("Percent"), 1.0f);
 		}
@@ -242,27 +242,31 @@ void USkillSlotBase::RefreshActiveDuration()
 	// 3. 현재 스킬이 '활성화(Active)' 상태인지 체크
 	bool bIsActive = GetCurrentSkillActiveDuration(ASC, RemainingTime, TotalDuration);
 
-	if (Img_SkillBorder)
+	if (Img_SkillBorder_Active)
 	{
-		// 머티리얼 인스턴스 가져오기
-		UMaterialInstanceDynamic* DMI = Img_SkillBorder->GetDynamicMaterial();
-		if (!DMI) return;
-		
-		if (bIsActive && TotalDuration > 0.f)
+		// 상태 A: 스킬 발동 중 (시간이 남았음) -> 보여줌.
+		if (bIsActive &&  TotalDuration > 0.f)
 		{
-			// [상태 1] 스킬 발동 중: 시간에 따라 줄어듦
-			float PercentValue = FMath::Clamp(RemainingTime / TotalDuration, 0.f, 1.f);
-			DMI->SetScalarParameterValue(FName("Percent"), PercentValue);
+			// (1) 지속시간 UI가 꺼져있다면 켬.
+			if (Img_SkillBorder_Active->GetVisibility() != ESlateVisibility::SelfHitTestInvisible)
+			{
+				Img_SkillBorder_Active->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			}
+
+			// (2) 지속시간 머터리얼 값 갱신 (시간 줄어듬)
+			if (UMaterialInstanceDynamic* DMI = Img_SkillBorder_Active->GetDynamicMaterial())
+			{
+				float PercentValue = FMath::Clamp(RemainingTime / TotalDuration, 0.0f, 1.0f);
+				DMI->SetScalarParameterValue(FName("Percent"), PercentValue);
+			}
 		}
+		// 상태 B: 스킬 꺼짐 (평상시) -> 숨김.
 		else
 		{
-			// [상태 2] 평상시: 숨기는 게 아니라(Collapsed X), 꽉 채워서 테두리 유지
-			DMI->SetScalarParameterValue(FName("Percent"), 1.0f);
-
-			// 혹시라도 숨겨져 있었다면 다시 보이게 (방어 코드)
-			if (Img_SkillBorder->GetVisibility() == ESlateVisibility::Collapsed)
+			// (3) 지속시간 UI가 켜져있다면 끔. (뒤에 있는 회색 테두리만 보이게 함)
+			if (Img_SkillBorder_Active->GetVisibility() != ESlateVisibility::Collapsed)
 			{
-				Img_SkillBorder->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+				Img_SkillBorder_Active->SetVisibility(ESlateVisibility::Collapsed);
 			}
 		}
 	}
@@ -330,37 +334,56 @@ bool USkillSlotBase::GetCurrentSkillActiveDuration(UAbilitySystemComponent* ASC,
         }
     }
 
-    // 2. 일반 스킬: 기존 로직 (AbilityTags 기반)
-    FGameplayTagContainer AbilityTags = Spec->Ability->AbilityTags;
-    if (AbilityTags.Num() == 0) return false;
+    // 2. 일반 스킬 로직 (쿨타임 제외 필터링 포함)
 
-    FGameplayEffectQuery Query;
-    Query.MakeQuery_MatchAnyOwningTags(AbilityTags);
-
-    TArray<FActiveGameplayEffectHandle> ActiveHandles = ASC->GetActiveEffects(Query);
+	TArray<FActiveGameplayEffectHandle> ActiveHandles = ASC->GetActiveEffects(FGameplayEffectQuery());
 
     float MaxDuration = 0.f;
     float MaxRemaining = 0.f;
     bool bFound = false;
 
+	const UGameplayEffect* CooldownCDO = Spec->Ability->GetCooldownGameplayEffect();
+	const FGameplayTagContainer* CooldownTags = Spec->Ability->GetCooldownTags();
+
     for (const FActiveGameplayEffectHandle& Handle : ActiveHandles)
     {
         const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(Handle);
-        if (ActiveGE)
-        {
-            float Duration = ActiveGE->GetDuration();
-            float Remaining = ActiveGE->GetTimeRemaining(ASC->GetWorld()->GetTimeSeconds());
 
-            if (Duration > 0.f && Remaining > 0.f)
-            {
-                if (Remaining < MaxRemaining || !bFound)
-                {
-                    MaxRemaining = Remaining;
-                    MaxDuration = Duration;
-                    bFound = true;
-                }
-            }
-        }
+    	if (!ActiveGE) continue;
+
+    	//  현재 스킬에 등록된 쿨타임 클래스와 같은지 비교
+    	if (CooldownCDO && ActiveGE->Spec.Def && (ActiveGE->Spec.Def->GetClass() == CooldownCDO->GetClass()))
+    	{
+    		continue;	// 같을 경우 UI 업데이트 X
+    	}
+
+    	// 현재 검사 중인 GE가 '쿨타임 태그'를 하나라도 가지고 있다면 -> 쿨타임 태그 무시
+    	if (CooldownTags && CooldownTags->Num() > 0)
+    	{
+    		if (ActiveGE->Spec.Def->InheritableGameplayEffectTags.HasAny(*CooldownTags))
+    		{
+    			continue;
+    		}
+    	}
+
+    	const UGameplayAbility* SourceAbility = ActiveGE->Spec.GetEffectContext().GetAbility();
+
+    	if (SourceAbility && SourceAbility->GetClass() == Spec->Ability->GetClass())
+    	{
+    		float Duration = ActiveGE->GetDuration();
+    		float Remaining = ActiveGE->GetTimeRemaining(ASC->GetWorld()->GetTimeSeconds());
+
+    		if (Duration > 0.f && Remaining > 0.f)
+    		{
+    			if (Remaining > MaxRemaining)
+    			{
+    				MaxRemaining = Remaining;
+    				MaxDuration = Duration;
+    				bFound = true;
+    			}
+    		}
+    	}
+
     }
 
     if (bFound)

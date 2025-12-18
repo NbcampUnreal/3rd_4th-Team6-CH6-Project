@@ -82,6 +82,23 @@ void USFGameplayAbility::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInf
 	TryActivateAbilityOnSpawn(ActorInfo, Spec);
 }
 
+void USFGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+	const FGameplayEventData* TriggerEventData)
+{
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	if (bAutoApplyDurationEffect && DurationGameplayEffectClass)
+	{
+		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, DurationGameplayEffectClass, 1.0f);
+
+		if (SpecHandle.IsValid())
+		{
+			ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
+		}
+	}
+}
+
 AController* USFGameplayAbility::GetControllerFromActorInfo() const
 {
 	if (CurrentActorInfo)
