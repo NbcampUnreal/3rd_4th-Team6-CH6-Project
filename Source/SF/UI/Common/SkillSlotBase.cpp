@@ -343,7 +343,6 @@ bool USkillSlotBase::GetCurrentSkillActiveDuration(UAbilitySystemComponent* ASC,
     bool bFound = false;
 
 	const UGameplayEffect* CooldownCDO = Spec->Ability->GetCooldownGameplayEffect();
-	const FGameplayTagContainer* CooldownTags = Spec->Ability->GetCooldownTags();
 
     for (const FActiveGameplayEffectHandle& Handle : ActiveHandles)
     {
@@ -355,15 +354,6 @@ bool USkillSlotBase::GetCurrentSkillActiveDuration(UAbilitySystemComponent* ASC,
     	if (CooldownCDO && ActiveGE->Spec.Def && (ActiveGE->Spec.Def->GetClass() == CooldownCDO->GetClass()))
     	{
     		continue;	// 같을 경우 UI 업데이트 X
-    	}
-
-    	// 현재 검사 중인 GE가 '쿨타임 태그'를 하나라도 가지고 있다면 -> 쿨타임 태그 무시
-    	if (CooldownTags && CooldownTags->Num() > 0)
-    	{
-    		if (ActiveGE->Spec.Def->InheritableGameplayEffectTags.HasAny(*CooldownTags))
-    		{
-    			continue;
-    		}
     	}
 
     	const UGameplayAbility* SourceAbility = ActiveGE->Spec.GetEffectContext().GetAbility();
