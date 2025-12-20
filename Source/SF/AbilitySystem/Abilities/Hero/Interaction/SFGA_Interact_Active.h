@@ -52,8 +52,6 @@ private:
 	// 캐릭터의 HeroAnimationData에서 상호작용 시작 몽타주 조회
 	FSFMontagePlayData GetInteractionStartMontage() const;
 
-	void HandleCancelledCleanup(ASFCharacterBase* SFCharacter);
-
 protected:
 
 	// 홀딩 시작 시 기존 움직임 입력을 플러시하기 위해 사용

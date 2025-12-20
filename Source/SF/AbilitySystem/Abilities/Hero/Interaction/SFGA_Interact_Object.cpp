@@ -3,7 +3,6 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystem/Abilities/SFGameplayAbilityTags.h"
 #include "AbilitySystem/Tasks/Interaction/SFAbilityTask_WaitForInvalidInteraction.h"
-#include "Character/SFCharacterBase.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Equipment/EquipmentComponent/SFEquipmentComponent.h"
 #include "Interaction/SFInteractable.h"
@@ -72,16 +71,18 @@ void USFGA_Interact_Object::ActivateAbility(const FGameplayAbilitySpecHandle Han
 		InvalidInteractionTask->ReadyForActivation();
 	}
 
-	// 상호작용 종료 애니메이션 몽타주 재생
+	// 상호작용 대상에 대해 종료전 애니메이션 몽타주 재생
 	FSFMontagePlayData MontageData = GetInteractionEndMontage();
-	if (MontageData.IsValid())
+	if (MontageData.IsValid() && MontageData.Montage)
 	{
-		if (MontageData.Montage)
+		if (USFEquipmentComponent* EquipmentComp = GetEquipmentComponent())
 		{
-			if (UAbilityTask_PlayMontageAndWait* PlayMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("InteractMontage"), MontageData.Montage, MontageData.PlayRate, MontageData.StartSection, true, 1.f, 0.f, false))
-			{
-				PlayMontageTask->ReadyForActivation();
-			}
+			EquipmentComp->HideWeapons();
+			bHideWeaponsForMontage = true;
+		}
+		if (UAbilityTask_PlayMontageAndWait* PlayMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("InteractMontage"), MontageData.Montage, MontageData.PlayRate, MontageData.StartSection, true, 1.f, 0.f, false))
+		{
+			PlayMontageTask->ReadyForActivation();
 		}
 	}
 }
@@ -106,7 +107,8 @@ FSFMontagePlayData USFGA_Interact_Object::GetInteractionEndMontage() const
 
 void USFGA_Interact_Object::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	if (InteractionInfo.Duration > 0.f)
+	// 몽타주로 인해 무기를 숨겼으면 복원
+	if (bHideWeaponsForMontage)
 	{
 		if (USFEquipmentComponent* EquipmentComp = GetEquipmentComponent())
 		{
@@ -114,6 +116,7 @@ void USFGA_Interact_Object::EndAbility(const FGameplayAbilitySpecHandle Handle, 
 			FSFMontagePlayData MontageData = GetMainHandEquipMontageData();
 			ExecuteMontageGameplayCue(MontageData);
 		}
+		bHideWeaponsForMontage = false;
 	}
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

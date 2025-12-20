@@ -39,9 +39,12 @@ protected:
 	// 플레이어와 상호작용 대상 간의 최대 허용 거리 (cm 단위)
 	UPROPERTY(EditDefaultsOnly, Category="SF|Interaction")
 	float AcceptanceDistance = 100.f;
-	
+
 protected:
 	
 	// 어빌리티가 성공적으로 초기화되었는지 여부 
 	bool bInitialized = false;
+
+	// 몽타주 재생으로 인해 무기를 숨겼는지 여부 
+	bool bHideWeaponsForMontage = false;
 };

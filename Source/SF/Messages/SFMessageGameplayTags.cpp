@@ -10,5 +10,6 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Message_Skill_ChainStateChanged, "Message.Skill.ChainStateChanged");
 	UE_DEFINE_GAMEPLAY_TAG(Message_Interaction_Notice, "Message.Interaction.Notice");
 	UE_DEFINE_GAMEPLAY_TAG(Message_Interaction_Progress, "Message.Interaction.Progress");
+	UE_DEFINE_GAMEPLAY_TAG(Message_RewardSelection_Complete, "Message.RewardSelection.Complete");
 
 }

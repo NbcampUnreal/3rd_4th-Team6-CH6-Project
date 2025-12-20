@@ -257,7 +257,3 @@ void USFGA_Interact_Active::EndAbility(const FGameplayAbilitySpecHandle Handle, 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-void USFGA_Interact_Active::HandleCancelledCleanup(ASFCharacterBase* SFCharacter)
-{
-	
-}

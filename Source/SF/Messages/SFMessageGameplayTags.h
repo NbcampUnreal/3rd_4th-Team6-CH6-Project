@@ -12,4 +12,5 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Skill_ChainStateChanged);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Interaction_Notice);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Interaction_Progress);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_RewardSelection_Complete);
 }

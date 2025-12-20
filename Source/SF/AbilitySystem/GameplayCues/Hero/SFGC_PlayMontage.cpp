@@ -1,14 +1,10 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "SFGC_PlayMontage.h"
 
-#include "AbilitySystem/GameplayCues/SFGameplayCueTags.h"
 #include "Character/SFCharacterBase.h"
 
 USFGC_PlayMontage::USFGC_PlayMontage()
 {
-	GameplayCueTag = SFGameplayTags::GameplayCue_Animation_PlayMontage;
+
 }
 
 bool USFGC_PlayMontage::HandlesEvent(EGameplayCueEvent::Type EventType) const
