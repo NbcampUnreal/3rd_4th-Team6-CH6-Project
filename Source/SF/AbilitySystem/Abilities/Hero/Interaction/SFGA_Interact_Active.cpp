@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "SFGA_Interact_Active.h"
 
 #include "AbilitySystemComponent.h"
@@ -12,12 +9,10 @@
 #include "Character/SFCharacterGameplayTags.h"
 #include "Interaction/SFWorldInteractable.h"
 #include "Character/SFCharacterBase.h"
-#include "Equipment/SFEquipmentTags.h"
 #include "Equipment/EquipmentComponent/SFEquipmentComponent.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "Messages/SFInteractionMessages.h"
 #include "Messages/SFMessageGameplayTags.h"
-#include "Weapons/Actor/SFEquipmentBase.h"
 
 USFGA_Interact_Active::USFGA_Interact_Active(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -44,7 +44,7 @@ FSFInteractionInfo ASFChestBase::GetPreInteractionInfo(const FSFInteractionQuery
 {
 	switch (ChestState)
 	{
-	case ESFChestState::Open:		return OpenedInteractionInfo;
+	case ESFChestState::Open:	return OpenedInteractionInfo;
 	case ESFChestState::Close:	return ClosedInteractionInfo;
 	default:					return FSFInteractionInfo();
 	}

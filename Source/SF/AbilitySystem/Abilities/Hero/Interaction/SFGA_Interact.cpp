@@ -109,7 +109,7 @@ void USFGA_Interact::TriggerInteraction()
 			}
 		}
 
-		// AbilityInteract_Active 어빌리티를 EventData(상호작용 대상자, 상호작용되는 물체)정보를 넘겨서 trigger 되도록 함. 
+		// AbilityInteract_Active 어빌리티를 EventData(상호작용 대상자, 상호작용되는 물체)정보를 넘겨서 trigger 되도록 함
 		FGameplayEventData Payload;
 		Payload.EventTag = SFGameplayTags::Ability_Interact_Active;
 		Payload.Instigator = Instigator;                               

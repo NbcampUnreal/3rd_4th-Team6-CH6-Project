@@ -86,7 +86,7 @@ void USFAbilityTask_WaitForInteractableTraceHit::PerformTrace()
 
 	UpdateInteractionInfos(InteractionQuery, Interactables);
 
-	// 디버그(개발 빌드에서만)
+	// 디버그
 #if ENABLE_DRAW_DEBUG
 	if (bShowDebug)
 	{
@@ -152,7 +152,7 @@ void USFAbilityTask_WaitForInteractableTraceHit::AimWithPlayerController(const A
 	OutTraceEnd = TraceStart + (AdjustedAimDir * MaxRange);
 }
 
-bool USFAbilityTask_WaitForInteractableTraceHit::ClipCameraRayToAbilityRange(FVector CameraLocation, FVector CameraDirection, FVector AbilityCenter, float AbilityRange, FVector& OutClippedPosition) const
+bool USFAbilityTask_WaitForInteractableTraceHit::ClipCameraRayToAbilityRange(const FVector& CameraLocation, const FVector& CameraDirection, const FVector& AbilityCenter, const float AbilityRange, FVector& OutClippedPosition) const
 {
 	// 카메라에서 어빌리티 중심점(플레이어)으로의 벡터
 	FVector CameraToCenter = AbilityCenter - CameraLocation;

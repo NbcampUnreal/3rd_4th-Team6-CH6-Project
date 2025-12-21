@@ -48,7 +48,7 @@ class SF_API ISFInteractable
 	GENERATED_BODY()
 
 public:
-	// 상호작용 가능한 Actor에서 상속받아서 상호작용에 따른 몽타주, 부여할 어빌리티 정보를 리턴
+	// 상호작용 가능한 Actor에서 상속받아서 상호작용에 따른 부여할 어빌리티 정보를 리턴
 	virtual FSFInteractionInfo GetPreInteractionInfo(const FSFInteractionQuery& InteractionQuery) const { return FSFInteractionInfo(); }
 
 	/**
@@ -56,7 +56,7 @@ public:
 	 * GetPreInteractionInfo()에서 얻은 기본 정보에 플레이어의 GE 스탯을 적용하여
 	 * 상호작용 지속시간을 조정한 후 최종 정보를 빌더에 추가
 	 */
-	void GatherPostInteractionInfos(const FSFInteractionQuery& InteractionQuery, FSFInteractionInfoBuilder& InteractionInfoBuilder) const
+	virtual void GatherPostInteractionInfos(const FSFInteractionQuery& InteractionQuery, FSFInteractionInfoBuilder& InteractionInfoBuilder) const
 	{
 		FSFInteractionInfo InteractionInfo = GetPreInteractionInfo(InteractionQuery);
 	

@@ -15,7 +15,7 @@ struct FSFPortalStateMessage
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsActive = false;
     
-	// 전체 플레이어 수k
+	// 전체 플레이어 수
 	UPROPERTY(BlueprintReadOnly)
 	int32 TotalPlayerCount = 0;
 

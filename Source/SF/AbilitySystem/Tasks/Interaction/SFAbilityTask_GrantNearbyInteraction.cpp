@@ -105,24 +105,11 @@ void USFAbilityTask_GrantNearbyInteraction::QueryInteractables()
 				}
 			}
 		}
-		
+
 		// 감지되지 않은 객체 타입의 Interaction Ability는 제거
-		// 단, 현재 활성화된 어빌리티는 제거하지 않음
 		for (const FObjectKey& RemoveKey : RemoveKeys)
 		{
-			FGameplayAbilitySpecHandle SpecHandle = GrantedInteractionAbilities[RemoveKey];
-            
-			// 어빌리티가 현재 활성화 상태인지 확인
-			if (FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(SpecHandle))
-			{
-				if (Spec->IsActive())
-				{
-					// 활성화된 어빌리티는 제거하지 않고 스킵
-					continue;
-				}
-			}
-            
-			AbilitySystemComponent->ClearAbility(SpecHandle);
+			AbilitySystemComponent->ClearAbility(GrantedInteractionAbilities[RemoveKey]);
 			GrantedInteractionAbilities.Remove(RemoveKey);
 		}
 	}

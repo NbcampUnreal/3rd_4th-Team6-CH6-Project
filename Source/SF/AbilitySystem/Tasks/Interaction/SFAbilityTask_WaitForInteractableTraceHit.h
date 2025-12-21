@@ -37,7 +37,7 @@ private:
 	void AimWithPlayerController(const AActor* InSourceActor, const FCollisionQueryParams& Params, const FVector& TraceStart, float MaxRange, FVector& OutTraceEnd, bool bIgnorePitch = false) const;
 
 	// 카메라 레이를 플레이어 중심의 구체 범위 내로 제한하는 함수(카메라가 플레이어에서 멀리 떨어져 있어도 상호작용 범위를 벗어나지 않도록 보장)
-	bool ClipCameraRayToAbilityRange(FVector CameraLocation, FVector CameraDirection, FVector AbilityCenter, float AbilityRange, FVector& OutClippedPosition) const;
+	bool ClipCameraRayToAbilityRange(const FVector& CameraLocation, const FVector& CameraDirection, const FVector& AbilityCenter, const float AbilityRange, FVector& OutClippedPosition) const;
 
 	void LineTrace(const FVector& Start, const FVector& End, const FCollisionQueryParams& Params, FHitResult& OutHitResult) const;
 	
