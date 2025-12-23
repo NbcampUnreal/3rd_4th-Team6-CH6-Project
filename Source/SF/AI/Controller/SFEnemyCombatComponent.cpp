@@ -207,7 +207,7 @@ void USFEnemyCombatComponent::UpdatePerceptionConfig()
         if (UAIPerceptionComponent* Perception = AIC->GetPerceptionComponent())
         {
             // Sight 설정 가져와서 값 덮어쓰기
-            if (UAISenseConfig_Sight* SightConfig = Cast<UAISenseConfig_Sight>(Perception->GetSenseConfig(UAISense::GetSenseID<UAISense_Sight>())))
+          /*  if (UAISenseConfig_Sight* SightConfig = Cast<UAISenseConfig_Sight>(Perception->GetSenseConfig(UAISense::GetSenseID<UAISense_Sight>())))
             {
                 bool bUpdated = false;
                 if (SightRadius > 0.f)
@@ -229,6 +229,9 @@ void USFEnemyCombatComponent::UpdatePerceptionConfig()
 					
                 UE_LOG(LogTemp, Log, TEXT("[SFCombatComp] 시야 설정 업데이트 완료 - 감지거리: %.1f, 추적중단거리: %.1f"), SightRadius, LoseSightRadius);                }
             }
+
+            */
+        	
         }
     }
 }
