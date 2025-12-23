@@ -65,7 +65,7 @@ public:
     float GetCooldown() const;
 
     UFUNCTION(BlueprintPure, Category = "Attack")
-    float GetAttackAngle() const;
+    virtual float GetAttackAngle() const;
 
     virtual float CalcAIScore(const FEnemyAbilitySelectContext& Context) const override;
 
