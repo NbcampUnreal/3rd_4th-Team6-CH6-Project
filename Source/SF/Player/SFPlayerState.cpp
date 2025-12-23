@@ -112,10 +112,15 @@ void ASFPlayerState::CopyProperties(APlayerState* PlayerState)
 	// Permanent Upgrade 데이터도 SeamlessTravel/InactivePlayer에 이어받도록 복사
 	NewPlayerState->PermanentUpgradeData = PermanentUpgradeData;
 	NewPlayerState->bPermanentUpgradeDataReceived = bPermanentUpgradeDataReceived;
-
+	
 	if (SavedASCData.IsValid())
 	{
 		NewPlayerState->SavedASCData = SavedASCData;
+	}
+
+	if (CombatStateComponent && NewPlayerState->CombatStateComponent)
+	{
+		NewPlayerState->CombatStateComponent->SetCombatInfoFromTravel(CombatStateComponent->GetCombatInfo());
 	}
 }
 

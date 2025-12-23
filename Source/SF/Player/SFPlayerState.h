@@ -8,6 +8,7 @@
 #include "Save/SFPersistentDataType.h"
 #include "Team/SFTeamTypes.h"
 #include "Character/Hero/Component/SFPermanentUpgradeComponent.h"
+#include "Components/SFPlayerCombatStateComponent.h"
 #include "System/Data/SFPermanentUpgradeTypes.h"
 #include "SFPlayerState.generated.h"
 

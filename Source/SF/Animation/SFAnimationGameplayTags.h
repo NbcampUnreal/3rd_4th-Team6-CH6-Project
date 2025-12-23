@@ -5,8 +5,14 @@
 namespace SFGameplayTags
 {
 	// Animation Montage Type Tags
+
+	// Interact Tags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Montage_Interact_Chest_Start);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Montage_Interact_Chest_End);
 
+	// Equip Tags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Montage_Equip_OneHandSword);
+
+	// State Tags
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Montage_State_Downed);
 }

@@ -33,6 +33,8 @@ private:
 	void HandleDeath();
 	void HandleRevive();
 
+	void PlayDownedMontage();
+
 protected:
 	
 	// 초당 게이지 감소율

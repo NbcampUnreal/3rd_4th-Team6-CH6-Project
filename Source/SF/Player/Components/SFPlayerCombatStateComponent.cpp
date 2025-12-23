@@ -32,8 +32,7 @@ void USFPlayerCombatStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeP
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ThisClass, RemainingDownCount);
-	DOREPLIFETIME(ThisClass, ReviveCount);
+	DOREPLIFETIME(ThisClass, CombatInfo);
 }
 
 void USFPlayerCombatStateComponent::BeginPlay()
@@ -44,14 +43,15 @@ void USFPlayerCombatStateComponent::BeginPlay()
 
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
-		RemainingDownCount = InitialDownCount;
+		CombatInfo.RemainingDownCount = InitialDownCount;
+		CachedCombatInfo = CombatInfo;
 	}
 }
 
 float USFPlayerCombatStateComponent::GetInitialReviveGauge() const
 {
 	// 현재 사용할 인덱스 = 총 다운 횟수 - 남은 횟수
-	const int32 DownIndex = InitialDownCount - RemainingDownCount;
+	const int32 DownIndex = InitialDownCount - CombatInfo.RemainingDownCount;
 	
 	if (InitialReviveGaugeByDownCount.IsValidIndex(DownIndex))
 	{
@@ -64,26 +64,66 @@ float USFPlayerCombatStateComponent::GetInitialReviveGauge() const
 
 void USFPlayerCombatStateComponent::DecrementDownCount()
 {
-	if (GetOwner() && GetOwner()->HasAuthority())
+	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		RemainingDownCount = RemainingDownCount > 0 ? RemainingDownCount - 1 : 0;
+		return;
+	}
+
+	if (CombatInfo.RemainingDownCount > 0)
+	{
+		CombatInfo.RemainingDownCount--;
+		BroadcastCombatInfoChanged();
 	}
 }
 
 void USFPlayerCombatStateComponent::ResetDownCount()
 {
-	if (GetOwner() && GetOwner()->HasAuthority())
+	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		RemainingDownCount = InitialDownCount; 
+		return;
+	}
+
+	if (CombatInfo.RemainingDownCount != InitialDownCount)
+	{
+		CombatInfo.RemainingDownCount = InitialDownCount;
+		BroadcastCombatInfoChanged();
 	}
 }
 
 void USFPlayerCombatStateComponent::IncrementReviveCount()
 {
-	if (GetOwner() && GetOwner()->HasAuthority())
+	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		ReviveCount++;
+		return;
 	}
+
+	CombatInfo.ReviveCount++;
+	BroadcastCombatInfoChanged();
+}
+
+void USFPlayerCombatStateComponent::OnRep_CombatInfo()
+{
+	BroadcastCombatInfoChanged();
+}
+
+void USFPlayerCombatStateComponent::BroadcastCombatInfoChanged()
+{
+	if (CachedCombatInfo != CombatInfo)
+	{
+		CachedCombatInfo = CombatInfo;
+		OnCombatInfoChanged.Broadcast(CombatInfo);
+	}
+}
+
+void USFPlayerCombatStateComponent::SetCombatInfoFromTravel(const FSFHeroCombatInfo& InCombatInfo)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	CombatInfo = InCombatInfo;
+	CachedCombatInfo = CombatInfo;
 }
 
 #if WITH_EDITOR

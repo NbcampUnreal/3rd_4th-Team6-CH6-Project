@@ -4,6 +4,8 @@
 #include "AbilitySystem/Attributes/Hero/SFCombatSet_Hero.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Components/WidgetComponent.h"
+#include "Player/SFPlayerState.h"
+#include "Player/Components/SFPlayerCombatStateComponent.h"
 #include "UI/InGame/SFHeroOverheadWidget.h"
 
 USFHeroWidgetComponent::USFHeroWidgetComponent(const FObjectInitializer& ObjectInitializer)
@@ -14,14 +16,37 @@ USFHeroWidgetComponent::USFHeroWidgetComponent(const FObjectInitializer& ObjectI
 
 void USFHeroWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    UnbindTagEvents();
-    UnbindReviveGaugeAttribute();
+    UninitializeASC();  
+    UninitializeCombatState();
     Super::EndPlay(EndPlayReason);
 }
 
 void USFHeroWidgetComponent::SetOverheadWidgetComponent(UWidgetComponent* InWidgetComponent)
 {
     OverheadWidgetComponent = InWidgetComponent;
+}
+
+void USFHeroWidgetComponent::InitializeHeroStatus(UAbilitySystemComponent* ASC, ASFPlayerState* PS)
+{
+    if (!ASC || !PS)
+    {
+        return;
+    }
+
+    // PlayerState 캐싱
+    CachedPS = PS;
+
+    // ASC 초기화 (태그 이벤트, Attribute 바인딩)
+    InitializeWithASC(ASC);
+
+    // CombatState 초기화
+    if (USFPlayerCombatStateComponent* CombatStateComp = PS->FindComponentByClass<USFPlayerCombatStateComponent>())
+    {
+        InitializeWithCombatState(CombatStateComp);
+    }
+
+    // 플레이어 이름 설정
+    SetPlayerName(PS->GetPlayerName());
 }
 
 void USFHeroWidgetComponent::SetPlayerName(const FString& Name)
@@ -32,6 +57,15 @@ void USFHeroWidgetComponent::SetPlayerName(const FString& Name)
     }
 }
 
+USFHeroOverheadWidget* USFHeroWidgetComponent::GetOverheadWidget() const
+{
+    if (UWidgetComponent* WidgetComp = OverheadWidgetComponent.Get())
+    {
+        return Cast<USFHeroOverheadWidget>(WidgetComp->GetWidget());
+    }
+    return nullptr;
+}
+
 void USFHeroWidgetComponent::InitializeWithASC(UAbilitySystemComponent* ASC)
 {
     if (!ASC)
@@ -39,9 +73,15 @@ void USFHeroWidgetComponent::InitializeWithASC(UAbilitySystemComponent* ASC)
         return;
     }
 
+    // 기존 바인딩 정리
+    UninitializeASC();
+
     CachedASC = ASC;
+    
+    // 태그 이벤트 바인딩
     BindTagEvents();
 
+    // 초기 UI 상태 설정
     if (USFHeroOverheadWidget* Widget = GetOverheadWidget())
     {
         Widget->SetReviveGaugeVisible(false);
@@ -54,13 +94,11 @@ void USFHeroWidgetComponent::InitializeWithASC(UAbilitySystemComponent* ASC)
     }
 }
 
-USFHeroOverheadWidget* USFHeroWidgetComponent::GetOverheadWidget() const
+void USFHeroWidgetComponent::UninitializeASC()
 {
-    if (UWidgetComponent* WidgetComp = OverheadWidgetComponent.Get())
-    {
-        return Cast<USFHeroOverheadWidget>(WidgetComp->GetWidget());
-    }
-    return nullptr;
+    UnbindTagEvents();
+    UnbindReviveGaugeAttribute();
+    CachedASC.Reset();
 }
 
 void USFHeroWidgetComponent::BindTagEvents()
@@ -170,6 +208,49 @@ void USFHeroWidgetComponent::OnDownedStateEnd()
     if (USFHeroOverheadWidget* Widget = GetOverheadWidget())
     {
         Widget->SetReviveGaugeVisible(false);
+    }
+}
+
+void USFHeroWidgetComponent::InitializeWithCombatState(USFPlayerCombatStateComponent* CombatStateComp)
+{
+    if (!CombatStateComp)
+    {
+        return;
+    }
+
+    // 기존 바인딩 정리
+    UninitializeCombatState();
+
+    CachedCombatStateComponent = CombatStateComp;
+
+    // 델리게이트 바인딩
+    CombatStateComp->OnCombatInfoChanged.AddDynamic(this, &ThisClass::OnCombatInfoChanged);
+
+    // 초기값으로 UI 업데이트
+    UpdateCombatInfoUI(CombatStateComp->GetCombatInfo());
+}
+
+void USFHeroWidgetComponent::UninitializeCombatState()
+{
+    if (USFPlayerCombatStateComponent* CombatStateComp = CachedCombatStateComponent.Get())
+    {
+        CombatStateComp->OnCombatInfoChanged.RemoveDynamic(this, &ThisClass::OnCombatInfoChanged);
+    }
+    CachedCombatStateComponent.Reset();
+}
+
+void USFHeroWidgetComponent::OnCombatInfoChanged(const FSFHeroCombatInfo& CombatInfo)
+{
+    UpdateCombatInfoUI(CombatInfo);
+}
+
+void USFHeroWidgetComponent::UpdateCombatInfoUI(const FSFHeroCombatInfo& CombatInfo)
+{
+    if (USFHeroOverheadWidget* Widget = GetOverheadWidget())
+    {
+        // TODO: Widget에 CombatInfo 표시 함수 추가 시 여기서 호출
+        // Widget->SetRemainingDownCount(CombatInfo.RemainingDownCount);
+        // Widget->SetReviveCount(CombatInfo.ReviveCount);
     }
 }
 

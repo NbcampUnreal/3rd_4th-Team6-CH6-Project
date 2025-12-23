@@ -4,6 +4,34 @@
 #include "Components/PlayerStateComponent.h"
 #include "SFPlayerCombatStateComponent.generated.h"
 
+USTRUCT(BlueprintType)
+struct FSFHeroCombatInfo
+{
+	GENERATED_BODY()
+
+	// 남은 다운 가능 횟수
+	UPROPERTY(BlueprintReadOnly)
+	int32 RemainingDownCount = 3;
+
+	// 다른 플레이어 부활시킨 횟수
+	UPROPERTY(BlueprintReadOnly)
+	int32 ReviveCount = 0;
+	
+	bool operator!=(const FSFHeroCombatInfo& Other) const
+	{
+		return RemainingDownCount != Other.RemainingDownCount 
+			|| ReviveCount != Other.ReviveCount;
+	}
+
+	bool operator==(const FSFHeroCombatInfo& Other) const
+	{
+		return !(*this != Other);
+	}
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHeroCombatInfoChanged, const FSFHeroCombatInfo&, CombatInfo);
+
+
 /**
  * 플레이어의 전투 관련 상태를 관리하는 컴포넌트
  */
@@ -27,15 +55,17 @@ protected:
 #endif
 
 public:
-	//~=============================================================================
-	// 다운/부활 관련
-	//~=============================================================================
+	UFUNCTION(BlueprintPure, Category = "SF|Combat")
+	const FSFHeroCombatInfo& GetCombatInfo() const { return CombatInfo; }
 
-	UFUNCTION(BlueprintCallable, Category = "SF|Combat")
+	UFUNCTION(BlueprintPure, Category = "SF|Combat")
 	float GetInitialReviveGauge() const;
-	
-	UFUNCTION(BlueprintCallable, Category = "SF|Combat")
-	int32 GetRemainingDownCount() const { return RemainingDownCount; }
+    
+	UFUNCTION(BlueprintPure, Category = "SF|Combat")
+	int32 GetRemainingDownCount() const { return CombatInfo.RemainingDownCount; }
+
+	UFUNCTION(BlueprintPure, Category = "SF|Combat")
+	int32 GetReviveCount() const { return CombatInfo.ReviveCount; }
 
 	UFUNCTION(BlueprintCallable, Category = "SF|Combat")
 	void DecrementDownCount();
@@ -44,26 +74,35 @@ public:
 	void ResetDownCount();
 
 	UFUNCTION(BlueprintCallable, Category = "SF|Combat")
-	int32 GetReviveCount() const { return ReviveCount; }
-
-	UFUNCTION(BlueprintCallable, Category = "SF|Combat")
 	void IncrementReviveCount();
+
+	void SetCombatInfoFromTravel(const FSFHeroCombatInfo& InCombatInfo);
+
+protected:
+	UFUNCTION()
+	void OnRep_CombatInfo();
+
+	// 변경 감지 후 브로드캐스트
+	void BroadcastCombatInfoChanged();
+
+public:
+	UPROPERTY(BlueprintAssignable, Category = "SF|Combat")
+	FOnHeroCombatInfoChanged OnCombatInfoChanged;
 
 protected:
 
 	// RemainingDownCount별 초기 ReviveGauge 값 (index 0 = 첫 다운)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Combat")
-	TArray<float> InitialReviveGaugeByDownCount = { 80.f, 60.f, 30.f };
+	TArray<float> InitialReviveGaugeByDownCount = { 80.f, 55.f, 30.f };
 
 	// 초기 다운 가능 횟수
 	UPROPERTY(VisibleDefaultsOnly, Category = "SF|Combat")
 	int32 InitialDownCount = 3;
 	
-	// 현재 스테이지 세트에서 다운된 횟수 (서브 스테이지 간 유지, 새 스테이지 진입 시 리셋)
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "SF|Combat")
-	int32 RemainingDownCount = 3;
+	UPROPERTY(ReplicatedUsing = OnRep_CombatInfo, BlueprintReadOnly, Category = "SF|Combat")
+	FSFHeroCombatInfo CombatInfo;
 
-	// 다른 플레이어를 부활시킨 횟수 
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "SF|Combat")
-	int32 ReviveCount = 0;
+private:
+	// 변경 감지용 캐시
+	FSFHeroCombatInfo CachedCombatInfo;
 };

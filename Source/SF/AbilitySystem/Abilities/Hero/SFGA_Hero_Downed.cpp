@@ -1,8 +1,10 @@
 #include "SFGA_Hero_Downed.h"
 
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystem/Attributes/Hero/SFCombatSet_Hero.h"
 #include "AbilitySystem/Attributes/Hero/SFPrimarySet_Hero.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
+#include "Animation/SFAnimationGameplayTags.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Character/Hero/SFHero.h"
 #include "Libraries/SFAbilitySystemLibrary.h"
@@ -14,7 +16,7 @@ USFGA_Hero_Downed::USFGA_Hero_Downed(const FObjectInitializer& ObjectInitializer
 	ActivationPolicy = ESFAbilityActivationPolicy::Manual;
 	
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 
 	// 다운 상태 태그 부여
 	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_Downed);
@@ -32,7 +34,9 @@ USFGA_Hero_Downed::USFGA_Hero_Downed(const FObjectInitializer& ObjectInitializer
 void USFGA_Hero_Downed::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
+	
+	PlayDownedMontage();
+	
 	if (!HasAuthority(&ActivationInfo))
 	{
 		return;
@@ -78,8 +82,6 @@ void USFGA_Hero_Downed::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 			true  // 반복
 		);
 	}
-
-	// TODO: 다운 애니메이션, 이동 제한 등 추가 처리
 }
 
 void USFGA_Hero_Downed::UpdateReviveGauge()
@@ -191,6 +193,27 @@ void USFGA_Hero_Downed::HandleRevive()
 	// TODO: 부활 애니메이션(단발성 GameplayCue 몽타주, 이동 복구 등 추가 처리)
 
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void USFGA_Hero_Downed::PlayDownedMontage()
+{
+	ASFHero* Hero = Cast<ASFHero>(GetAvatarActorFromActorInfo());
+	if (!Hero)
+	{
+		return;
+	}
+
+	if (const USFHeroAnimationData* AnimData = GetHeroAnimationData())
+	{
+		FSFMontagePlayData MontageData = AnimData->GetSingleMontage(SFGameplayTags::Montage_State_Downed);
+		if (MontageData.IsValid() && MontageData.Montage)
+		{
+			if (UAbilityTask_PlayMontageAndWait* DownedMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("DownedMontage"), MontageData.Montage, MontageData.PlayRate, MontageData.StartSection, true, 1.f, 0.f, false))
+			{
+				DownedMontageTask->ReadyForActivation();
+			}
+		}
+	}
 }
 
 void USFGA_Hero_Downed::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

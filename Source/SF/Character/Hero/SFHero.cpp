@@ -114,8 +114,10 @@ void ASFHero::OnAbilitySystemInitialized()
 	if (HeroWidgetComponent)
 	{
 		HeroWidgetComponent->SetOverheadWidgetComponent(OverheadWidgetComponent);
-		HeroWidgetComponent->InitializeWithASC(GetAbilitySystemComponent());
-		HeroWidgetComponent->SetPlayerName(GetPlayerState()->GetPlayerName());
+		if (ASFPlayerState* PS = GetPlayerState<ASFPlayerState>())
+		{
+			HeroWidgetComponent->InitializeHeroStatus(GetAbilitySystemComponent(), PS);
+		}
 	}
 
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
