@@ -8,9 +8,12 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
 #include "GameModes/SFGameState.h"
 #include "GameModes/SFStageManagerComponent.h"
 #include "UI/Common/SFSkillSelectionScreen.h"
+#include "UI/InGame/SFIndicatorWidgetBase.h"
 
 ASFPlayerController::ASFPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -49,6 +52,18 @@ void ASFPlayerController::BeginPlay()
 				}
 			}
 		}
+	}
+
+	// 로컬 플레이어인 경우 팀원 표시 로직 실행
+	if (IsLocalController())
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			TeammateSearchTimerHandle,
+			this,
+			&ASFPlayerController::CreateTeammateIndicators,
+			1.0f,
+			true
+			);
 	}
 }
 
@@ -163,6 +178,74 @@ void ASFPlayerController::ToggleInGameMenu()
 			InGameMenuInstance->SetKeyboardFocus();
 		}
 	}
+	
+}
+
+void ASFPlayerController::CreateTeammateIndicators()
+{
+	if (!TeammateIndicatorWidgetClass) 
+	{
+		return;
+	}
+
+	// 1. 죽거나 사라진 팀원 위젯 청소 (Cleanup)
+	for (auto It = TeammateWidgetMap.CreateIterator(); It; ++It)
+	{
+		AActor* KeyActor = It.Key();
+		USFIndicatorWidgetBase* Widget = It.Value();
+
+		// 조건: 액터가 파괴되었거나(IsValid 실패), 위젯이 타겟을 잃어버렸다면
+		if (!IsValid(KeyActor) || (Widget && !Widget->HasValidTarget()))
+		{
+			if (Widget)
+			{
+				Widget->RemoveFromParent(); // 화면에서 즉시 지움
+			}
+			It.RemoveCurrent();
+		}
+	}
+
+	// 2. 새로운 팀원 검색 및 위젯 생성
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACharacter::StaticClass(), FoundActors);
+
+	APawn* MyPawn = GetPawn();
+
+	for (AActor* Actor : FoundActors)
+	{
+		// A. 플레이어 자신이면 패스
+		if (Actor == MyPawn) continue;
+
+		// B. 이미 위젯을 생성한 액터면 패스
+		if (TeammateWidgetMap.Contains(Actor)) continue;
+
+		// C. 진짜 플레이어인지 확인 (몬스터 제외)
+		APawn* TargetPawn = Cast<APawn>(Actor);
+		if (!TargetPawn) continue;
+
+		// PlayerState가 없으면 봇이나 몬스터로 간주하고 패스 -> 혹시 PlayerState가 늦게 로딩될 수도 있으니, 이번 틱에 없으면 다음 틱에 재검사
+		if (TargetPawn->GetPlayerState() == nullptr) continue;
+
+		// === [조건 만족: 위젯 생성] ===
+		USFIndicatorWidgetBase* NewIndicator = CreateWidget<USFIndicatorWidgetBase>(this, TeammateIndicatorWidgetClass);
+		if (NewIndicator)
+		{
+			// 타겟 설정
+			NewIndicator->SetTargetActor(Actor);
+			
+			// 화면 최하단(-1)에 부착 -> 다른 HUD를 가리지 않도록
+			NewIndicator->AddToViewport(-1);
+			
+			// 관리 맵에 등록
+			TeammateWidgetMap.Add(Actor, NewIndicator);
+			
+			UE_LOG(LogTemp, Log, TEXT("Team Indicator Created for: %s"), *Actor->GetName());
+		}
+
+		
+	}
+	
 	
 }
 

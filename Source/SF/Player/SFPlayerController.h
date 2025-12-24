@@ -38,8 +38,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SF|PlayerController")
 	USFAbilitySystemComponent* GetSFAbilitySystemComponent() const;
 
-	
-
 protected:
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
 
@@ -60,7 +58,23 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UUserWidget> InGameMenuInstance;
 
+	// 팀원 표시 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|InGame")
+	TSubclassOf<UUserWidget> TeammateIndicatorWidgetClass;
+
+	// 생성된 팀원 표시 위젯 관리 맵
+	UPROPERTY()
+	TMap<AActor*, class USFIndicatorWidgetBase*> TeammateWidgetMap;
+
+	// 팀원 표시 검색 타이머 핸들
+	FTimerHandle TeammateSearchTimerHandle;
+	
+
+protected:
+	// 인게임 메뉴 생성 함수
 	void ToggleInGameMenu();
+	// 팀원 위젯 생성 함수
+	void CreateTeammateIndicators();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|SkillSelection")
 	TSubclassOf<USFSkillSelectionScreen> SkillSelectionScreenClass;
