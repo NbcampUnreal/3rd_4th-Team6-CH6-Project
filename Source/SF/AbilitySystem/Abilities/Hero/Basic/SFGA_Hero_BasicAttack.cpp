@@ -28,7 +28,7 @@ USFGA_Hero_BasicAttack::USFGA_Hero_BasicAttack()
 	// 기본값 설정
 	ComboWindowTag = SFGameplayTags::Character_State_ComboWindow;
 	
-	DamageDataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage.BaseDamage"));
+	DamageDataTag = SFGameplayTags::Data_Damage_BaseDamage;
 }
 
 void USFGA_Hero_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -58,7 +58,8 @@ void USFGA_Hero_BasicAttack::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	}
 
 	// 히트 판정 감지 (WeaponActor -> GameplayEvent)
-	UAbilityTask_WaitGameplayEvent* HitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, SFGameplayTags::GameplayEvent_TraceHit);
+	UAbilityTask_WaitGameplayEvent* HitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, SFGameplayTags::GameplayEvent_Tracing);
+	// UAbilityTask_WaitGameplayEvent* HitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, SFGameplayTags::GameplayEvent_TraceHit);
 	if (HitTask)
 	{
 		HitTask->EventReceived.AddDynamic(this, &ThisClass::OnTraceHitReceived);
@@ -199,78 +200,74 @@ void USFGA_Hero_BasicAttack::InputReleased(const FGameplayAbilitySpecHandle Hand
 
 void USFGA_Hero_BasicAttack::OnTraceHitReceived(FGameplayEventData Payload)
 {
-	// 1. 타겟 유효성 검사
-	const AActor* RawTarget = Payload.Target.Get();
-	if (!Payload.Target) return;
+	// TargetData 확인
+	if (Payload.TargetData.Num() == 0) return;
 	
-	if (ASFCharacterBase* SourceCharacter = Cast<ASFCharacterBase>(GetAvatarActorFromActorInfo()))
-	{
-		if (const ASFCharacterBase* TargetCharacter = Cast<ASFCharacterBase>(RawTarget))
-		{
-			return;
-		}
-	}
-	else if (const AActor* TargetOwner = RawTarget->GetOwner())
-	{
-		if (const ASFCharacterBase* OwnerCharacter = Cast<ASFCharacterBase>(TargetOwner))
-		{
-			if (SourceCharacter->GetTeamAttitudeTowards(*OwnerCharacter) != ETeamAttitude::Hostile)
-			{
-				return;
-			}
-		}
-	}
-
-	// 2. 무기 기본 대미지 가져오기
+	// 무기 가져오기 (Instigator는 유효함)
 	float WeaponBaseDamage = 0.0f;
-	
-	// Payload.Instigator가 무기 액터라면 바로 가져옴 (SFMeleeWeaponActor 등에서 설정해서 보냄)
-	if (const ASFEquipmentBase* Weapon = Cast<ASFEquipmentBase>(Payload.Instigator))
+	if (const ASFEquipmentBase* Weapon = Cast<ASFEquipmentBase>(Payload.Instigator.Get()))
 	{
 		WeaponBaseDamage = Weapon->WeaponBaseDamage;
 	}
-	else if (ASFEquipmentBase* EquippedWeapon = GetMainHandWeapon()) // Fallback
+	else if (ASFEquipmentBase* EquippedWeapon = GetMainHandWeapon())
 	{
 		WeaponBaseDamage = EquippedWeapon->WeaponBaseDamage;
 	}
+	// 대미지 배율 계산
+    float DamageMultiplier = 1.0f;
+    if (AttackSteps.IsValidIndex(CurrentStepIndex))
+    {
+        DamageMultiplier = AttackSteps[CurrentStepIndex].DamageMultiplier;
+    }
+    const float FinalBaseDamage = WeaponBaseDamage * DamageMultiplier;
 
-	// 3. 현재 콤보 단계의 배율 적용
-	float DamageMultiplier = 1.0f;
-	if (AttackSteps.IsValidIndex(CurrentStepIndex))
-	{
-		DamageMultiplier = AttackSteps[CurrentStepIndex].DamageMultiplier;
-	}
+    UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+    ASFCharacterBase* SourceCharacter = Cast<ASFCharacterBase>(GetAvatarActorFromActorInfo());
+    
+    if (!SourceASC || !SourceCharacter) return;
 
-	const float FinalBaseDamage = WeaponBaseDamage * DamageMultiplier;
+    // TargetData 안에 있는 모든 히트 결과(HitResult)를 순회하며 처리
+    for (const TSharedPtr<FGameplayAbilityTargetData>& Data : Payload.TargetData.Data)
+    {
+        if (!Data.IsValid()) continue;
 
-	// 4. GE Spec 생성 및 적용
-	if (DamageEffectClass)
-	{
-		UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(const_cast<AActor*>(RawTarget));
-		if (SourceASC && TargetASC)
-		{
-			// Context에 HitResult 포함 (SFDamageEffectExecCalculation 및 HitReaction 처리에 필수)
-			FGameplayEffectContextHandle ContextHandle = SourceASC->MakeEffectContext();
-			if (Payload.TargetData.IsValid(0))
-			{
-				ContextHandle.AddHitResult(*Payload.TargetData.Get(0)->GetHitResult());
-			}
-			// 무기를 SourceObject로 추가
-			ContextHandle.AddSourceObject(Payload.Instigator); 
-			
-			FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageEffectClass, GetAbilityLevel(), ContextHandle);
-			if (SpecHandle.IsValid())
-			{
-				// SetByCaller로 BaseDamage 전달
-				// SFDamageEffectExecCalculation::CalculateBaseDamage에서 이 태그의 값을 읽어 기본 대미지로 사용함
-				SpecHandle.Data.Get()->SetSetByCallerMagnitude(DamageDataTag, FinalBaseDamage);
-				
-				// 타겟에게 적용
-				SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
-			}
-		}
-	}
+        const FHitResult* Hit = Data->GetHitResult();
+        if (!Hit || !Hit->GetActor()) continue;
+
+        AActor* HitActor = Hit->GetActor();
+
+        // 아군 식별 (Team Check)
+        if (const ASFCharacterBase* TargetCharacter = Cast<ASFCharacterBase>(HitActor))
+        {
+            if (SourceCharacter->GetTeamAttitudeTowards(*TargetCharacter) != ETeamAttitude::Hostile) continue;
+        }
+        else if (const AActor* TargetOwner = HitActor->GetOwner())
+        {
+            if (const ASFCharacterBase* OwnerCharacter = Cast<ASFCharacterBase>(TargetOwner))
+            {
+                if (SourceCharacter->GetTeamAttitudeTowards(*OwnerCharacter) != ETeamAttitude::Hostile) continue;
+            }
+        }
+
+        // 실제 대미지 적용
+        if (DamageEffectClass)
+        {
+            UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
+            if (TargetASC)
+            {
+                FGameplayEffectContextHandle ContextHandle = SourceASC->MakeEffectContext();
+                ContextHandle.AddHitResult(*Hit); // 히트 위치 정보 추가
+                ContextHandle.AddSourceObject(Payload.Instigator.Get());
+
+                FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageEffectClass, GetAbilityLevel(), ContextHandle);
+                if (SpecHandle.IsValid())
+                {
+                    SpecHandle.Data.Get()->SetSetByCallerMagnitude(DamageDataTag, FinalBaseDamage);
+                    SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+                }
+            }
+        }
+    }
 }
 
 ASFEquipmentBase* USFGA_Hero_BasicAttack::GetMainHandWeapon() const
@@ -295,9 +292,7 @@ void USFGA_Hero_BasicAttack::UpdateWarpTargetFromInput()
 	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	if (!Character) return;
 	
-	// SFHeroMovementComponent 캐스팅
-	USFHeroMovementComponent* SFCMC = Cast<USFHeroMovementComponent>(Character->GetCharacterMovement());
-	if (!SFCMC) return;
+	UMotionWarpingComponent* MotionWarpingComp = Character->GetComponentByClass<UMotionWarpingComponent>();
 	
 	const FVector InputVector = Character->GetLastMovementInputVector();
 	
@@ -311,7 +306,7 @@ void USFGA_Hero_BasicAttack::UpdateWarpTargetFromInput()
 		TargetRotation.Pitch = 0.f;
 		TargetRotation.Roll = 0.f;
 		
-		TargetLocation = Character->GetActorLocation() + (Character->GetActorForwardVector() * WarpDistance);
+		TargetLocation = Character->GetActorLocation() + (InputVector.GetSafeNormal() * WarpDistance);
 	}
 	else
 	{
@@ -320,7 +315,7 @@ void USFGA_Hero_BasicAttack::UpdateWarpTargetFromInput()
 		TargetRotation = Character->GetActorRotation();
 	}
 	
-	SFCMC->SetWarpTarget(TargetLocation, TargetRotation);
+	MotionWarpingComp->AddOrUpdateWarpTargetFromLocationAndRotation(WarpTargetName, TargetLocation, TargetRotation);
 }
 
 void USFGA_Hero_BasicAttack::ApplyStepGameplayTags(const FGameplayTagContainer& Tags)
