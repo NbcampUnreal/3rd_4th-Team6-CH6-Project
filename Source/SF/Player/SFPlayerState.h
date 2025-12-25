@@ -51,6 +51,7 @@ public:
 	ASFPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void PostNetInit() override;
 
 	//~ IGenericTeamAgentInterface
 	virtual void SetGenericTeamId(const FGenericTeamId& NewTeamID) override;

@@ -123,6 +123,8 @@ void USFPlayerCombatStateComponent::IncrementReviveCount()
 
 void USFPlayerCombatStateComponent::OnRep_CombatInfo()
 {
+	bHasReceivedInitialCombatInfo = true;
+	
 	const bool bDeadChanged = (CachedCombatInfo.bIsDead != CombatInfo.bIsDead);
 
 	BroadcastCombatInfoChanged();
@@ -157,6 +159,25 @@ void USFPlayerCombatStateComponent::SetCombatInfoFromTravel(const FSFHeroCombatI
 	if (CombatInfo.bIsDead != bWasDead)
 	{
 		BroadcastDeadStateChanged();
+	}
+}
+
+bool USFPlayerCombatStateComponent::HasReceivedInitialCombatInfo() const
+{
+	if (GetOwner() && GetOwner()->HasAuthority())
+	{
+		return true;
+	}
+    
+	return bHasReceivedInitialCombatInfo;
+}
+
+void USFPlayerCombatStateComponent::MarkInitialDataReceived()
+{
+	if (!bHasReceivedInitialCombatInfo)
+	{
+		bHasReceivedInitialCombatInfo = true;
+		BroadcastCombatInfoChanged();
 	}
 }
 

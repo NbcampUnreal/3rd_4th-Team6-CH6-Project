@@ -77,6 +77,7 @@ void USFGA_Interact_RewardChest::ShowStatBoostUI(int32 StageIndex)
 	// TODO: 일반 강화 UI 구현 예정
 	// StatBoostWidgetClass 사용하여 위젯 생성
 	// OnStatBoostSelectionComplete 바인딩
+	// 특정 선택지 한번 더 뽑을수 있는 Tag가 부여된 플레이어 한테는 Widget 종료하지 않고 한번더 Refresh 해서 선택할 수 있도록 처리
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 

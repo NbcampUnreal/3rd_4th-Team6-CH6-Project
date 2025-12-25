@@ -8,17 +8,19 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "Components/GameFrameworkInitStateInterface.h"
+#include "Components/SFDeathUIComponent.h"
+#include "Components/SFSpectatorComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
-#include "GameModes/SFGameState.h"
-#include "GameModes/SFStageManagerComponent.h"
-#include "UI/Common/SFSkillSelectionScreen.h"
 #include "UI/InGame/SFIndicatorWidgetBase.h"
 
 ASFPlayerController::ASFPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	LoadingCheckComponent = CreateDefaultSubobject<USFLoadingCheckComponent>(TEXT("LoadingCheckComponent"));
+	SpectatorComponent = CreateDefaultSubobject<USFSpectatorComponent>(TEXT("SpectatorComponent"));
+	DeathUIComponent = CreateDefaultSubobject<USFDeathUIComponent>(TEXT("DeathUIComponent"));
 }
 
 void ASFPlayerController::BeginPlay()
@@ -79,6 +81,15 @@ void ASFPlayerController::OnRep_PlayerState()
 				SFASC->RefreshAbilityActorInfo();
 				SFASC->TryActivateAbilitiesOnSpawn();
 			}
+		}
+	}
+
+	// PlayerState가 도착했으므로 이를 기다리던 컴포넌트들의 초기화 재시도
+	for (UActorComponent* Comp : GetComponents())
+	{
+		if (IGameFrameworkInitStateInterface* InitInterface = Cast<IGameFrameworkInitStateInterface>(Comp))
+		{
+			InitInterface->CheckDefaultInitialization();
 		}
 	}
 }

@@ -49,6 +49,16 @@ void ASFPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void ASFPlayerState::PostNetInit()
+{
+	Super::PostNetInit();
+
+	if (CombatStateComponent)
+	{
+		CombatStateComponent->MarkInitialDataReceived();
+	}
+}
+
 void ASFPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

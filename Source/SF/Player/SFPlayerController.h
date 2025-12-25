@@ -5,6 +5,8 @@
 #include "System/Data/SFStageInfo.h"
 #include "SFPlayerController.generated.h"
 
+class USFDeathUIComponent;
+class USFSpectatorComponent;
 struct FSFStageInfo;
 class USFSkillSelectionScreen;
 class USFLoadingCheckComponent;
@@ -76,11 +78,13 @@ protected:
 	// 팀원 위젯 생성 함수
 	void CreateTeammateIndicators();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|SkillSelection")
-	TSubclassOf<USFSkillSelectionScreen> SkillSelectionScreenClass;
-
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USFLoadingCheckComponent> LoadingCheckComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USFSpectatorComponent> SpectatorComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USFDeathUIComponent> DeathUIComponent;
 };
