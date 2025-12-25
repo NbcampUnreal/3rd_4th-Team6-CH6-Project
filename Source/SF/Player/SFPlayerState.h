@@ -98,6 +98,12 @@ public:
 	const USFPrimarySet_Hero* GetPrimarySet() const { return PrimarySet; }
 	const USFCombatSet_Hero* GetCombatSet() const { return CombatSet; }
 
+	// Gets the replicated view rotation of this player, used for spectating
+	FRotator GetReplicatedViewRotation() const;
+
+	// Sets the replicated view rotation, only valid on the server
+	void SetReplicatedViewRotation(const FRotator& NewRotation);
+
 	// 트래블 직전에 데이터를 미리 저장하는 함수
 	void SavePersistedData();
 
@@ -156,6 +162,9 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_IsReadyForTravel)
 	uint8 bIsReadyForTravel : 1;
+
+	UPROPERTY(Replicated)
+	FRotator ReplicatedViewRotation;
 
 	UPROPERTY(VisibleAnywhere, Category = "SF|PlayerState")
 	TObjectPtr<USFAbilitySystemComponent> AbilitySystemComponent;

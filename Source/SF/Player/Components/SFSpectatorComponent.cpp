@@ -5,6 +5,8 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
+#include "Net/UnrealNetwork.h"
+#include "Pawn/SFSpectatorPawn.h"
 #include "Player/SFPlayerState.h" 
 #include "UI/InGame/SFSpectatorHUDWidget.h"
 #include "UI/SearchLobby/SFCreateRoomWidget.h"
@@ -14,6 +16,13 @@ USFSpectatorComponent::USFSpectatorComponent(const FObjectInitializer& ObjectIni
 {
     SetIsReplicatedByDefault(true);
 
+}
+
+void USFSpectatorComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(ThisClass, SpectatorPawn);
 }
 
 void USFSpectatorComponent::BeginPlay()
@@ -32,6 +41,12 @@ void USFSpectatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
         World->GetTimerManager().ClearTimer(SpectateRetryTimerHandle);
     }
     UnbindFromCurrentTarget();
+
+    if (GetOwner() && GetOwner()->HasAuthority() && SpectatorPawn)
+    {
+        SpectatorPawn->Destroy();
+        SpectatorPawn = nullptr;
+    }
     
     Super::EndPlay(EndPlayReason);
 }
@@ -92,29 +107,179 @@ void USFSpectatorComponent::StartSpectating()
     {
         return;
     }
+
+    APlayerController* PC = GetController<APlayerController>();
+    if (!PC)
+    {
+        return;
+    }
     
     bIsSpectating = true;
 
+    // 원래 Pawn 캐싱
+    OriginalPawn = PC->GetPawn();
+
     ToggleInputContext(true);
     ShowSpectatorHUD();
+
+    // 서버에 SpectatorPawn 스폰 요청
+    Server_SpawnSpectatorPawn();
+}
+
+void USFSpectatorComponent::StopSpectating()
+{
+    APlayerController* PC = GetController<APlayerController>();
+    if (!PC || !bIsSpectating)
+    {
+        return;
+    }
+
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(AutoSwitchTimerHandle);
+        World->GetTimerManager().ClearTimer(SpectateRetryTimerHandle);
+    }
+
+    ToggleInputContext(false);
+    UnbindFromCurrentTarget();
+    HideSpectatorHUD();
     
-    // 관전 시작 시엔 적절한 첫 번째 대상 관전
+    bIsSpectating = false;
+    CurrentSpectatorTarget.Reset();
+
+    // 서버에 SpectatorPawn 제거 요청
+    Server_DestroySpectatorPawn();
+
+    OriginalPawn.Reset();
+    OnSpectatorTargetChanged.Broadcast(nullptr);
+}
+
+void USFSpectatorComponent::Server_SpawnSpectatorPawn_Implementation()
+{
+    APlayerController* PC = GetController<APlayerController>();
+    UWorld* World = GetWorld();
+    if (!PC || !World || !SpectatorPawnClass)
+    {
+        return;
+    }
+
+    // 기존 SpectatorPawn 정리
+    if (SpectatorPawn)
+    {
+        SpectatorPawn->Destroy();
+        SpectatorPawn = nullptr;
+    }
+
+    FVector SpawnLocation = FVector::ZeroVector;
+    FRotator SpawnRotation = FRotator::ZeroRotator;
+    
+    if (APawn* CurrentPawn = PC->GetPawn())
+    {
+        SpawnLocation = CurrentPawn->GetActorLocation();
+        SpawnRotation = CurrentPawn->GetActorRotation();
+    }
+
+    // SpectatorPawn 스폰
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = PC;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    SpectatorPawn = World->SpawnActor<ASFSpectatorPawn>(SpectatorPawnClass, SpawnLocation, SpawnRotation, SpawnParams);
+    if (SpectatorPawn)
+    {
+        // 서버에서 Possess
+        PC->Possess(SpectatorPawn);
+        if (PC->IsLocalController())
+        {
+            OnSpectatorPawnReady();
+        }
+    }
+}
+
+void USFSpectatorComponent::Server_DestroySpectatorPawn_Implementation()
+{
+    APlayerController* PC = GetController<APlayerController>();
+    if (SpectatorPawn)
+    {
+        // UnPossess
+        if (PC && PC->GetPawn() == SpectatorPawn)
+        {
+            PC->UnPossess();
+
+            // 원래 Pawn으로 복귀
+            if (APawn* OriginalPawnPtr = OriginalPawn.Get())
+            {
+                PC->Possess(OriginalPawnPtr);
+            }
+        }
+
+        SpectatorPawn->Destroy();
+        SpectatorPawn = nullptr;
+    }
+}
+
+void USFSpectatorComponent::Server_SetViewTarget_Implementation(APawn* NewTarget)
+{
+    APlayerController* PC = GetController<APlayerController>();
+    if (!PC)
+    {
+        return;
+    }
+
+    // Relevancy 유지를 위해 서버에서도 ViewTarget 설정
+    // SpectatorPawn이 있으면 SpectatorPawn 유지, 없으면 NewTarget
+    AActor* FinalTarget = SpectatorPawn ? static_cast<AActor*>(SpectatorPawn) : static_cast<AActor*>(NewTarget);
+    if (!FinalTarget)
+    {
+        FinalTarget = PC;
+    }
+    
+    PC->SetViewTarget(FinalTarget);
+
+    if (SpectatorPawn)
+    {
+        SpectatorPawn->SetFollowTarget(NewTarget);
+    }
+}
+
+void USFSpectatorComponent::OnSpectatorPawnReady()
+{
+    if (!bIsSpectating || !SpectatorPawn) 
+    {
+        return;
+    }
+
+    APlayerController* PC = GetController<APlayerController>();
+    if (!PC)
+    {
+        return;
+    }
+
+    // 로컬에서 ViewTarget 설정
+    if (PC->IsLocalController())
+    {
+        PC->SetViewTarget(SpectatorPawn);
+    }
+
+    // 관전 대상 찾기 시작
     TrySpectateNextPlayer();
 }
 
 void USFSpectatorComponent::TrySpectateNextPlayer()
 {
+    if (!SpectatorPawn)
+    {
+        return;
+    }
+    
     // 일단 다음 플레이어 찾기 시도
     SpectateNextPlayer();
 
     // 찾았는지 확인
-    if (CurrentSpectatorTarget.IsValid())
+    if (CurrentSpectatorTarget.IsValid() && (GetWorld()))
     {
         // 성공! -> 재시도 타이머가 돌고 있었다면 끔
-        if (GetWorld())
-        {
-            GetWorld()->GetTimerManager().ClearTimer(SpectateRetryTimerHandle);
-        }
+        GetWorld()->GetTimerManager().ClearTimer(SpectateRetryTimerHandle);
     }
     else
     {
@@ -126,46 +291,10 @@ void USFSpectatorComponent::TrySpectateNextPlayer()
                 this,
                 &ThisClass::TrySpectateNextPlayer,
                 0.5f,  // 0.5초마다 시도
-                true   // 반복(Loop)
+                true   
             );
         }
     }
-}
-
-void USFSpectatorComponent::StopSpectating()
-{
-    APlayerController* PC = GetController<APlayerController>();
-    if (!PC || !bIsSpectating)
-    {
-        return;
-    }
-    ToggleInputContext(false);
-
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(AutoSwitchTimerHandle);
-        World->GetTimerManager().ClearTimer(SpectateRetryTimerHandle);
-    }
-
-    UnbindFromCurrentTarget();
-    HideSpectatorHUD();
-    
-    bIsSpectating = false;
-    CurrentSpectatorTarget.Reset();
-
-    // 내 원래 Pawn으로 복귀
-    APawn* OwnedPawn = PC->GetPawn();
-    
-    // 서버 알림
-    Server_SetViewTarget(OwnedPawn);
-
-    // 로컬 복귀
-    if (PC->IsLocalController() && OwnedPawn)
-    {
-        PC->SetViewTargetWithBlend(OwnedPawn, ViewTargetBlendTime, VTBlend_EaseInOut, 1.0f);
-    }
-
-    OnSpectatorTargetChanged.Broadcast(nullptr);
 }
 
 void USFSpectatorComponent::SpectateNextPlayer()
@@ -302,10 +431,10 @@ void USFSpectatorComponent::SetSpectatorTarget(APawn* NewTarget)
     // 서버 알림 (Relevancy)
     Server_SetViewTarget(NewTarget);
 
-    // 로컬 전환 (반응성)
-    if (PC->IsLocalController())
+    // SpectatorPawn의 FollowTarget 설정
+    if (SpectatorPawn)
     {
-        PC->SetViewTargetWithBlend(NewTarget, ViewTargetBlendTime); 
+        SpectatorPawn->SetFollowTarget(NewTarget);
     }
 
     OnSpectatorTargetChanged.Broadcast(NewTarget);
@@ -414,17 +543,10 @@ void USFSpectatorComponent::OnSpectatePreviousInput(const FInputActionValue& Val
     SpectatePreviousPlayer();
 }
 
-void USFSpectatorComponent::Server_SetViewTarget_Implementation(APawn* NewTarget)
+void USFSpectatorComponent::OnRep_SpectatorPawn()
 {
-    APlayerController* PC = GetController<APlayerController>();
-    if (PC)
+    if (bIsSpectating && SpectatorPawn)
     {
-        // NewTarget이 null이면 컨트롤러 자신(혹은 죽은 Pawn)으로 복귀
-        AActor* FinalTarget = NewTarget ? static_cast<AActor*>(NewTarget) : static_cast<AActor*>(PC->GetPawn());
-        if (!FinalTarget)
-        {
-            FinalTarget = PC;
-        }
-        PC->SetViewTarget(FinalTarget);
+        OnSpectatorPawnReady();
     }
 }

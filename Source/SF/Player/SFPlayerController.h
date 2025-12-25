@@ -34,6 +34,10 @@ public:
 	virtual void SetupInputComponent() override; 
 	//~End of AController interface
 
+	//~APlayerController interface
+	virtual void PlayerTick(float DeltaTime) override;
+	//~End of APlayerController interface
+
 	UFUNCTION(BlueprintCallable, Category = "SF|PlayerController")
 	ASFPlayerState* GetSFPlayerState() const;
 	
@@ -42,6 +46,9 @@ public:
 
 protected:
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
+	
+	UFUNCTION(Server, Unreliable)
+	void Server_UpdateViewRotation(FRotator NewRotation);
 
 protected:
 	// ----------------[추가] 인게임 메뉴 관련 변수 및 함수----------------------

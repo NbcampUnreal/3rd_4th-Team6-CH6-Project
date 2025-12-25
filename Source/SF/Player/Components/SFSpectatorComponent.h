@@ -9,6 +9,7 @@ class UInputMappingContext;
 struct FInputActionValue;
 struct FSFHeroCombatInfo;
 class USFSpectatorHUDWidget;
+class ASFSpectatorPawn;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpectatorTargetChanged, APawn*, NewTarget);
 
@@ -19,6 +20,8 @@ class SF_API USFSpectatorComponent : public UControllerComponent
 
 public:
 	USFSpectatorComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "SF|Spectator")
 	void StartSpectating();
@@ -70,10 +73,17 @@ protected:
 	void OnAutoSwitchTimerExpired();
 
 	UFUNCTION(Server, Reliable)
+	void Server_SpawnSpectatorPawn();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DestroySpectatorPawn();
+
+	UFUNCTION(Server, Reliable)
 	void Server_SetViewTarget(APawn* NewTarget);
 
+	void OnSpectatorPawnReady();
+
 	void ShowSpectatorHUD();
-	
 	void HideSpectatorHUD();
 
 	void OnSpectateNextInput(const FInputActionValue& Value);
@@ -84,6 +94,10 @@ public:
 	FOnSpectatorTargetChanged OnSpectatorTargetChanged;
 
 protected:
+
+	UPROPERTY(EditDefaultsOnly, Category = "SF|Spectator")
+	TSubclassOf<ASFSpectatorPawn> SpectatorPawnClass;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "SF|UI")
 	TSubclassOf<USFSpectatorHUDWidget> SpectatorHUDWidgetClass;
 
@@ -102,26 +116,35 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Input")
 	TObjectPtr<UInputMappingContext> SpectatorMappingContext;
 
-private:
-	UPROPERTY()
-	TWeakObjectPtr<APawn> CurrentSpectatorTarget;
-
-	bool bIsSpectating = false;
-
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Spectator")
 	float ViewTargetBlendTime = 0.2f;
-
-	//자동 전환 타이머 핸들
-	FTimerHandle AutoSwitchTimerHandle;
 
 	// 사망 후 자동 전환 대기 시간 
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Spectator")
 	float AutoSwitchDelay = 2.0f;
 
+protected:
+	UFUNCTION()
+	void OnRep_SpectatorPawn();
+
+private:
+	UPROPERTY(ReplicatedUsing = OnRep_SpectatorPawn)
+	TObjectPtr<ASFSpectatorPawn> SpectatorPawn;
+		
+	UPROPERTY()
+	TWeakObjectPtr<APawn> CurrentSpectatorTarget;
+
+	UPROPERTY()
+	TWeakObjectPtr<APawn> OriginalPawn;
+	
 	UPROPERTY()
 	TObjectPtr<USFSpectatorHUDWidget> SpectatorHUDWidget;
 
+	bool bIsSpectating = false;
 	bool bInputBound = false;
+
+	//자동 전환 타이머 핸들
+	FTimerHandle AutoSwitchTimerHandle;
 
 	// 관전 대상을 찾지 못했을 때 재시도하기 위한 타이머 핸들
 	FTimerHandle SpectateRetryTimerHandle;

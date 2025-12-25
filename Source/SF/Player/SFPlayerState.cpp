@@ -74,6 +74,9 @@ void ASFPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MyPlayerConnectionType, SharedParams)
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MyTeamID, SharedParams);
+
+	SharedParams.Condition = ELifetimeCondition::COND_SkipOwner;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, ReplicatedViewRotation, SharedParams);
 }
 
 void ASFPlayerState::Reset()
@@ -330,6 +333,20 @@ void ASFPlayerState::SetPlayerConnectionType(ESFPlayerConnectionType NewType)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, MyPlayerConnectionType, this);
 	MyPlayerConnectionType = NewType;
+}
+
+FRotator ASFPlayerState::GetReplicatedViewRotation() const
+{
+	return ReplicatedViewRotation;
+}
+
+void ASFPlayerState::SetReplicatedViewRotation(const FRotator& NewRotation)
+{
+	if (NewRotation != ReplicatedViewRotation)
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ReplicatedViewRotation, this);
+		ReplicatedViewRotation = NewRotation;
+	}
 }
 
 void ASFPlayerState::SavePersistedData()
