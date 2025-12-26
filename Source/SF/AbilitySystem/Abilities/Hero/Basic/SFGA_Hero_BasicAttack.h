@@ -10,7 +10,7 @@ class UAbilityTask_PlayMontageAndWait;
 
 /**
  * 영웅 기본 공격 어빌리티 클래스
- * 콤보 시스템, 입력 캐싱, 모션 워핑(Far Projection)을 포함함
+ * 콤보 시스템, 입력 캐싱, 모션 워핑(Far Projection), 동적 비용 처리를 포함함
  */
 UCLASS(Abstract)
 class SF_API USFGA_Hero_BasicAttack : public USFGA_Skill_Melee 
@@ -31,15 +31,20 @@ protected:
 	virtual void OnTrace(FGameplayEventData Payload) override;
 	//~ End SFGA_Skill_Melee Interface
 
-protected: //  Core Execution
+protected: // Core Execution
 	
 	/** 특정 콤보 단계(Step)를 실행함 */
 	void ExecuteAttackStep(int32 StepIndex);
 
 	/** * 입력 및 캐싱된 방향을 기반으로 모션 워핑 타겟을 갱신함
-	 * 캐릭터 회전(Spin) 방지를 위해 원거리 투영(Far Projection) 기법을 사용함
+	 * 캐릭터 회전(Spin) 방지를 위해 원거리 투영(Far Projection) 기법을 사용함 
 	 */
 	void UpdateWarpTargetFromInput();
+
+	/** * 설정된 단계별 스태미나 비용을 동적으로 지불함
+	 * SetByCaller를 사용하여 GE에 비용 값을 전달함
+	 */
+	bool CheckAndApplyStepCost(float CostAmount);
 
 	/** 서버에 워핑 타겟 회전값을 동기화함 (Reliable RPC) */
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -67,7 +72,7 @@ protected: // Event Handlers
 	
 protected: // Configuration
 
-	/** 공격 데이터 에셋 (데미지, 몽타주 등 정의) */
+	/** 공격 데이터 에셋 (데미지, 몽타주, 비용 등 정의) */
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Attack")
 	TObjectPtr<USFBasicAttackData> AttackDataAsset;
 
@@ -78,6 +83,14 @@ protected: // Configuration
 	/** 콤보 입력 허용 구간 태그 */
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Attack")
 	FGameplayTag ComboWindowTag;
+
+	/** 동적 비용 적용을 위한 GameplayEffect 클래스 (SetByCaller 지원) */
+	UPROPERTY(EditDefaultsOnly, Category = "SF|Cost")
+	TSubclassOf<UGameplayEffect> DynamicCostEffectClass;
+    
+	/** 비용 GE의 SetByCaller 매그니튜드 설정에 사용할 태그 */
+	UPROPERTY(EditDefaultsOnly, Category = "SF|Cost")
+	FGameplayTag CostDataTag;
 	
 private: // Runtime State
 

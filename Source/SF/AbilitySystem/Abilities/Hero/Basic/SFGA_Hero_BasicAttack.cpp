@@ -14,6 +14,7 @@
 
 // Project Includes
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
+#include "AbilitySystem/Attributes/Hero/SFPrimarySet_Hero.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Input/SFInputGameplayTags.h"
 #include "SFBasicAttackData.h"
@@ -22,6 +23,8 @@ USFGA_Hero_BasicAttack::USFGA_Hero_BasicAttack()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
+	
+	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	
 	ComboWindowTag = SFGameplayTags::Character_State_ComboWindow;
 	
@@ -126,7 +129,17 @@ void USFGA_Hero_BasicAttack::ExecuteAttackStep(int32 StepIndex)
 		return;
 	}
 	
-	if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
+	// [수정됨] 고정 비용(CommitAbilityCost) 대신 단계별 동적 비용을 적용함
+	// if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
+	// {
+	// 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+	// 	return;
+	// }
+
+	const FSFBasicAttackStep& CurrentStep = AttackSteps[StepIndex];
+
+	// 단계별 스태미나 비용을 지불하고, 부족하면 어빌리티를 종료함
+	if (!CheckAndApplyStepCost(CurrentStep.StaminaCost))
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
@@ -141,8 +154,7 @@ void USFGA_Hero_BasicAttack::ExecuteAttackStep(int32 StepIndex)
 	}
 
 	RemoveStepGameplayTags();
-
-	const FSFBasicAttackStep& CurrentStep = AttackSteps[StepIndex];
+	
 	CurrentDamageMultiplier = CurrentStep.DamageMultiplier;
 
 	// [중요] 입력 캐싱 및 원거리 투영을 적용하여 워핑 타겟을 갱신함
@@ -167,7 +179,7 @@ void USFGA_Hero_BasicAttack::ExecuteAttackStep(int32 StepIndex)
 	
 	// 몽타주를 재생함
 	ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this, NAME_None, CurrentStep.Montage, 1.0f, NAME_None, true, 1.0f, 0.1f);
+		this, NAME_None, CurrentStep.Montage, 1.0f, NAME_None, true, 1.0f, 0.1f, false);
 	
 	if (ActiveMontageTask)
 	{
@@ -240,6 +252,49 @@ void USFGA_Hero_BasicAttack::UpdateWarpTargetFromInput()
 	{
 		ServerSetWarpRotation(WarpTargetNameOverride, TargetRotation);
 	}
+}
+
+bool USFGA_Hero_BasicAttack::CheckAndApplyStepCost(float CostAmount)
+{
+	// 비용이 0 이하이면 성공으로 간주함
+	if (CostAmount <= 0.f) return true;
+	// 설정된 비용 GE가 없으면 검사 없이 통과시킴
+	if (!DynamicCostEffectClass) return true;
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC) return false;
+
+	bool bCanAfford = false;
+    
+	// 현재 스태미나 잔량을 직접 확인하여 지불 가능 여부를 판단
+	if (ASC->GetAttributeSet(USFPrimarySet_Hero::StaticClass())) // AttributeSet 클래스 이름 확인 필요
+	{
+		// 현재 스태미나 값을 가져옴
+		float CurrentStamina = ASC->GetNumericAttribute(USFPrimarySet_Hero::GetStaminaAttribute()); 
+		
+		if (CurrentStamina >= CostAmount)
+		{
+			bCanAfford = true;
+		}
+	}
+
+	// 부족하면 즉시 실패 처리
+	if (!bCanAfford) return false;
+
+	// 비용 지불을 위한 GE Spec을 생성
+	FGameplayEffectContextHandle EffectContextHandle = ASC->MakeEffectContext();
+	EffectContextHandle.AddSourceObject(this);
+
+	FGameplayEffectSpecHandle CostSpecHandle = ASC->MakeOutgoingSpec(DynamicCostEffectClass, GetAbilityLevel(), EffectContextHandle);
+
+	// Spec이 유효하면 비용을 설정하고 적용
+	if (CostSpecHandle.IsValid())
+	{
+		CostSpecHandle.Data->SetSetByCallerMagnitude(CostDataTag, -CostAmount);
+		ASC->ApplyGameplayEffectSpecToSelf(*CostSpecHandle.Data.Get());
+	}
+
+	return true;
 }
 
 void USFGA_Hero_BasicAttack::ServerSetWarpRotation_Implementation(FName TargetName, FRotator TargetRotation)

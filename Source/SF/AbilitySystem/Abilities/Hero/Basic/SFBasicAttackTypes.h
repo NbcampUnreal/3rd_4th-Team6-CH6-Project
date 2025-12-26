@@ -25,6 +25,10 @@ struct FSFBasicAttackStep
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bIsChargeStep"))
 	float MinChargeTime = 0.5f;
 
+	// 이 공격 단계에서 소모할 스태미나 양
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	float StaminaCost = 10.0f;
+	
 	/** 공격 단계 진행 시 캐릭터에게 일시적으로 부여할 태그 (예: 슈퍼아머) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTagContainer TempAbilityTags;
