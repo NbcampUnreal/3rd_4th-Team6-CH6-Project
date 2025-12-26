@@ -75,6 +75,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SF|Combat")
 	bool IsDead() const { return CombatInfo.bIsDead; }
 
+	UFUNCTION(BlueprintPure, Category = "SF|Combat")
+	bool IsDowned() const;
+
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "SF|Combat")
 	void SetIsDead(bool bNewIsDead);
 
@@ -88,6 +91,10 @@ public:
 	void IncrementReviveCount();
 
 	void SetCombatInfoFromTravel(const FSFHeroCombatInfo& InCombatInfo);
+
+	// 초기 데이터가 서버로부터 도착했는지 여부 
+	bool HasReceivedInitialCombatInfo() const;
+	void MarkInitialDataReceived();
 
 protected:
 	UFUNCTION()
@@ -119,4 +126,7 @@ protected:
 private:
 	// 변경 감지용 캐시
 	FSFHeroCombatInfo CachedCombatInfo;
+
+	// 초기 복제 완료 플래그
+	bool bHasReceivedInitialCombatInfo = false;
 };

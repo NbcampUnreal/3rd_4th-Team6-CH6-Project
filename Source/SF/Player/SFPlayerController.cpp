@@ -8,17 +8,20 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "Components/GameFrameworkInitStateInterface.h"
+#include "Components/SFDeathUIComponent.h"
+#include "Components/SFSpectatorComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
-#include "GameModes/SFGameState.h"
-#include "GameModes/SFStageManagerComponent.h"
-#include "UI/Common/SFSkillSelectionScreen.h"
+#include "Pawn/SFSpectatorPawn.h"
 #include "UI/InGame/SFIndicatorWidgetBase.h"
 
 ASFPlayerController::ASFPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	LoadingCheckComponent = CreateDefaultSubobject<USFLoadingCheckComponent>(TEXT("LoadingCheckComponent"));
+	SpectatorComponent = CreateDefaultSubobject<USFSpectatorComponent>(TEXT("SpectatorComponent"));
+	DeathUIComponent = CreateDefaultSubobject<USFDeathUIComponent>(TEXT("DeathUIComponent"));
 }
 
 void ASFPlayerController::BeginPlay()
@@ -81,6 +84,15 @@ void ASFPlayerController::OnRep_PlayerState()
 			}
 		}
 	}
+
+	// PlayerState가 도착했으므로 이를 기다리던 컴포넌트들의 초기화 재시도
+	for (UActorComponent* Comp : GetComponents())
+	{
+		if (IGameFrameworkInitStateInterface* InitInterface = Cast<IGameFrameworkInitStateInterface>(Comp))
+		{
+			InitInterface->CheckDefaultInitialization();
+		}
+	}
 }
 
 void ASFPlayerController::SetupInputComponent()
@@ -96,6 +108,43 @@ void ASFPlayerController::SetupInputComponent()
 			// ETriggerEvent::Started는 "키를 누르는 순간"
 			EnhancedInputComponent->BindAction(InGameMenuAction, ETriggerEvent::Started, this, &ASFPlayerController::ToggleInGameMenu);
 		}
+	}
+}
+
+void ASFPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	ASFPlayerState* SFPS = GetPlayerState<ASFPlayerState>();
+	APawn* CurrentPawn = GetPawn();
+
+	// 관전 중(SpectatorPawn)일 때는 내 시선을 공유할 필요 없음 
+	if (CurrentPawn && CurrentPawn->IsA(ASFSpectatorPawn::StaticClass()))
+	{
+		return; 
+	}
+
+	// 일반 캐릭터 조종 중
+	if (SFPS)
+	{
+		if (IsLocalController())
+		{
+			// 내 화면의 정확한 회전값 가져오기
+			FRotator MyViewRotation = GetControlRotation(); 
+
+			// [Client Local] 로컬 예측을 위해 내 변수 즉시 업데이트 (반응성)
+			SFPS->SetReplicatedViewRotation(MyViewRotation);
+			Server_UpdateViewRotation(MyViewRotation);
+		}
+	}
+}
+
+void ASFPlayerController::Server_UpdateViewRotation_Implementation(FRotator NewRotation)
+{
+	ASFPlayerState* SFPS = GetPlayerState<ASFPlayerState>();
+	if (SFPS)
+	{
+		SFPS->SetReplicatedViewRotation(NewRotation);
 	}
 }
 

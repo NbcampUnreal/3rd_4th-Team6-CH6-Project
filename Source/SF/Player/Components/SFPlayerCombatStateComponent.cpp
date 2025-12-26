@@ -1,5 +1,7 @@
 #include "SFPlayerCombatStateComponent.h"
 
+#include "AbilitySystem/SFAbilitySystemComponent.h"
+#include "Character/SFCharacterGameplayTags.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "Messages/SFMessageGameplayTags.h"
 #include "Messages/SFPortalInfoMessages.h"
@@ -66,6 +68,22 @@ float USFPlayerCombatStateComponent::GetInitialReviveGauge() const
 	return 0.f;
 }
 
+bool USFPlayerCombatStateComponent::IsDowned() const
+{
+	// ASC에서 Downed 태그 체크
+	if (AActor* Owner = GetOwner())
+	{
+		if (ASFPlayerState* PS = Cast<ASFPlayerState>(Owner))
+		{
+			if (USFAbilitySystemComponent* ASC = PS->GetSFAbilitySystemComponent())
+			{
+				return ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Downed);
+			}
+		}
+	}
+	return false;
+}
+
 void USFPlayerCombatStateComponent::SetIsDead(bool bNewIsDead)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
@@ -123,6 +141,8 @@ void USFPlayerCombatStateComponent::IncrementReviveCount()
 
 void USFPlayerCombatStateComponent::OnRep_CombatInfo()
 {
+	bHasReceivedInitialCombatInfo = true;
+	
 	const bool bDeadChanged = (CachedCombatInfo.bIsDead != CombatInfo.bIsDead);
 
 	BroadcastCombatInfoChanged();
@@ -157,6 +177,25 @@ void USFPlayerCombatStateComponent::SetCombatInfoFromTravel(const FSFHeroCombatI
 	if (CombatInfo.bIsDead != bWasDead)
 	{
 		BroadcastDeadStateChanged();
+	}
+}
+
+bool USFPlayerCombatStateComponent::HasReceivedInitialCombatInfo() const
+{
+	if (GetOwner() && GetOwner()->HasAuthority())
+	{
+		return true;
+	}
+    
+	return bHasReceivedInitialCombatInfo;
+}
+
+void USFPlayerCombatStateComponent::MarkInitialDataReceived()
+{
+	if (!bHasReceivedInitialCombatInfo)
+	{
+		bHasReceivedInitialCombatInfo = true;
+		BroadcastCombatInfoChanged();
 	}
 }
 
