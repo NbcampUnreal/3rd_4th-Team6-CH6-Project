@@ -55,12 +55,6 @@ void USFGA_Hero_Death::CancelAllActiveAbilities()
 {
 	if (USFAbilitySystemComponent* ASC = GetSFAbilitySystemComponentFromActorInfo())
 	{
-		// Downed 취소 (Downed → Death 경로)
-		FGameplayTagContainer DownedTag;
-		DownedTag.AddTag(SFGameplayTags::Character_State_Downed);
-		ASC->CancelAbilities(&DownedTag);
-
-		// 나머지 어빌리티 취소 
 		ASC->CancelActiveAbilities(nullptr, nullptr, this, true);
 	}
 }

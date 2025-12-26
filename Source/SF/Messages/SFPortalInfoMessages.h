@@ -55,3 +55,25 @@ struct FSFPlayerDeadStateMessage
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsDead = false;
 };
+
+USTRUCT(BlueprintType)
+struct FSFPlayerDownedStateMessage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<APlayerState> PlayerState = nullptr;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsDowned = false;
+};
+
+USTRUCT(BlueprintType)
+struct FSFGameOverMessage
+{
+	GENERATED_BODY()
+
+	// 추후 확장용 (예: 게임오버 사유, 통계 등)
+	UPROPERTY(BlueprintReadOnly)
+	float SurvivedTime = 0.f;
+};

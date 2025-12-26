@@ -277,7 +277,7 @@ void USFGA_Hero_Downed::EndAbility(const FGameplayAbilitySpecHandle Handle, cons
 
 	SetReviveGauge(0.f);
 
-	// Death에 의한 캔슬이 아니면 복원
+	// Death에 의한 종료가 아니면 복원
 	bool bShouldRestore = !bWasCancelled || (CachedCombatStateComponent.IsValid() && !CachedCombatStateComponent->IsDead());
 
 	if (bShouldRestore)
