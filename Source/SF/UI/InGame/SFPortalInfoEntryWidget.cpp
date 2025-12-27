@@ -13,6 +13,13 @@ void USFPortalInfoEntryWidget::InitializeRow(ASFPlayerState* OwningPlayerState)
         return;
     }
 
+    CachedPlayerState = OwningPlayerState;
+
+    if (!OwningPlayerState->OnPlayerInfoChanged.IsAlreadyBound(this, &USFPortalInfoEntryWidget::HandlePlayerInfoChanged))
+    {
+        OwningPlayerState->OnPlayerInfoChanged.AddDynamic(this, &USFPortalInfoEntryWidget::HandlePlayerInfoChanged);
+    }
+
     // PlayerState의 bIsReadyForTravel 값을 읽어와 UI에 즉시 반영
     SetReadyStatus(OwningPlayerState->GetIsReadyForTravel());
 
@@ -21,11 +28,10 @@ void USFPortalInfoEntryWidget::InitializeRow(ASFPlayerState* OwningPlayerState)
     
     const FSFPlayerSelectionInfo& SelectionInfo = OwningPlayerState->GetPlayerSelection();
 
-    // PlayerState의 PlayerInfo를 읽어와 UI에 즉시 반영
-    HandlePlayerInfoChanged(SelectionInfo);
-
-    // Replicated PlayerInfo 변경 시 UI 업데이트를 위한 델리게이트 등록
-    OwningPlayerState->OnPlayerInfoChanged.AddDynamic(this, &USFPortalInfoEntryWidget::HandlePlayerInfoChanged);
+    if (SelectionInfo.GetHeroDefinition() != nullptr)
+    {
+        HandlePlayerInfoChanged(SelectionInfo);
+    }
 }
 
 void USFPortalInfoEntryWidget::SetReadyStatus(bool bIsReady)
@@ -81,29 +87,39 @@ void USFPortalInfoEntryWidget::NativeDestruct()
 
 void USFPortalInfoEntryWidget::HandlePlayerInfoChanged(const FSFPlayerSelectionInfo& NewPlayerSelection)
 {
+    USFHeroDefinition* HeroDef = NewPlayerSelection.GetHeroDefinition();
+    if (!HeroDef)
+    {
+        return;
+    }
+    
     if (Text_PlayerName)
     {
         Text_PlayerName->SetText(FText::FromString(NewPlayerSelection.GetPlayerNickname()));
     }
     
-    if (USFHeroDefinition* HeroDef = NewPlayerSelection.GetHeroDefinition())
+    const TSoftObjectPtr<UTexture2D> IconPath = HeroDef->GetIconPath(); 
+
+    if (IconPath.IsNull())
     {
-        const TSoftObjectPtr<UTexture2D> IconPath = HeroDef->GetIconPath(); 
-
-        if (IconPath.IsNull())
+        if (Img_HeroIcon)
         {
-            if (Img_HeroIcon)
-            {
-                Img_HeroIcon->SetBrush(FSlateBrush());
-                return;
-            }
+            Img_HeroIcon->SetBrush(FSlateBrush());
         }
-
-        // Hero 아이콘 비동기 로드
-        FStreamableManager& Streamable = USFAssetManager::Get().GetStreamableManager();
-        IconLoadHandle = Streamable.RequestAsyncLoad(IconPath.ToSoftObjectPath(),
-            FStreamableDelegate::CreateUObject(this, &USFPortalInfoEntryWidget::OnIconLoadCompleted));
+        return;
     }
+
+    if (IconLoadHandle.IsValid())
+    {
+        IconLoadHandle->CancelHandle();
+        IconLoadHandle.Reset();
+    }
+
+    // Hero 아이콘 비동기 로드
+    FStreamableManager& Streamable = USFAssetManager::Get().GetStreamableManager();
+    IconLoadHandle = Streamable.RequestAsyncLoad(IconPath.ToSoftObjectPath(),
+        FStreamableDelegate::CreateUObject(this, &USFPortalInfoEntryWidget::OnIconLoadCompleted));
+    
 }
 
 void USFPortalInfoEntryWidget::OnIconLoadCompleted()

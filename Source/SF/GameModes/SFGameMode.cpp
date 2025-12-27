@@ -552,6 +552,10 @@ bool ASFGameMode::IsBossStage() const
 	{
 		if (USFStageManagerComponent* StageManager = SFGS->GetStageManager())
 		{
+			if (bUsePIETestResurrectionInAnyStage)
+			{
+				return true;
+			}
 			return StageManager->GetCurrentStageInfo().IsBossStage();
 		}
 	}

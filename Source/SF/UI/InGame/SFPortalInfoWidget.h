@@ -35,6 +35,10 @@ protected:
 	UFUNCTION()
 	void HandlePlayerRemoved(APlayerState* PlayerState);
 
+	bool CreateEntryForPlayer(APlayerState* PlayerState);
+
+	void RefreshEntryOrder();
+
 	/** PortalManager의 글로벌 Portal State GMS 메시지를 처리 (UI 표시/숨김/카운트다운) */
 	void HandlePortalInfoChanged(FGameplayTag Channel, const FSFPortalStateMessage& Message);
 
