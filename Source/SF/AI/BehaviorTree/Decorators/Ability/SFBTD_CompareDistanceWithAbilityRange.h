@@ -29,19 +29,19 @@ class SF_API USFBTD_CompareDistanceWithAbilityRange : public UBTDecorator
 public:
 	USFBTD_CompareDistanceWithAbilityRange();
 
-	/** Target Actor */
+	
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
 	FBlackboardKeySelector TargetKey;
 
-	/** Optional: 이미 계산된 거리 값 사용 */
+	
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
 	FBlackboardKeySelector DistanceKey;
 
-	/** Ability 태그 */
+	
 	UPROPERTY(EditAnywhere, Category = "Ability")
 	FBlackboardKeySelector AbilityTagKey;
 
-	/** 비교 연산 */
+	
 	UPROPERTY(EditAnywhere, Category = "Decorator")
 	TEnumAsByte<EArithmeticKeyOperation::Type> Operator;
 

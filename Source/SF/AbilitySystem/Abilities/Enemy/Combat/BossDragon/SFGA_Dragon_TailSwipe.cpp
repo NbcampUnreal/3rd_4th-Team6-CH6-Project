@@ -17,11 +17,8 @@ USFGA_Dragon_TailSwipe::USFGA_Dragon_TailSwipe()
 {
 	AbilityID = FName("Dragon_TailSwipe");
 	AttackType = EAttackType::Melee;
-
-	// Ability Tags
+	
 	AbilityTags.AddTag(SFGameplayTags::Ability_Dragon_TailSwipe);
-
-	// Cooldown Tag
 	CoolDownTag = SFGameplayTags::Ability_Cooldown_Dragon_TailSwipe;
 }
 
@@ -65,12 +62,11 @@ void USFGA_Dragon_TailSwipe::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	}
 
 	// AnimNotifyState_SweepTrace에서 보내는 GameplayEvent 대기
-	// OnlyTriggerOnce = false로 설정하여 여러 번 히트 가능
 	WaitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		this,
 		SFGameplayTags::GameplayEvent_Tracing,
 		nullptr,
-		false,  // OnlyTriggerOnce = false (여러 번 트리거 가능)
+		false, 
 		true
 	);
 

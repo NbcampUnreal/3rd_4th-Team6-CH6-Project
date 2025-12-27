@@ -28,6 +28,10 @@ namespace SFGameplayTags
 	// AoE Attack (범위)
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Attack_AoE, "Ability.Enemy.Attack.AoE", "AoE Attack - Area of Effect attack");
 
+	// ========== Enemy State Ability Tags ==========
+
+	// Turn In Place (제자리 회전)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_TurnInPlace, "Ability.Enemy.TurnInPlace", "Turn In Place - Character rotation in place");
 
 	// ========== Cooldown Tags ==========
 

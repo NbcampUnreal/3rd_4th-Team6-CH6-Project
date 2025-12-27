@@ -30,6 +30,10 @@ namespace SFGameplayTags
 	// AoE Attack (범위)
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Attack_AoE);
 
+	// ========== Enemy State Ability Tags ==========
+
+	// Turn In Place (제자리 회전)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_TurnInPlace);
 
 	// ========== Cooldown Tags ==========
 

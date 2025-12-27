@@ -2,6 +2,7 @@
 #include "AI/Controller/Dragon/SFDragonCombatComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AIController.h"
+#include "AI/Controller/SFBaseAIController.h"
 
 USFBTS_UpdateTargetData::USFBTS_UpdateTargetData()
 {
@@ -23,33 +24,39 @@ USFBTS_UpdateTargetData::USFBTS_UpdateTargetData()
     bNotifyTick = true;
 }
 
-void USFBTS_UpdateTargetData::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+void USFBTS_UpdateTargetData::TickNode( UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
     Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
-    
-    if (!CombatComponent) return;
-    
+
+    if (!CombatComponent)
+        return;
+
     UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
-    if (!BB) return;
+    if (!BB)
+        return;
 
     AActor* NewTarget = CombatComponent->GetCurrentTarget();
 
-    
     if (NewTarget)
     {
         BB->SetValueAsObject(GetSelectedBlackboardKey(), NewTarget);
-        BB->SetValueAsFloat(DistanceKey.SelectedKeyName, CombatComponent->GetDistanceToTarget());
-        BB->SetValueAsFloat(AngleKey.SelectedKeyName, CombatComponent->GetAngleToTarget());
-        BB->SetValueAsEnum(ZoneKey.SelectedKeyName, static_cast<uint8>(CombatComponent->GetTargetLocationZone()));
+        BB->SetValueAsFloat(DistanceKey.SelectedKeyName,
+            CombatComponent->GetDistanceToTarget());
+        BB->SetValueAsFloat(AngleKey.SelectedKeyName,
+            CombatComponent->GetAngleToTarget());
+        BB->SetValueAsEnum(ZoneKey.SelectedKeyName,
+            static_cast<uint8>(CombatComponent->GetTargetLocationZone()));
     }
     else
     {
-        BB->SetValueAsObject(GetSelectedBlackboardKey(), nullptr);
-        BB->SetValueAsFloat(DistanceKey.SelectedKeyName, 0.0f);
-        BB->SetValueAsFloat(AngleKey.SelectedKeyName, 0.0f);
-        BB->SetValueAsEnum(ZoneKey.SelectedKeyName, static_cast<uint8>(EBossAttackZone::OutOfRange)); 
+        BB->ClearValue(GetSelectedBlackboardKey());
+        BB->SetValueAsFloat(DistanceKey.SelectedKeyName, 0.f);
+        BB->SetValueAsFloat(AngleKey.SelectedKeyName, 0.f);
+        BB->SetValueAsEnum(ZoneKey.SelectedKeyName,
+            static_cast<uint8>(EBossAttackZone::OutOfRange));
     }
 }
+
 void USFBTS_UpdateTargetData::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
     Super::OnBecomeRelevant(OwnerComp, NodeMemory);

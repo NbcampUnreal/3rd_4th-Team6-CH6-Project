@@ -14,7 +14,8 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_UsingAbility);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Skill);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Downed);
-	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_TurningInPlace);
+
 	// ========== 방어/회피 ==========
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Blocking);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Dodging);

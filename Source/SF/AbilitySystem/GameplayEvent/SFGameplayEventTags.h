@@ -24,6 +24,12 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Revived);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Downed);
 
+	// Turn In Place Events
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Turn_90L);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Turn_90R);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Turn_180L);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Turn_180R);
+
 	//Damage Events
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Damage_Critical);
     

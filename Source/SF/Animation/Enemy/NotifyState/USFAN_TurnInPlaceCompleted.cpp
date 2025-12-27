@@ -23,7 +23,6 @@ void UUSFAN_TurnInPlaceCompleted::Notify(USkeletalMeshComponent* MeshComp, UAnim
 		return;
 	}
 
-	// OnTurnInPlaceCompleted 호출
-	AnimInstance->OnTurnInPlaceCompleted();
+
 	
 }

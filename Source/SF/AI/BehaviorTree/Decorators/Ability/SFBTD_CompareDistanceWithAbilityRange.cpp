@@ -13,10 +13,14 @@ USFBTD_CompareDistanceWithAbilityRange::USFBTD_CompareDistanceWithAbilityRange()
     Operator = EArithmeticKeyOperation::Greater;
 
     DistanceKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, DistanceKey));
+    DistanceKey.AllowNoneAsValue(true);  
+
     AbilityTagKey.AddNameFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, AbilityTagKey));
+    AbilityTagKey.AllowNoneAsValue(true);  
+
     TargetKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, TargetKey), AActor::StaticClass());
 
-    FlowAbortMode = EBTFlowAbortMode::LowerPriority;
+    FlowAbortMode = EBTFlowAbortMode::Self;
 }
 
 uint16 USFBTD_CompareDistanceWithAbilityRange::GetInstanceMemorySize() const
@@ -51,15 +55,24 @@ bool USFBTD_CompareDistanceWithAbilityRange::CalculateRawConditionValue(UBehavio
         Distance = CalculateDistance(OwnerComp);
     }
 
-    // AbilityTag
-    const FName TagName = BB->GetValueAsName(AbilityTagKey.SelectedKeyName);
-    if (TagName.IsNone()) return false;
-
-    const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TagName);
-    if (!AbilityTag.IsValid()) return false;
-
     // Ability Range 가져오기
-    float AttackRange = GetAbilityAttackRange(OwnerComp, AbilityTag);
+    float AttackRange = 0.f;
+
+    // AbilityTagKey가 설정되어 있으면 해당 어빌리티의 범위 사용
+    if (AbilityTagKey.IsSet())
+    {
+        const FName TagName = BB->GetValueAsName(AbilityTagKey.SelectedKeyName);
+        if (!TagName.IsNone())
+        {
+            const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TagName);
+            if (AbilityTag.IsValid())
+            {
+                AttackRange = GetAbilityAttackRange(OwnerComp, AbilityTag);
+            }
+        }
+    }
+
+    // AbilityTagKey가 없거나 범위를 못 가져온 경우 실패
     if (AttackRange <= 0.f) return false;
 
     // 연산 비교

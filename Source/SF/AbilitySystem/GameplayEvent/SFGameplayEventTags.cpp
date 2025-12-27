@@ -23,6 +23,12 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Revived, "GameplayEvent.Revived");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Downed, "GameplayEvent.Downed");
 
+	// Turn In Place Events
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Turn_90L, "GameplayEvent.Turn.90L");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Turn_90R, "GameplayEvent.Turn.90R");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Turn_180L, "GameplayEvent.Turn.180L");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Turn_180R, "GameplayEvent.Turn.180R");
+
 	// Damage Events
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Damage_Critical, "GameplayEvent.Damage.Critical");
     

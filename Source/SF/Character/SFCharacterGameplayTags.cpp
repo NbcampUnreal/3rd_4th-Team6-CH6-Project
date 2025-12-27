@@ -15,7 +15,8 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_UsingAbility, "Character.State.UsingAbility", "Character UseAbility");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Skill, "Character.State.Skill", "Character Using Skill");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Downed, "Character.State.Downed", "Character is downed");
-	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_TurningInPlace, "Character.State.TurningInPlace", "Character is turning in place");
+
 	// ========== 방어/회피 ==========
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Blocking, "Character.State.Blocking", "Character is blocking");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Dodging, "Character.State.Dodging", "Character is dodging");
