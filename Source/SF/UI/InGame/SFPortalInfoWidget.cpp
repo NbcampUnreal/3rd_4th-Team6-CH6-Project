@@ -31,14 +31,8 @@ void USFPortalInfoWidget::NativeConstruct()
         SFGameState->OnPlayerAdded.AddDynamic(this, &USFPortalInfoWidget::HandlePlayerAdded);
         SFGameState->OnPlayerRemoved.AddDynamic(this, &USFPortalInfoWidget::HandlePlayerRemoved);
 
-        TArray<APlayerState*> SortedPlayers = SFGameState->PlayerArray;
-        SortedPlayers.Sort([](const APlayerState& A, const APlayerState& B)
-        {
-            return A.GetPlayerId() < B.GetPlayerId();
-        });
-
-        // 정렬된 순서대로 Entry 생성
-        for (APlayerState* PS : SortedPlayers)
+        // 초기 플레이어들 추가 (순서는 나중에 OnRep으로 정렬됨)
+        for (APlayerState* PS : SFGameState->PlayerArray)
         {
             HandlePlayerAdded(PS);
         }
@@ -127,14 +121,17 @@ void USFPortalInfoWidget::HandlePlayerAdded(APlayerState* PlayerState)
     USFPortalInfoEntryWidget* NewPortalEntry = CreateWidget<USFPortalInfoEntryWidget>(this, PortalEntryClass);
     if (NewPortalEntry)
     {
-        // Entry 위젯에 플레이어별 초기화 (닉네임, 아이콘, 초기 준비상태)
+        // Entry가 자체적으로 PlayerState에 바인딩 (정보 갱신용)
         NewPortalEntry->InitializeRow(SFPlayerState);
         
-        // PlayerId 기준 올바른 위치에 삽입 
-        int32 InsertIndex = FindInsertIndexForPlayer(SFPlayerState->GetPlayerId());
-        PortalEntryBox->InsertChildAt(InsertIndex, NewPortalEntry);
-        
+        PortalEntryBox->AddChild(NewPortalEntry);
         PortalEntryMap.Add(PlayerState, NewPortalEntry);
+
+        // 정렬용 바인딩 (Entry의 바인딩과 별개)
+        SFPlayerState->OnPlayerInfoChanged.AddDynamic(this, &USFPortalInfoWidget::HandlePlayerInfoChangedForReorder);
+
+        // Add 시점에 즉시 정렬
+        ReorderAllEntries();
     }
 }
 
@@ -145,7 +142,12 @@ void USFPortalInfoWidget::HandlePlayerRemoved(APlayerState* PlayerState)
         return;
     }
 
-    // TWeakObjectPtr 키로 찾기
+    // 델리게이트 해제
+    if (ASFPlayerState* SFPS = Cast<ASFPlayerState>(PlayerState))
+    {
+        SFPS->OnPlayerInfoChanged.RemoveAll(this);
+    }
+
     USFPortalInfoEntryWidget* EntryToRemove = nullptr;
     TWeakObjectPtr<APlayerState> KeyToRemove;
     
@@ -218,6 +220,11 @@ void USFPortalInfoWidget::HandlePlayerDeadStateChanged(FGameplayTag Channel, con
     }
 }
 
+void USFPortalInfoWidget::HandlePlayerInfoChangedForReorder(const FSFPlayerSelectionInfo& NewPlayerSelection)
+{
+    ReorderAllEntries();
+}
+
 void USFPortalInfoWidget::UpdateCountdownText()
 {
     if (Text_Countdown)
@@ -227,30 +234,28 @@ void USFPortalInfoWidget::UpdateCountdownText()
     }
 }
 
-int32 USFPortalInfoWidget::FindInsertIndexForPlayer(int32 NewPlayerId)
+void USFPortalInfoWidget::ReorderAllEntries()
 {
-    // 현재 자식들 중에서 NewPlayerId보다 큰 첫 번째 위치 찾기
-    for (int32 i = 0; i < PortalEntryBox->GetChildrenCount(); ++i)
+    TArray<TPair<uint8, USFPortalInfoEntryWidget*>> SortedEntries;
+    
+    for (auto& Pair : PortalEntryMap)
     {
-        UWidget* ChildWidget = PortalEntryBox->GetChildAt(i);
-        
-        // Map에서 해당 위젯의 PlayerState 찾기
-        for (const auto& Pair : PortalEntryMap)
+        if (ASFPlayerState* SFPS = Cast<ASFPlayerState>(Pair.Key.Get()))
         {
-            if (Pair.Value == ChildWidget)
-            {
-                if (APlayerState* PS = Pair.Key.Get())
-                {
-                    if (PS->GetPlayerId() > NewPlayerId)
-                    {
-                        return i;  // 이 위치 앞에 삽입
-                    }
-                }
-                break;
-            }
+            uint8 SlotId = SFPS->GetPlayerSelection().GetPlayerSlot();
+            SortedEntries.Add(TPair<uint8, USFPortalInfoEntryWidget*>(SlotId, Pair.Value));
         }
     }
+
+    SortedEntries.Sort([](const auto& A, const auto& B)
+    {
+        return A.Key < B.Key;
+    });
+
+    PortalEntryBox->ClearChildren();
     
-    // 가장 큰 PlayerId이면 맨 뒤에 추가
-    return PortalEntryBox->GetChildrenCount();
+    for (auto& Entry : SortedEntries)
+    {
+        PortalEntryBox->AddChild(Entry.Value);
+    }
 }

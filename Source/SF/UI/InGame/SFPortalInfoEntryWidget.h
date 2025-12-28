@@ -36,7 +36,7 @@ protected:
 
 	// 아이콘 비동기 로드 완료시 호출
 	void OnIconLoadCompleted();
-
+	
 protected:
 	
 	UPROPERTY(meta = (BindWidget))
@@ -50,8 +50,7 @@ protected:
 
 private:
 	TWeakObjectPtr<ASFPlayerState> CachedPlayerState;
-	
-	/** Hero 아이콘의 비동기 로드를 관리하는 핸들 */
+
 	TSharedPtr<FStreamableHandle> IconLoadHandle;
 
 	bool bIsPlayerDead = false;

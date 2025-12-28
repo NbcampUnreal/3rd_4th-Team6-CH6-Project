@@ -74,18 +74,7 @@ void USFPortalInfoEntryWidget::NativeDestruct()
 {
     // 위젯이 파괴될 때 (스테이지 이동 or 플레이어가 중간에 이탈)
     // 아직 로드 중인 아이콘이 있다면 로드를 취소 (크래시 방지)
-
-    if (ASFPlayerState* SFPS = CachedPlayerState.Get())
-    {
-        SFPS->OnPlayerInfoChanged.RemoveDynamic(this, &USFPortalInfoEntryWidget::HandlePlayerInfoChanged);
-    }
     
-    if (IconLoadHandle.IsValid())
-    {
-        IconLoadHandle->CancelHandle();
-        IconLoadHandle.Reset();
-    }
-
     Super::NativeDestruct();
 }
 
@@ -113,29 +102,10 @@ void USFPortalInfoEntryWidget::HandlePlayerInfoChanged(const FSFPlayerSelectionI
         return;
     }
 
-    if (IconLoadHandle.IsValid())
+    // 동기 로드
+    UTexture2D* LoadedIcon = HeroDef->LoadIcon();
+    if (LoadedIcon && Img_HeroIcon)
     {
-        IconLoadHandle->CancelHandle();
-        IconLoadHandle.Reset();
+        Img_HeroIcon->SetBrushFromTexture(LoadedIcon);
     }
-
-    // Hero 아이콘 비동기 로드
-    FStreamableManager& Streamable = USFAssetManager::Get().GetStreamableManager();
-    IconLoadHandle = Streamable.RequestAsyncLoad(IconPath.ToSoftObjectPath(),
-        FStreamableDelegate::CreateUObject(this, &USFPortalInfoEntryWidget::OnIconLoadCompleted));
-    
-}
-
-void USFPortalInfoEntryWidget::OnIconLoadCompleted()
-{
-    if (IconLoadHandle.IsValid() && Img_HeroIcon)
-    {
-        UTexture2D* LoadedIcon = Cast<UTexture2D>(IconLoadHandle->GetLoadedAsset());
-        if (LoadedIcon)
-        {
-            Img_HeroIcon->SetBrushFromTexture(LoadedIcon);
-        }
-    }
-
-    IconLoadHandle.Reset();
 }

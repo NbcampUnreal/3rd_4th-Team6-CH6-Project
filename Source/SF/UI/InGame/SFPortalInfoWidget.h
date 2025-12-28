@@ -6,6 +6,7 @@
 #include "UI/SFUserWidget.h"
 #include "SFPortalInfoWidget.generated.h"
 
+struct FSFPlayerSelectionInfo;
 struct FSFPlayerDeadStateMessage;
 class UTextBlock;
 class UHorizontalBox;
@@ -44,9 +45,12 @@ protected:
 	/** PlayerState의 개별 Dead 상태 GMS 메시지를 처리 (개별 Dead 상태 업데이트(Entry 숨김)) */
 	void HandlePlayerDeadStateChanged(FGameplayTag Channel, const FSFPlayerDeadStateMessage& Message);
 
+	UFUNCTION()
+	void HandlePlayerInfoChangedForReorder(const FSFPlayerSelectionInfo& NewPlayerSelection);
+	
 	void UpdateCountdownText();
 
-	int32 FindInsertIndexForPlayer(int32 NewPlayerId);
+	void ReorderAllEntries();
 
 private:
 	
