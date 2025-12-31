@@ -18,10 +18,9 @@ USFGA_Dragon_Stomp::USFGA_Dragon_Stomp()
 	AbilityID = FName("Dragon_Stomp");
 	AttackType = EAttackType::Melee;
 
-	// Ability Tags
+	
 	AbilityTags.AddTag(SFGameplayTags::Ability_Dragon_Stomp);
-
-	// Cooldown Tag
+	
 	CoolDownTag = SFGameplayTags::Ability_Cooldown_Dragon_Stomp;
 }
 

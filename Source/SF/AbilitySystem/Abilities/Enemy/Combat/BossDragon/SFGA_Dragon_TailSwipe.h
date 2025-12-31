@@ -7,11 +7,7 @@
 #include "Interface/ISFDragonPressureInterface.h"
 #include "SFGA_Dragon_TailSwipe.generated.h"
 
-/**
- * Dragon TailSwipe Attack Ability
- * Uses AnimNotifyState_SweepTrace to detect hits along the tail swing
- * Implements ISFDragonPressureInterface to apply Back Pressure
- */
+
 UCLASS()
 class SF_API USFGA_Dragon_TailSwipe : public USFGA_Enemy_BaseAttack, public ISFDragonPressureInterface
 {

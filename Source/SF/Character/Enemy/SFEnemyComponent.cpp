@@ -109,8 +109,7 @@ void USFEnemyComponent::HandleChangeInitState(UGameFrameworkComponentManager* Ma
 		// Enemy 캐릭터의 AbilitySystem 초기화
 		if (ASFEnemy* Enemy = GetPawn<ASFEnemy>())
 		{
-			Enemy->InitializeAbilitySystem();
-			Enemy->InitializeMovementComponent();
+			Enemy->InitializeComponents();
 		}
 	}
 	else if (CurrentState == SFGameplayTags::InitState_DataInitialized && DesiredState == SFGameplayTags::InitState_GameplayReady)

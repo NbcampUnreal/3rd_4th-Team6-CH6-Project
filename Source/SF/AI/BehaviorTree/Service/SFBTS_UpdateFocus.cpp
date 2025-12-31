@@ -1,7 +1,12 @@
 // SFBTS_UpdateFocus.cpp
 #include "SFBTS_UpdateFocus.h"
-#include "AI/Controller/SFBaseAIController.h" // BaseAIController 헤더 추가
+
+#include "AbilitySystemComponent.h"
+#include "AI/Controller/SFBaseAIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "Character/SFCharacterGameplayTags.h"
+#include "Character/Enemy/SFEnemyGameplayTags.h"
 
 USFBTS_UpdateFocus::USFBTS_UpdateFocus()
 {
@@ -37,16 +42,17 @@ void USFBTS_UpdateFocus::UpdateFocusTarget(UBehaviorTreeComponent& OwnerComp)
 
     if (!AIC || !Blackboard) return;
 
-    // ✅ 1. Turn In Place 중에는 Focus 업데이트 중단
-    if (AIC->IsTurningInPlace())
+    // Ability 사용 중에는 Focus 업데이트 중단
+    APawn* MyPawn = AIC->GetPawn();
+    if (MyPawn)
     {
-        return;
-    }
-
-    // ✅ 2. None 모드(다른 Ability 실행 중)에서도 중단
-    if (AIC->GetCurrentRotationMode() == EAIRotationMode::None)
-    {
-        return;
+        if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn))
+        {
+            if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_UsingAbility))
+            {
+                return;
+            }
+        }
     }
 
     AActor* TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(BlackboardKey.SelectedKeyName));
@@ -56,8 +62,7 @@ void USFBTS_UpdateFocus::UpdateFocusTarget(UBehaviorTreeComponent& OwnerComp)
     {
         if (CurrentFocus != TargetActor)
         {
-            // ✅ 3. SetFocus만 호출 (RotationMode 전환은 하지 않음)
-            // Controller의 SetFocus가 자동으로 ControllerYaw로 전환하도록 수정
+           
             AIC->SetFocus(TargetActor, EAIFocusPriority::Gameplay);
         }
     }

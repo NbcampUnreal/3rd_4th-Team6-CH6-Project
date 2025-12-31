@@ -11,6 +11,7 @@
 #include "Interface/SFAIControllerInterface.h"
 #include "Animation/AnimInstance.h"
 #include "Character/Enemy/Component/Boss_Dragon/SFDragonGameplayTags.h"
+#include "Engine/OverlapResult.h"
 
 USFGA_Dragon_FlameBreath_Line::USFGA_Dragon_FlameBreath_Line()
 {
@@ -163,76 +164,65 @@ void USFGA_Dragon_FlameBreath_Line::TransitionToBreath()
 
 void USFGA_Dragon_FlameBreath_Line::ApplyBreathDamage()
 {
-	ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
-	if (!Dragon) return;
+    ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
+    if (!Dragon) return;
 
-	FVector Start = Dragon->GetMesh()->GetSocketLocation(TEXT("JawSocket"));
-	FVector Forward = Dragon->GetActorForwardVector();
-	FVector End = Start + Forward * BreathRange;
+    // 1. 기본 정보 설정
+    const FVector Start = Dragon->GetMesh()->GetSocketLocation(TEXT("JawSocket"));
+    const FVector Forward = Dragon->GetActorForwardVector();
+    const float Radius = BreathRange;
+    const float HalfAngleDeg = 30.f;
+	
+    const float CosThreshold = FMath::Cos(FMath::DegreesToRadians(HalfAngleDeg));
+	
+    TArray<FOverlapResult> Overlaps;
+    FCollisionShape SphereShape = FCollisionShape::MakeSphere(Radius);
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(Dragon);
 
-	TArray<FHitResult> Hits;
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(Dragon);
+    bool bHasOverlap = GetWorld()->OverlapMultiByChannel(
+        Overlaps, Start, FQuat::Identity, ECC_Pawn, SphereShape, QueryParams
+    );
 
-	GetWorld()->LineTraceMultiByChannel(
-		Hits,
-		Start,
-		End,
-		ECollisionChannel::ECC_Pawn,
-		QueryParams
-	);
+    if (bIsDebug)
+    {
+        DrawDebugCone(GetWorld(), Start, Forward, Radius, 
+            FMath::DegreesToRadians(HalfAngleDeg), FMath::DegreesToRadians(HalfAngleDeg), 
+            12, FColor::Red, false, BreathTickRate, 0, 1.0f);
+    }
 
-	if (bIsDebug)
-	{
-		DrawDebugLine(
-			GetWorld(),
-			Start,
-			End,
-			FColor::Red,
-			false,
-			BreathTickRate,
-			0,
-			5.f
-		);
-	}
+    if (!bHasOverlap) return;
+	
+    for (const FOverlapResult& Overlap : Overlaps)
+    {
+        AActor* HitActor = Overlap.GetActor();
+        if (!HitActor || HitActor == Dragon || GetAttitudeTowards(HitActor) != ETeamAttitude::Hostile) 
+            continue;
+    	
+        FVector ToTarget = (HitActor->GetActorLocation() - Start);
+        float DistanceSqr = ToTarget.SizeSquared(); 
+    	
+        if (DistanceSqr > FMath::Square(Radius)) continue;
 
-	for (const FHitResult& Hit : Hits)
-	{
-		AActor* HitActor = Hit.GetActor();
-		if (!HitActor) continue;
+        ToTarget.Normalize();
+    	
+        float DotProduct = FVector::DotProduct(Forward, ToTarget);
+        
+        if (DotProduct >= CosThreshold)
+        {
+            
+            FHitResult ViewHit;
+            if (GetWorld()->LineTraceSingleByChannel(ViewHit, Start, HitActor->GetActorLocation(), ECC_Visibility, QueryParams))
+            {
+                if (ViewHit.GetActor() != HitActor) continue;
+            }
 
-		if (GetAttitudeTowards(HitActor) != ETeamAttitude::Hostile)
-			continue;
-
-		if (HitActors.Contains(HitActor))
-			continue;
-
-		HitActors.Add(HitActor);
-
-		FGameplayEffectContextHandle EffectContext =
-			MakeEffectContext(CurrentSpecHandle, CurrentActorInfo);
-		EffectContext.AddHitResult(Hit);
-
-		ApplyRawDamageToTarget(HitActor, BreathDamagePerTick,EffectContext);
-
-		// Pressure 적용 (ISFDragonPressureInterface) - 첫 히트 시에만
-		ApplyPressureToTarget(HitActor);
-
-		if (bIsDebug)
-		{
-			DrawDebugSphere(
-				GetWorld(),
-				Hit.ImpactPoint,
-				50.f,
-				12,
-				FColor::Orange,
-				false,
-				BreathTickRate
-			);
-		}
-	}
-
-	HitActors.Empty();
+            // 최종 대미지 적용
+            FGameplayEffectContextHandle EffectContext = MakeEffectContext(CurrentSpecHandle, CurrentActorInfo);
+            ApplyRawDamageToTarget(HitActor, BreathDamagePerTick, EffectContext);
+            ApplyPressureToTarget(HitActor);
+        }
+    }
 }
 
 
@@ -308,7 +298,7 @@ AActor* USFGA_Dragon_FlameBreath_Line::FindPrimaryTarget()
 		return nullptr;
 	}
 
-	USFEnemyCombatComponent* CombatComp = AIC->GetCombatComponent();
+	USFCombatComponentBase* CombatComp = AIC->GetCombatComponent();
 	if (!CombatComp)
 	{
 		return nullptr;

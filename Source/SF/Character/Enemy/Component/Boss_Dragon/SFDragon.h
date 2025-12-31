@@ -6,6 +6,7 @@
 #include "Character/Enemy/SFEnemy.h"
 #include "SFDragon.generated.h"
 
+
 class USFDragonMovementComponent;
 
 UCLASS()
@@ -14,12 +15,13 @@ class SF_API ASFDragon : public ASFEnemy
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	ASFDragon();
 
 	virtual void InitializeMovementComponent() override;
 
+	virtual void InitializeComponents() override;
 protected:
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "MovementComponent")
 	TObjectPtr<USFDragonMovementComponent> DragonMovementComponent;
 };

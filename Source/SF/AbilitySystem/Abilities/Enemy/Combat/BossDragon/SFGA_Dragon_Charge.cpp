@@ -133,6 +133,22 @@ void USFGA_Dragon_Charge::EndAbility( const FGameplayAbilitySpecHandle Handle, c
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
+bool USFGA_Dragon_Charge::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
+{
+	// 부모 클래스 체크 (Cooldown, Tags, Cost 등)
+	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+		return false;
+
+	if (!ActorInfo->IsNetAuthority())
+		return true;
+
+	// 타겟만 있으면 실행 (사거리/각도는 SelectAbility에서 이미 체크)
+	AActor* Target = GetCurrentTarget();
+	return Target != nullptr;
+}
+
 
 void USFGA_Dragon_Charge::OnChargeOverlap(
 	UPrimitiveComponent* OverlappedComp,
@@ -158,37 +174,36 @@ void USFGA_Dragon_Charge::OnChargeOverlap(
 
 float USFGA_Dragon_Charge::CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const
 {
-	
+	// 1500 미만이면 완전히 필터링 (근접에서는 사용 안 함)
 	if (Context.DistanceToTarget < 1500.f)
 	{
-		return -1.f;  // 필터링 신호
+		return -10000.f;  // 충분히 큰 음수로 완전 필터링
 	}
 
-	
 	const FBossEnemyAbilitySelectContext* BossContext =
 		static_cast<const FBossEnemyAbilitySelectContext*>(&Context);
 
 	float Modifier = 0.f;
 
-	// OutOfRange일 때 최우선 순위 
+	// OutOfRange일 때 최우선 순위
 	if (BossContext && BossContext->Zone == EBossAttackZone::OutOfRange)
 	{
 		Modifier += 2000.f;  // OutOfRange에서 Charge 최우선 선택
 	}
 
-	//  Long Range일 때 높은 점수 부여
+	// Long Range일 때 높은 점수 부여
 	if (BossContext && BossContext->Zone == EBossAttackZone::Long)
 	{
 		Modifier += 1500.f;  // Long Range에서 Charge 우선 선택
 	}
 
-	// 조건 3: Mid Range에서도 사용 가능 
+	// Mid Range에서도 사용 가능
 	if (BossContext && BossContext->Zone == EBossAttackZone::Mid)
 	{
 		Modifier += 500.f;  // Mid Range에서는 다른 스킬보다 낮은 우선순위
 	}
 
-	// 조건 4: 거리가 매우 멀 때 추가 점수
+	// 거리가 매우 멀 때 추가 점수
 	if (Context.DistanceToTarget > 5000.f)
 	{
 		Modifier += 1000.f;  // 멀어졌을 때 높은 점수

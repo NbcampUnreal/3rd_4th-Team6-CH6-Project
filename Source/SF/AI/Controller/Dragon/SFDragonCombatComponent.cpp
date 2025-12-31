@@ -1,55 +1,41 @@
 // Fill out your copyright notice in the Description page of Project Settings.
+
 #include "SFDragonCombatComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "AIController.h"
 #include "AbilitySystem/SFAbilitySystemComponent.h"
-#include "AbilitySystem/Attributes/Enemy/SFCombatSet_Enemy.h"
 #include "AbilitySystem/Attributes/Enemy/SFPrimarySet_Enemy.h"
 #include "AbilitySystem/Attributes/SFPrimarySet.h"
-#include "AbilitySystem/Attributes/Hero/SFPrimarySet_Hero.h"
 #include "Character/SFCharacterBase.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Interface/SFEnemyAbilityInterface.h"
 
-
 USFDragonCombatComponent::USFDragonCombatComponent(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, CurrentZone(EBossAttackZone::None)
-	, CachedDistance(0.f)
-	, CachedAngle(0.f)
-	, PlayerHealthPercent(1.0f)
-
+    : Super(ObjectInitializer)
 {
-	PrimaryComponentTick.bCanEverTick = false;
+    PrimaryComponentTick.bCanEverTick = false;
 }
-
-
 
 void USFDragonCombatComponent::InitializeCombatComponent()
 {
-	Super::InitializeCombatComponent();
+    
+    Super::InitializeCombatComponent();
 
-	AAIController* Controller = GetController<AAIController>();
-	if (!Controller) return;
+    if (!CachedASC) return;
 
-	CachedASC = Cast<USFAbilitySystemComponent>(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Controller->GetPawn()));
+    
+    const USFPrimarySet_Enemy* PrimarySet = CachedASC->GetSet<USFPrimarySet_Enemy>();
+    if (PrimarySet)
+    {
+        USFPrimarySet_Enemy* Set = const_cast<USFPrimarySet_Enemy*>(PrimarySet);
+        Set->OnTakeDamageDelegate.RemoveDynamic(this, &ThisClass::AddThreat);
+        Set->OnTakeDamageDelegate.AddDynamic(this, &ThisClass::AddThreat);
+    }
 
-	if (!CachedASC)
-	{
-		return;
-	}
-
-	const USFPrimarySet_Enemy* PrimarySet = CachedASC->GetSet<USFPrimarySet_Enemy>();
-	if (PrimarySet)
-	{
-		USFPrimarySet_Enemy* Set = const_cast<USFPrimarySet_Enemy*>(PrimarySet);
-		Set->OnTakeDamageDelegate.RemoveDynamic(this, &ThisClass::AddThreat);
-		Set->OnTakeDamageDelegate.AddDynamic(this, &ThisClass::AddThreat);
-	}
-
-	StartSpatialUpdateTimer();
-	StartStateMonitorTimer();
-	StartThreatUpdateTimer();
+    
+    StartSpatialUpdateTimer();
+    StartStateMonitorTimer();
+    StartThreatUpdateTimer();
 }
 
 void USFDragonCombatComponent::AddThreat(float ThreatValue, AActor* Actor)
@@ -67,79 +53,104 @@ void USFDragonCombatComponent::AddThreat(float ThreatValue, AActor* Actor)
 	}
 }
 
-AActor* USFDragonCombatComponent::GetHighestThreatActor()
+void USFDragonCombatComponent::CleanupThreatMap()
 {
-	if (ThreatMap.Num() == 0)
-		return nullptr;
-
-	AActor* HighestThreatActor = nullptr;
-	float HighestThreatValue = 0.f;
-
-	
-	TArray<AActor*> InvalidTargets;
-
-	for (auto& ThreatPair : ThreatMap)
+	for (auto It = ThreatMap.CreateIterator(); It; ++It)
 	{
-		
-		if (!IsValidTarget(ThreatPair.Key))
+		AActor* Key = It.Key();
+		if (!IsValidTarget(Key))
 		{
-			InvalidTargets.Add(ThreatPair.Key);
-			continue;
-		}
-		
-		if (HighestThreatActor == nullptr || ThreatPair.Value > HighestThreatValue)
-		{
-			HighestThreatValue = ThreatPair.Value;
-			HighestThreatActor = ThreatPair.Key;
+			It.RemoveCurrent();
 		}
 	}
-	
-	for (AActor* InvalidTarget : InvalidTargets)
-	{
-		ThreatMap.Remove(InvalidTarget);
-	}
-
-	return HighestThreatActor;
 }
 
-void USFDragonCombatComponent::UpdateTargetFromThreat()
+AActor* USFDragonCombatComponent::GetHighestThreatActor()
 {
-	AActor* NewTarget = GetHighestThreatActor();
-	
-	if (CurrentTarget != NewTarget)
+    if (ThreatMap.Num() == 0) return nullptr;
+
+    // 1. 반드시 nullptr와 0.f로 시작하여 새로 선출합니다.
+    AActor* HighestThreatActor = nullptr;
+    float HighestValue = -1.f; 
+
+    for (auto& ThreatPair : ThreatMap)
+    {
+        if (!IsValidTarget(ThreatPair.Key)) continue;
+
+        if (ThreatPair.Value > HighestValue)
+        {
+            HighestValue = ThreatPair.Value;
+            HighestThreatActor = ThreatPair.Key;
+        }
+    }
+
+    return HighestThreatActor;
+}
+
+void USFDragonCombatComponent::EvaluateTarget()
+{
+    CleanupThreatMap();
+    AActor* NewTarget = GetHighestThreatActor();
+
+    // 2. 로그 로직 수정: 찾았을 때와 못 찾았을 때를 명확히 구분
+    if (NewTarget)
+    {
+        // 타겟을 찾은 경우
+        if (GetCurrentTarget() != NewTarget)
+        {
+            UpdateTargetActor(NewTarget);
+            UE_LOG(LogTemp, Log, TEXT("[Dragon] New Target Locked: %s"), *NewTarget->GetName());
+        }
+
+        CurrentTargetState = EBossTargetState::Locked;
+        LastValidTargetTime = GetWorld()->GetTimeSeconds();
+        UpdateSpatialData();
+        return; // 타겟을 찾았으므로 여기서 종료
+    }
+    
+    // 3. 타겟을 못 찾았을 때만 경고 로그 출력
+    if (ThreatMap.Num() > 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Dragon] ThreatMap has entries, but no Valid Target found (Check IsValidTarget)"));
+    }
+
+    // 4. 타겟 상실 시 Grace(유예) 로직 시작
+    if (GetCurrentTarget() && CurrentTargetState == EBossTargetState::Locked)
+    {
+        if (ShouldForceReleaseTarget(GetCurrentTarget()))
+        {
+            UpdateTargetActor(nullptr);
+            CurrentTargetState = EBossTargetState::None;
+            return;
+        }
+
+        CurrentTargetState = EBossTargetState::Grace;
+        UE_LOG(LogTemp, Log, TEXT("[Dragon] Target lost, entering Grace period."));
+        return;
+    }
+
+    // 5. Grace 기간 만료 체크
+	if (CurrentTargetState == EBossTargetState::Grace)
 	{
-		CurrentTarget = NewTarget;
-		
-		if (CurrentTarget)
+		float CurrentTime = GetWorld()->GetTimeSeconds();
+		if (CurrentTime - LastValidTargetTime >= TargetGraceDuration)
 		{
-			UpdateSpatialData();
-		}
-		else
-		{
+			UpdateTargetActor(nullptr);
+			CurrentTargetState = EBossTargetState::None;
+
 			CurrentZone = EBossAttackZone::None;
 			CachedDistance = 0.f;
 			CachedAngle = 0.f;
+
+			UE_LOG(LogTemp, Log, TEXT("[Dragon] Grace expired → Target cleared"));
 		}
 	}
-}
 
-EBossAttackZone USFDragonCombatComponent::GetTargetLocationZone() const
-{
-	return CurrentZone;
-}
-
-float USFDragonCombatComponent::GetDistanceToTarget() const
-{
-	return CachedDistance;
-}
-
-float USFDragonCombatComponent::GetAngleToTarget() const
-{
-	return CachedAngle;
 }
 
 bool USFDragonCombatComponent::SelectAbility(const FEnemyAbilitySelectContext& Context, const FGameplayTagContainer& SearchTags, FGameplayTag& OutSelectedTag)
 {
+    
 	FBossEnemyAbilitySelectContext DragonContext;
 
 	DragonContext.Self = Context.Self;
@@ -158,24 +169,8 @@ bool USFDragonCombatComponent::SelectAbility(const FEnemyAbilitySelectContext& C
 		return false;
 	}
 
+	// [최적화] Spatial Data는 이미 CachedDistance, CachedAngle로 전달되었으므로 중복 계산 제거
 	FEnemyAbilitySelectContext ContextWithSpatialData = DragonContext;
-
-	if (DragonContext.Self && DragonContext.Target)
-	{
-		if (DragonContext.DistanceToTarget == 0.f)
-		{
-			ContextWithSpatialData.DistanceToTarget = DragonContext.Self->GetDistanceTo(DragonContext.Target);
-		}
-		if (DragonContext.AngleToTarget == 0.f)
-		{
-			if (ASFCharacterBase* Owner = Cast<ASFCharacterBase>(DragonContext.Self))
-			{
-				const FVector ToTarget = (DragonContext.Target->GetActorLocation() - Owner->GetActorLocation()).GetSafeNormal();
-				const float Dot = FVector::DotProduct(Owner->GetActorForwardVector(), ToTarget);
-				ContextWithSpatialData.AngleToTarget = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(Dot, -1.f, 1.f)));
-			}
-		}
-	}
 
 	// 후보군과 가중치를 저장할 배열 선언
 	TArray<FGameplayTag> Candidates;
@@ -184,7 +179,7 @@ bool USFDragonCombatComponent::SelectAbility(const FEnemyAbilitySelectContext& C
 
 	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
-		UGameplayAbility* Ability = Spec.GetPrimaryInstance();
+		UGameplayAbility* Ability = Spec.Ability;
 		if (!Ability)
 		{
 			continue;
@@ -194,7 +189,6 @@ bool USFDragonCombatComponent::SelectAbility(const FEnemyAbilitySelectContext& C
 		AllTags.AppendTags(Ability->AbilityTags);
 		AllTags.AppendTags(Ability->GetAssetTags());
 
-
 		// Ability가 SearchTags 중 어떤 태그라도 포함하는가?
 		if (!AllTags.HasAny(SearchTags))
 		{
@@ -202,12 +196,6 @@ bool USFDragonCombatComponent::SelectAbility(const FEnemyAbilitySelectContext& C
 		}
 
 		const FGameplayAbilityActorInfo* ActorInfo = ASC->AbilityActorInfo.Get();
-
-		// 활성화 가능 체크
-		if (!Ability->CanActivateAbility(Spec.Handle, ActorInfo))
-		{
-			continue;
-		}
 
 		// 쿨타임 체크
 		if (!Ability->CheckCooldown(Spec.Handle, ActorInfo))
@@ -226,6 +214,9 @@ bool USFDragonCombatComponent::SelectAbility(const FEnemyAbilitySelectContext& C
 		ContextWithSpec.AbilitySpec = &Spec;
 
 		float Score = AIInterface->CalcAIScore(ContextWithSpec);
+
+		// [최적화] 로그 제거 (성능 향상)
+		// UE_LOG(LogTemp, Warning, TEXT("    Score: %.2f"), Score);
 
 		// 점수가 0보다 클 때만 후보에 등록
 		if (Score > 0.f)
@@ -416,16 +407,16 @@ void USFDragonCombatComponent::StopStateMonitorTimer()
 
 void USFDragonCombatComponent::StartThreatUpdateTimer()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			ThreatUpdateTimerHandle,
-			this,
-			&USFDragonCombatComponent::UpdateTargetFromThreat,
-			ThreatUpdateInterval,
-			true
-		);
-	}
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            ThreatUpdateTimerHandle,
+            this,
+            &USFDragonCombatComponent::EvaluateTarget,
+            ThreatUpdateInterval,
+            true
+        );
+    }
 }
 
 void USFDragonCombatComponent::StopThreatUpdateTimer()
@@ -436,7 +427,7 @@ void USFDragonCombatComponent::StopThreatUpdateTimer()
 	}
 }
 
-bool USFDragonCombatComponent::IsValidTarget(AActor* Target) const //현재 타깃이 존재하는지
+bool USFDragonCombatComponent::IsValidTarget(AActor* Target) const
 {
 	if (!IsValid(Target))
 	{
@@ -450,18 +441,42 @@ bool USFDragonCombatComponent::IsValidTarget(AActor* Target) const //현재 타�
 	}
 
 	USFAbilitySystemComponent* ASC = SFCharacter->GetSFAbilitySystemComponent();
-	if (!IsValid(ASC))
+	if (ASC && ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead))
 	{
 		return false;
 	}
 
-	// 죽은 상태의 적은 타깃으로 선택되지 않음
-	if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead))
-	{
-		return false;
-	}
 	return true;
-
 }
 
+bool USFDragonCombatComponent::ShouldForceReleaseTarget(AActor* Target) const
+{
+	if (!Target)
+		return true;
+
+	if (!Target->HasActorBegunPlay())
+		return true;
+
+	if (Target->IsPendingKillPending())
+		return true;
+
+	// 거리 체크
+	if (AActor* Owner = GetOwner())
+	{
+		float Distance = FVector::Dist(Owner->GetActorLocation(), Target->GetActorLocation());
+		if (Distance > MaxCombatRange)
+			return true;
+	}
+
+	// Dead 체크
+	ASFCharacterBase* SFCharacter = Cast<ASFCharacterBase>(Target);
+	if (SFCharacter)
+	{
+		USFAbilitySystemComponent* ASC = SFCharacter->GetSFAbilitySystemComponent();
+		if (ASC && ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead))
+			return true;
+	}
+
+	return false;
+}
 

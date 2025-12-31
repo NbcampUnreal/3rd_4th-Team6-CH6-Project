@@ -28,7 +28,9 @@ public:
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	virtual USFAbilitySystemComponent* GetSFAbilitySystemComponent() const override { return AbilitySystemComponent;} 
+	virtual USFAbilitySystemComponent* GetSFAbilitySystemComponent() const override { return AbilitySystemComponent;}
+
+	virtual void InitializeComponents();
 	
 	// ASC 초기화
 	virtual void InitializeAbilitySystem();

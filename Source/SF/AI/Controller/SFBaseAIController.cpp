@@ -1,5 +1,5 @@
+// SFBaseAIController.cpp
 #include "SFBaseAIController.h"
-#include "SFTurnInPlaceComponent.h"
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
@@ -32,78 +32,64 @@ ASFBaseAIController::ASFBaseAIController(const FObjectInitializer& ObjectInitial
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PrePhysics;
 
-    // TurnInPlaceComponent 생성
-    TurnInPlaceComponent = CreateDefaultSubobject<USFTurnInPlaceComponent>(TEXT("TurnInPlaceComponent"));
+    // 기본값
+    CurrentRotationMode = EAIRotationMode::MovementDirection;
+    RotationInterpSpeed = 5.f;
 }
 
 void ASFBaseAIController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
     DOREPLIFETIME(ASFBaseAIController, bIsInCombat);
     DOREPLIFETIME(ASFBaseAIController, TeamId);
 }
 
 void ASFBaseAIController::InitializeAIController()
 {
-    if (HasAuthority())
+    if (!HasAuthority()) return;
+
+    if (APawn* InPawn = GetPawn())
     {
-        if (APawn* InPawn = GetPawn())
-        {
-            
-            BindingStateMachine(InPawn);    
-            
-            USFStateReactionComponent* StateReactionComponent = USFStateReactionComponent::FindStateReactionComponent(InPawn);
-            if (StateReactionComponent)
-            {
-                if (!StateReactionComponent->OnStateStart.IsAlreadyBound(this, &ThisClass::ReceiveStateStart))
-                {
-                    StateReactionComponent->OnStateStart.AddDynamic(this, &ThisClass::ReceiveStateStart);
-                }
+        BindingStateMachine(InPawn);
 
-                if (!StateReactionComponent->OnStateEnd.IsAlreadyBound(this, &ThisClass::ReceiveStateEnd))
-                {
-                    StateReactionComponent->OnStateEnd.AddDynamic(this, &ThisClass::ReceiveStateEnd);
-                }
+        USFStateReactionComponent* StateReactionComponent = USFStateReactionComponent::FindStateReactionComponent(InPawn);
+        if (StateReactionComponent)
+        {
+            if (!StateReactionComponent->OnStateStart.IsAlreadyBound(this, &ThisClass::ReceiveStateStart))
+            {
+                StateReactionComponent->OnStateStart.AddDynamic(this, &ThisClass::ReceiveStateStart);
+            }
+
+            if (!StateReactionComponent->OnStateEnd.IsAlreadyBound(this, &ThisClass::ReceiveStateEnd))
+            {
+                StateReactionComponent->OnStateEnd.AddDynamic(this, &ThisClass::ReceiveStateEnd);
             }
         }
-        
-        if (CombatComponent)
-        {
-            CombatComponent->InitializeCombatComponent();
-        }
-
-        SetGenericTeamId((FGenericTeamId(SFTeamID::Enemy)));
-        
-        if (USFPawnExtensionComponent* PawnExtensionComp = USFPawnExtensionComponent::FindPawnExtensionComponent(GetPawn()))
-        {
-            if (const USFEnemyData* EnemyData = PawnExtensionComp->GetPawnData<USFEnemyData>())
-            {
-                BehaviorTreeContainer = EnemyData->BehaviourContainer;
-                
-            }
-        }
-
-
-        if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetPawn()))
-        {
-            ASC->RegisterGameplayTagEvent(
-                SFGameplayTags::Character_State_UsingAbility,
-                EGameplayTagEventType::NewOrRemoved
-            ).AddUObject(this, &ThisClass::OnAbilityStateChanged);
-        }
-        
     }
-    
+
+    if (CombatComponent)
+    {
+        CombatComponent->InitializeCombatComponent();
+    }
+
+    SetGenericTeamId(FGenericTeamId(SFTeamID::Enemy));
+
+    if (USFPawnExtensionComponent* PawnExtensionComp = USFPawnExtensionComponent::FindPawnExtensionComponent(GetPawn()))
+    {
+        if (const USFEnemyData* EnemyData = PawnExtensionComp->GetPawnData<USFEnemyData>())
+        {
+            BehaviorTreeContainer = EnemyData->BehaviourContainer;
+        }
+    }
 }
+
 void ASFBaseAIController::PreInitializeComponents()
 {
     Super::PreInitializeComponents();
     UGameFrameworkComponentManager::AddGameFrameworkComponentReceiver(this);
 }
 
-//Combat
-USFEnemyCombatComponent* ASFBaseAIController::GetCombatComponent() const
+USFCombatComponentBase* ASFBaseAIController::GetCombatComponent() const
 {
     if (IsValid(CombatComponent))
     {
@@ -112,7 +98,27 @@ USFEnemyCombatComponent* ASFBaseAIController::GetCombatComponent() const
     return nullptr;
 }
 
+void ASFBaseAIController::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
 
+    APawn* MyPawn = GetPawn();
+    if (!MyPawn) return;
+
+    // 디버그 화살표: Actor forward vs Control forward
+    DrawDebugDirectionalArrow(GetWorld(),
+        MyPawn->GetActorLocation(),
+        MyPawn->GetActorLocation() + MyPawn->GetActorForwardVector() * 200.f,
+        100.f, FColor::Red, false, -1.f, 0, 5.f);
+
+    FRotator ControlRot = GetControlRotation();
+    FVector ControlDir = FRotationMatrix(ControlRot).GetUnitAxis(EAxis::X);
+
+    DrawDebugDirectionalArrow(GetWorld(),
+        MyPawn->GetActorLocation() + FVector(0, 0, 10),
+        MyPawn->GetActorLocation() + ControlDir * 200.f + FVector(0, 0, 10),
+        100.f, FColor::Green, false, -1.f, 0, 5.f);
+}
 
 void ASFBaseAIController::BeginPlay()
 {
@@ -129,33 +135,18 @@ void ASFBaseAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ASFBaseAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
-    
-    if (!InPawn)
-        return;
+    if (!InPawn) return;
 
-    USFPawnExtensionComponent* PawnExtensionComp = 
-        USFPawnExtensionComponent::FindPawnExtensionComponent(InPawn);
-    
-    if (!PawnExtensionComp)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[%s] PawnExtensionComp is NULL!"), *GetName());
-        return;
-    }
+    USFPawnExtensionComponent* PawnExtensionComp = USFPawnExtensionComponent::FindPawnExtensionComponent(InPawn);
+    if (!PawnExtensionComp) return;
 
     const USFEnemyData* EnemyData = PawnExtensionComp->GetPawnData<USFEnemyData>();
-    if (!EnemyData)
-    {
-     
-        return;
-    }
+    if (!EnemyData) return;
 
     BehaviorTreeContainer = EnemyData->BehaviourContainer;
 
-    if (BehaviorTreeContainer.GetBehaviourTree(EnemyData->DefaultBehaviourTag))
-    {
-        SetBehaviorTree(BehaviorTreeContainer.GetBehaviourTree(EnemyData->DefaultBehaviourTag));
-    }
-
+    UBehaviorTree* BT = BehaviorTreeContainer.GetBehaviourTree(EnemyData->DefaultBehaviourTag);
+    if (BT) SetBehaviorTree(BT);
 }
 
 void ASFBaseAIController::OnUnPossess()
@@ -164,124 +155,67 @@ void ASFBaseAIController::OnUnPossess()
     Super::OnUnPossess();
 }
 
-#pragma region BehaviorTree
-
 void ASFBaseAIController::ReceiveStateStart(FGameplayTag StateTag)
 {
-    if (!HasAuthority())
-    {
-        return;
-    }
+    if (!HasAuthority()) return;
 
     if (StateTag == SFGameplayTags::Character_State_Stunned ||
-        StateTag == SFGameplayTags::Character_State_Groggy ||
-        StateTag == SFGameplayTags::Character_State_Parried||
-        StateTag == SFGameplayTags::Character_State_Knockback ||
-        StateTag == SFGameplayTags::Character_State_Knockdown ||
         StateTag == SFGameplayTags::Character_State_Dead)
     {
         SetActorTickEnabled(false);
         if (UBehaviorTreeComponent* BTComp = Cast<UBehaviorTreeComponent>(BrainComponent))
         {
-            FString Reason = FString::Printf(TEXT("State Start: %s"), *StateTag.ToString());
-            BTComp->PauseLogic(Reason); 
-            StopMovement(); 
+            BTComp->PauseLogic(TEXT("CC Start"));
+            StopMovement();
         }
-        
-        // CC 상태에서는 회전 중지
-        SetRotationMode(EAIRotationMode::None);
+
+        if (ACharacter* Char = Cast<ACharacter>(GetPawn()))
+        {
+            if (UCharacterMovementComponent* MC = Char->GetCharacterMovement())
+            {
+                MC->bOrientRotationToMovement = false;
+                MC->bUseControllerDesiredRotation = false;
+                MC->RotationRate = FRotator::ZeroRotator;
+            }
+        }
     }
 }
 
 void ASFBaseAIController::ReceiveStateEnd(FGameplayTag StateTag)
 {
-    // Death 상태는 재개하지 않음
-    if (!HasAuthority())
+    if (!HasAuthority() || StateTag == SFGameplayTags::Character_State_Dead) return;
+
+    SetActorTickEnabled(true);
+    if (UBehaviorTreeComponent* BTComp = Cast<UBehaviorTreeComponent>(BrainComponent))
     {
-        return;
-    }
-    if (StateTag == SFGameplayTags::Character_State_Dead)
-    {
-        return;
+        BTComp->ResumeLogic(TEXT("CC End"));
     }
 
-    if (StateTag == SFGameplayTags::Character_State_Stunned ||
-        StateTag == SFGameplayTags::Character_State_Groggy ||
-        StateTag == SFGameplayTags::Character_State_Parried ||
-        StateTag == SFGameplayTags::Character_State_Knockback ||
-        StateTag == SFGameplayTags::Character_State_Knockdown)
+    bool bShouldBeInCombatMode = bIsInCombat;
+    if (CombatComponent && CombatComponent->GetCurrentTarget())
     {
-        APawn* ControlledPawn = GetPawn();
-        if (!ControlledPawn)
-        {
-            return;
-        }
-
-        UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(ControlledPawn);
-        if (!ASC)
-        {
-            return;
-        }
-
-        FGameplayTagContainer CCStateTags;
-        CCStateTags.AddTag(SFGameplayTags::Character_State_Stunned);
-        CCStateTags.AddTag(SFGameplayTags::Character_State_Groggy);
-        CCStateTags.AddTag(SFGameplayTags::Character_State_Parried);
-        CCStateTags.AddTag(SFGameplayTags::Character_State_Knockback);
-        CCStateTags.AddTag(SFGameplayTags::Character_State_Knockdown);
-        CCStateTags.AddTag(SFGameplayTags::Character_State_Dead);
-
-        if (ASC->HasAnyMatchingGameplayTags(CCStateTags))
-        {
-            return;
-        }
-
-        SetActorTickEnabled(true);
-
-        if (UBehaviorTreeComponent* BTComp = Cast<UBehaviorTreeComponent>(BrainComponent))
-        {
-            FString Reason = FString::Printf(TEXT("State End"), *StateTag.ToString());
-            BTComp->ResumeLogic(Reason);
-            
-        }
-        
-
-        // CC 해제 시 전투 중이면 ControllerYaw, 아니면 MovementDirection으로 복귀
-        if (bIsInCombat)
-        {
-            SetRotationMode(EAIRotationMode::ControllerYaw);
-        }
-        else
-        {
-            SetRotationMode(EAIRotationMode::MovementDirection);
-        }
+        bShouldBeInCombatMode = true;
     }
+
+    SetRotationMode(bShouldBeInCombatMode ? EAIRotationMode::ControllerYaw : EAIRotationMode::MovementDirection);
 }
 
 void ASFBaseAIController::SetBehaviorTree(UBehaviorTree* NewBehaviorTree)
 {
-    if (!NewBehaviorTree)
-        return;
-   
-    if (CachedBehaviorTreeComponent && 
-        CachedBehaviorTreeComponent->GetCurrentTree() == NewBehaviorTree)
-    {
-        return;
-    }
-
+    if (!NewBehaviorTree) return;
+    if (CachedBehaviorTreeComponent && CachedBehaviorTreeComponent->GetCurrentTree() == NewBehaviorTree) return;
     RunBehaviorTree(NewBehaviorTree);
 }
 
 void ASFBaseAIController::BindingStateMachine(const APawn* InPawn)
 {
     if (!InPawn) return;
-    
+
     USFStateMachine* StateMachine = USFStateMachine::FindStateMachineComponent(InPawn);
-    if (StateMachine)
-    {
-        StateMachine->OnChangeTreeDelegate.AddUObject(this, &ThisClass::ChangeBehaviorTree);
-        StateMachine->OnStopTreeDelegate.AddUObject(this, &ThisClass::StopBehaviorTree);
-    }
+    if (!StateMachine) return;
+
+    StateMachine->OnChangeTreeDelegate.AddUObject(this, &ThisClass::ChangeBehaviorTree);
+    StateMachine->OnStopTreeDelegate.AddUObject(this, &ThisClass::StopBehaviorTree);
 }
 
 void ASFBaseAIController::UnBindingStateMachine()
@@ -290,61 +224,40 @@ void ASFBaseAIController::UnBindingStateMachine()
     if (!ControlledPawn) return;
 
     USFStateMachine* StateMachine = USFStateMachine::FindStateMachineComponent(ControlledPawn);
-    if (StateMachine)
-    {
-        StateMachine->OnChangeTreeDelegate.RemoveAll(this);
-        StateMachine->OnStopTreeDelegate.RemoveAll(this);
-    }
+    if (!StateMachine) return;
+
+    StateMachine->OnChangeTreeDelegate.RemoveAll(this);
+    StateMachine->OnStopTreeDelegate.RemoveAll(this);
 }
 
 void ASFBaseAIController::StopBehaviorTree()
 {
-    if (CachedBehaviorTreeComponent)
-        CachedBehaviorTreeComponent->StopTree();
+    if (CachedBehaviorTreeComponent) CachedBehaviorTreeComponent->StopTree();
 }
 
 void ASFBaseAIController::ChangeBehaviorTree(FGameplayTag GameplayTag)
 {
-    if (!GameplayTag.IsValid())
-    {
-        return;
-    }
-
+    if (!GameplayTag.IsValid()) return;
     UBehaviorTree* NewTree = BehaviorTreeContainer.GetBehaviourTree(GameplayTag);
-    if (NewTree)
-    {
-        SetBehaviorTree(NewTree);
-    }
+    if (NewTree) SetBehaviorTree(NewTree);
 }
 
 bool ASFBaseAIController::RunBehaviorTree(UBehaviorTree* BehaviorTree)
 {
-    if (!BehaviorTree)
-    {
-        return false;
-    }
-
+    if (!BehaviorTree) return false;
     const bool bSuccess = Super::RunBehaviorTree(BehaviorTree);
-    
     if (bSuccess)
     {
         CachedBehaviorTreeComponent = Cast<UBehaviorTreeComponent>(GetBrainComponent());
         CachedBlackboardComponent = GetBlackboardComponent();
     }
-
     bIsInCombat = false;
     return bSuccess;
 }
 
-#pragma endregion 
-
-#pragma region Team
 void ASFBaseAIController::SetGenericTeamId(const FGenericTeamId& InTeamID)
 {
-    if (HasAuthority())
-    {
-        TeamId = InTeamID;
-    }
+    if (HasAuthority()) TeamId = InTeamID;
 }
 
 FGenericTeamId ASFBaseAIController::GetGenericTeamId() const
@@ -353,50 +266,68 @@ FGenericTeamId ASFBaseAIController::GetGenericTeamId() const
 }
 
 
-#pragma endregion 
+bool ASFBaseAIController::ShouldRotateActorByController() const
+{
+    return true;
+}
 
-#pragma region Rotation
 void ASFBaseAIController::UpdateControlRotation(float DeltaTime, bool bUpdatePawn)
 {
-    if (bSuppressControlRotationUpdates)
-        return;
-
-    if (CurrentRotationMode != EAIRotationMode::ControllerYaw)
-        return;
-
     APawn* MyPawn = GetPawn();
     if (!MyPawn) return;
 
-    // ✅ 이동 상태 변화 감지 (매 프레임)
-    const float Speed = MyPawn->GetVelocity().Size2D();
-    const bool bIsMoving = Speed > 10.f;
+    if (IsTurningInPlace()) return;
 
-    if (bIsMoving != bWasMovingLastFrame)
+    bool bIsUsingAbility = false;
+    if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn))
     {
-        SetMovementBasedRotation(bIsMoving);
-        bWasMovingLastFrame = bIsMoving;
+        if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_UsingAbility))
+        {
+            bIsUsingAbility = true;
+            bUpdatePawn = false;
+        }
     }
 
-    const FVector FocalPoint = GetFocalPoint();
-    if (!FAISystem::IsValidLocation(FocalPoint))
-        return;
+    // Controller 회전(시선)만 우선 갱신. Pawn 회전은 직접 제어하지 않는다.
+    Super::UpdateControlRotation(DeltaTime, false);
 
-    FVector ToTarget = FocalPoint - MyPawn->GetActorLocation();
-    ToTarget.Z = 0.f;
+    // 타겟이 있으면 컨트롤러가 타겟을 보도록 갱신
+    if (CombatComponent && CombatComponent->GetCurrentTarget())
+    {
+        FVector ToTarget = CombatComponent->GetCurrentTarget()->GetActorLocation() - MyPawn->GetActorLocation();
+        ToTarget.Z = 0.f;
+        if (!ToTarget.IsNearlyZero())
+        {
+            SetControlRotation(ToTarget.Rotation());
+        }
+    }
 
-    if (ToTarget.IsNearlyZero())
-        return;
+    // 여기서부터는 Actor 회전을 허용하는 경우에만 진행
+    if (!ShouldRotateActorByController()) return;
+    if (bIsUsingAbility) return;
+    if (!bUpdatePawn) return;
 
-    const FRotator TargetRot = ToTarget.Rotation();
-    const FRotator NewControlRot = FMath::RInterpTo(GetControlRotation(), TargetRot, DeltaTime, 10.f);
+    if (CurrentRotationMode == EAIRotationMode::ControllerYaw)
+    {
+        FRotator TargetRot = GetControlRotation();
+        TargetRot.Pitch = 0.f;
+        TargetRot.Roll = 0.f;
 
-    SetControlRotation(NewControlRot);
+        FRotator CurrentActorRot = MyPawn->GetActorRotation();
+        float AngleDiff = FMath::Abs(FMath::FindDeltaAngleDegrees(CurrentActorRot.Yaw, TargetRot.Yaw));
+        float Threshold = GetTurnThreshold();
+
+        if (AngleDiff < Threshold)
+        {
+            FRotator NewActorRot = FMath::RInterpTo(CurrentActorRot, TargetRot, DeltaTime, RotationInterpSpeed);
+            MyPawn->SetActorRotation(NewActorRot);
+        }
+    }
 }
 
 void ASFBaseAIController::SetRotationMode(EAIRotationMode NewMode)
 {
-    if (CurrentRotationMode == NewMode)
-        return;
+    if (CurrentRotationMode == NewMode) return;
 
     ACharacter* Char = Cast<ACharacter>(GetPawn());
     if (!Char) return;
@@ -418,135 +349,12 @@ void ASFBaseAIController::SetRotationMode(EAIRotationMode NewMode)
         MoveComp->bOrientRotationToMovement = true;
         MoveComp->bUseControllerDesiredRotation = false;
         MoveComp->RotationRate = FRotator(0.f, 540.f, 0.f);
-        bWasMovingLastFrame = false;
         break;
 
     case EAIRotationMode::ControllerYaw:
         MoveComp->bOrientRotationToMovement = false;
-
-        // ✅ 현재 이동 상태에 맞게 초기 설정
-        const float Speed = GetPawn()->GetVelocity().Size2D();
-        const bool bIsMoving = Speed > 10.f;
-        bWasMovingLastFrame = bIsMoving;
-
-        SetMovementBasedRotation(bIsMoving);
-
-        if (TargetActor && !GetFocusActor())
-        {
-            SetFocus(TargetActor, EAIFocusPriority::Gameplay);
-        }
+        MoveComp->bUseControllerDesiredRotation = false;
+        MoveComp->RotationRate = FRotator::ZeroRotator;
         break;
     }
 }
-
-void ASFBaseAIController::SetMovementBasedRotation(bool bIsMoving)
-{
-    ACharacter* Char = Cast<ACharacter>(GetPawn());
-    if (!Char) return;
-
-    UCharacterMovementComponent* MoveComp = Char->GetCharacterMovement();
-    if (!MoveComp) return;
-
-    if (bIsMoving)
-    {
-        // 이동 중: Strafe (타겟을 바라보며 이동)
-        MoveComp->bUseControllerDesiredRotation = true;
-        MoveComp->RotationRate = FRotator(0.f, MovingRotationRate, 0.f);  // ✅ Blueprint 변수 사용
-    }
-    else
-    {
-        // 정지 중: TurnInPlaceComponent가 각도에 따라 자동으로 처리
-        // - 작은 각도: EnableNaturalRotation(true) → 자연스러운 회전
-        // - 큰 각도: EnableNaturalRotation(false) → TurnInPlace 애니메이션
-        // 초기 상태는 회전 중지 (TurnInPlaceComponent가 판단할 때까지)
-        MoveComp->bUseControllerDesiredRotation = false;
-        MoveComp->RotationRate = FRotator::ZeroRotator;
-    }
-}
-
-void ASFBaseAIController::DisableTurnInPlaceFor(float Duration)
-{
-    if (!GetWorld())
-        return;
-
-    DisableTurnInPlaceUntilTime = GetWorld()->GetTimeSeconds() + Duration;
-}
-
-bool ASFBaseAIController::IsTurningInPlace() const
-{
-    if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetPawn()))
-    {
-        return ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_TurningInPlace);
-    }
-    return false;
-}
-
-
-bool ASFBaseAIController::CanTurnInPlace() const
-{
-    if (!GetWorld())
-        return true;
-
-    return GetWorld()->GetTimeSeconds() >= DisableTurnInPlaceUntilTime;
-}
-
-void ASFBaseAIController::EnsureRotationModeReset()
-{
-    
-    SetRotationMode(EAIRotationMode::ControllerYaw);
-    DisableTurnInPlaceFor(0.1f);
-
-}
-
-void ASFBaseAIController::RestoreRotationAfterAbility()
-{
-    bSuppressControlRotationUpdates = false;
-
-    // ❗ TurnInPlace 중이면 복구 금지 - Ability 종료 후 TurnInPlace 침범 방지
-    if (IsTurningInPlace())
-    {
-        return;
-    }
-
-    if (TargetActor)
-    {
-        SetRotationMode(EAIRotationMode::ControllerYaw);
-        SetFocus(TargetActor, EAIFocusPriority::Gameplay);
-    }
-    else
-    {
-        SetRotationMode(EAIRotationMode::MovementDirection);
-    }
-
-    DisableTurnInPlaceFor(1.0f);
-}
-
-void ASFBaseAIController::OnAbilityStateChanged(const FGameplayTag Tag, int32 NewCount)
-{
-
-    if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetPawn()))
-    {
-        if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_TurningInPlace))
-        {
-            return;
-        }
-    }
-
-    if (NewCount > 0)
-    {
-        // Ability 시작: 컨트롤러 회전 업데이트 억제
-        bSuppressControlRotationUpdates = true;
-        SetRotationMode(EAIRotationMode::None);
-    }
-    else
-    {
-        if (GetWorld())
-        {
-            GetWorld()->GetTimerManager().ClearTimer(RotationRestoreTimerHandle);
-            GetWorld()->GetTimerManager().SetTimer(RotationRestoreTimerHandle, this, &ThisClass::RestoreRotationAfterAbility, 0.15f, false);
-        }
-    }
-}
-
-#pragma endregion
-

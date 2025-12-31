@@ -32,7 +32,7 @@ USFEnemyAnimInstance::USFEnemyAnimInstance(const FObjectInitializer& ObjectIniti
 	, PreviousRotation(FRotator::ZeroRotator)
 	, CachedDeltaSeconds(0.0f)
 	, CachedControlRotationYaw(0.0f)
-	, CachedRotationMode(EAIRotationMode::None)
+	, CachedRotationMode(EAIRotationMode::MovementDirection)
 	, WorldLocation(FVector::ZeroVector)
 	, DisplacementSinceLastUpdate(0.0f)
 	, DisplacementSpeed(0.0f)
@@ -83,7 +83,6 @@ void USFEnemyAnimInstance::NativeInitializeAnimation()
 	}
 }
 
-// SFEnemyAnimInstance.cpp — NativeUpdateAnimation (교체용)
 void USFEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
@@ -119,6 +118,9 @@ void USFEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	if (CachedAbilitySystemComponent)
 	{
 		bUsingAbility = CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Character_State_UsingAbility);
+
+	
+		bIsTurningInPlace = CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Character_State_TurningInPlace);
 	}
 
 	// 위치 및 회전 캐싱
@@ -139,6 +141,30 @@ void USFEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	CachedWorldVelocity2D = FVector(CachedMovementComponent->Velocity.X, CachedMovementComponent->Velocity.Y, 0.0f);
 	CachedWorldAcceleration2D = CachedMovementComponent->GetCurrentAcceleration();
 
+	if (CachedAIController)
+	{
+		
+		CachedControlRotation = CachedAIController->GetControlRotation();
+		CachedControlRotationYaw = CachedControlRotation.Yaw; 
+		CachedRotationMode = CachedAIController->GetCurrentRotationMode();
+	}
+	UpdateAimOffsetData(DeltaSeconds);
+	
+	
+}
+
+void USFEnemyAnimInstance::UpdateAimOffsetData(float DeltaSeconds)
+{
+	FRotator Delta = UKismetMathLibrary::NormalizedDeltaRotator(CachedControlRotation, CachedRotation);
+	
+	const float TargetPitch = Delta.Pitch;
+	const float TargetYaw = Delta.Yaw;
+	
+	AimPitch = FMath::FInterpTo(AimPitch, TargetPitch, DeltaSeconds, 15.0f);
+	AimYaw = FMath::FInterpTo(AimYaw, TargetYaw, DeltaSeconds, 15.0f);
+	
+	AimPitch = FMath::Clamp(AimPitch, -90.0f, 90.0f);
+	AimYaw = FMath::Clamp(AimYaw, -90.0f, 90.0f);
 }
 
 
@@ -150,6 +176,7 @@ void USFEnemyAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	UpdateRotationData();
 	UpdateVelocityData();
 	UpdateAccelerationData();
+	
 }
 
 UCharacterMovementComponent* USFEnemyAnimInstance::GetMovementComponent()
@@ -200,7 +227,6 @@ void USFEnemyAnimInstance::UpdateRotationData()
 
 void USFEnemyAnimInstance::UpdateVelocityData()
 {
-	// 1. 캐싱된 값이 아닌 실제 컴포넌트로부터 최신 속도를 다시 가져옵니다. (
 	if (CachedMovementComponent)
 	{
 		CachedWorldVelocity2D = FVector(CachedMovementComponent->Velocity.X, CachedMovementComponent->Velocity.Y, 0.0f);
@@ -208,13 +234,10 @@ void USFEnemyAnimInstance::UpdateVelocityData()
 
 	WorldVelocity2D = CachedWorldVelocity2D;
 	const float VelocityLength = WorldVelocity2D.Size();
-
-	// 2. 판정 임계값 확인 (테스트를 위해 잠시 5.0f로 낮춰보세요)
-	// AI의 이동 속도가 느리게 설정되어 있다면 15.0f는 너무 높을 수 있습니다.
+	
 	bHasVelocity = VelocityLength > 3.0f;
 
-	// Orientation Warping을 위해 항상 Actor Rotation 기준으로 계산
-	// TurnInPlace 중에만 Controller Rotation 사용
+	
 	FRotator RotationForLocalCalc = CachedRotation;
 	if (bIsTurningInPlace)
 	{
@@ -223,7 +246,7 @@ void USFEnemyAnimInstance::UpdateVelocityData()
 
 	if (bHasVelocity)
 	{
-		// ... 기존 이동 로직 ...
+		
 		float TargetAngle = UKismetAnimationLibrary::CalculateDirection(WorldVelocity2D, RotationForLocalCalc);
 		float AngleDelta = FMath::FindDeltaAngleDegrees(LocalVelocityDirectionAngle, TargetAngle);
 		LocalVelocityDirectionAngle = FMath::FInterpTo(LocalVelocityDirectionAngle, LocalVelocityDirectionAngle + AngleDelta, CachedDeltaSeconds, 5.0f);

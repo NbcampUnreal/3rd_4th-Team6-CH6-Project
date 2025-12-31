@@ -6,7 +6,7 @@
 #include "UObject/Interface.h"
 #include "SFAIControllerInterface.generated.h"
 
-class USFEnemyCombatComponent;
+class USFCombatComponentBase;
 // This class does not need to be modified.
 UINTERFACE()
 class USFAIControllerInterface : public UInterface
@@ -26,6 +26,6 @@ public:
 	// AIController 초기화
 	virtual void InitializeAIController() = 0;
 	
-	virtual USFEnemyCombatComponent* GetCombatComponent() const = 0;
+	virtual USFCombatComponentBase* GetCombatComponent() const = 0;
 	
 };

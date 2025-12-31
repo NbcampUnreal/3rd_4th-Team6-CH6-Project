@@ -29,16 +29,16 @@ public:
 	TObjectPtr<UEnvQuery> QueryTemplate;
 
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
-	FName ResultKeyName = TEXT("StrafeLocation");
+	FBlackboardKeySelector ResultKeyName;
 
 	UPROPERTY(EditAnywhere, Category = "EQS")
 	TEnumAsByte<EEnvQueryRunMode::Type> RunMode = EEnvQueryRunMode::SingleResult;
 
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
-	FName TargetActorKeyName = TEXT("TargetActor");
+	FBlackboardKeySelector TargetActor;
 
 	UPROPERTY(EditAnywhere, Category = "Blackboard")
-	FName AbilityTagKeyName = TEXT("SelectedAbilityTag");
+	FBlackboardKeySelector AbilityTagKeyName;
 
 	UPROPERTY(EditAnywhere, Category = "EQS")
 	bool bProjectToNavMesh = true;

@@ -90,7 +90,6 @@ void ABossArenaTrigger::OnPlayerEnterArena(UPrimitiveComponent* OverlappedCompon
 
 
 	CachedDragonCombatComponent->AddThreat(InitialThreatValue, Character);
-	CachedDragonCombatComponent->UpdateTargetFromThreat();
 	
 }
 

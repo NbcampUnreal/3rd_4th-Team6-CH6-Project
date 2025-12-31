@@ -36,7 +36,8 @@ public:
 protected:
     virtual void NativeInitializeAnimation() override;
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
-    
+
+    void UpdateAimOffsetData(float DeltaSeconds);
     virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 
     UFUNCTION(BlueprintPure, Category = "Animation")
@@ -69,7 +70,7 @@ protected:
 
 
 public:
-    // ✅ TurnInPlace 중인지 확인 (GAS 태그 기반)
+
     UFUNCTION(BlueprintPure, Category = "Turn In Place")
     bool IsTurningInPlace() const { return bIsTurningInPlace; }
 
@@ -131,6 +132,21 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Rotation Data")
     FRotator WorldRotation;
 
+    //에임 오프셋을 위한 변수
+    UPROPERTY(BlueprintReadOnly, Category = "SF|Animation|AimOffset")
+    float AimPitch;
+
+    UPROPERTY(BlueprintReadOnly, Category = "SF|Animation|AimOffset")
+    float AimYaw;
+
+    // ControlRotation 전체를 캐싱해야 Pitch
+    UPROPERTY(Transient)
+    FRotator CachedControlRotation; 
+
+    // 부드러운 보간을 위한 임시 변수
+    // FRotator AimOffsetRotationRaw;
+    
+    
     //  Velocity Data 
     UPROPERTY(BlueprintReadOnly, Category = "Velocity Data")
     bool bHasVelocity;
@@ -166,7 +182,7 @@ protected:
 
     // ========== Turn In Place Data ==========
 
-    // ✅ TurnInPlace 중인지 (GAS 태그 기반으로 업데이트됨)
+    // TurnInPlace 중인지 (GAS 태그 기반으로 업데이트됨)
     UPROPERTY(BlueprintReadOnly, Category = "Turn In Place")
     bool bIsTurningInPlace = false;
 };

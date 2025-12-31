@@ -47,6 +47,14 @@ void USFAbilityTask_MoveToTargetAndCheckDistance::TickTask(float DeltaTime)
 	}
 
 	const float Elapsed = GetWorld()->GetTimeSeconds() - StartTime;
+    
+	
+	if (Elapsed >= Duration)
+	{
+		FinishTask(false);
+		return;
+	}
+
 	const float Alpha = FMath::Clamp(Elapsed / Duration, 0.f, 1.f);
 
 	float CurveAlpha = Alpha;
@@ -60,18 +68,14 @@ void USFAbilityTask_MoveToTargetAndCheckDistance::TickTask(float DeltaTime)
 
 	Avatar->SetActorLocation(NewLocation, true);
 
-	if (Target)
+
+	if (Target && IsValid(Target))
 	{
 		if (FVector::DistSquared2D(NewLocation, Target->GetActorLocation()) <= StopDistance)
 		{
 			FinishTask(true);
 			return;
 		}
-	}
-
-	if (Alpha >= 1.f)
-	{
-		FinishTask(false);
 	}
 }
 

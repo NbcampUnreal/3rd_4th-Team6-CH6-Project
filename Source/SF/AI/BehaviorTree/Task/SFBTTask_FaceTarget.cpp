@@ -1,89 +1,117 @@
+// SFBTTask_FaceTarget.cpp
 #include "SFBTTask_FaceTarget.h"
 #include "AI/Controller/SFBaseAIController.h"
+#include "AI/Controller/Dragon/SFDragonController.h"
+#include "AI/Controller/SFTurnInPlaceComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "GameFramework/Character.h"
-#include "Animation/Enemy/SFEnemyAnimInstance.h"
 
 USFBTTask_FaceTarget::USFBTTask_FaceTarget()
 {
-    NodeName = "SF Observe Face Target";
-    bNotifyTick = true;   // Tick 사용
+    NodeName = "SF Face Target";
+    TargetKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(USFBTTask_FaceTarget, TargetKey), AActor::StaticClass());
+    bNotifyTick = true;
     bNotifyTaskFinished = true;
+
+    AcceptableAngle = 10.0f;
 }
 
 EBTNodeResult::Type USFBTTask_FaceTarget::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-    // 항상 InProgress 반환 -> Tick에서 종료 처리
+    ASFBaseAIController* AI = Cast<ASFBaseAIController>(OwnerComp.GetAIOwner());
+    if (!AI) return EBTNodeResult::Failed;
+
+    AActor* Target = Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(TargetKey.SelectedKeyName));
+    if (!Target) return EBTNodeResult::Failed;
+
+    APawn* Pawn = AI->GetPawn();
+    if (!Pawn) return EBTNodeResult::Failed;
+
+
+    if (ASFDragonController* DragonAI = Cast<ASFDragonController>(AI))
+    {
+        if (USFTurnInPlaceComponent* TurnComp = DragonAI->GetTurnInPlaceComponent())
+        {
+          
+            AI->ClearFocus(EAIFocusPriority::Gameplay);
+
+            float AngleDiff = FMath::Abs(TurnComp->GetAngleToTarget());
+
+     
+            if (AngleDiff <= AcceptableAngle)
+            {
+                TurnComp->SyncControlRotationToTarget();
+                AI->SetRotationMode(EAIRotationMode::ControllerYaw);
+                return EBTNodeResult::Succeeded;
+            }
+
+           
+            TurnComp->RequestTurnToTarget(Target);
+            return EBTNodeResult::InProgress;
+        }
+    }
+
+    AI->SetFocus(Target, EAIFocusPriority::Gameplay);
     return EBTNodeResult::InProgress;
 }
 
 void USFBTTask_FaceTarget::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-    ASFBaseAIController* AIController = Cast<ASFBaseAIController>(OwnerComp.GetAIOwner());
-    if (!AIController || !AIController->GetPawn())
+    ASFBaseAIController* AI = Cast<ASFBaseAIController>(OwnerComp.GetAIOwner());
+    if (!AI) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
+
+    AActor* Target = Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(TargetKey.SelectedKeyName));
+    if (!Target) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
+
+
+    if (ASFDragonController* DragonAI = Cast<ASFDragonController>(AI))
     {
-        FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
-        return;
-    }
-
-    ACharacter* Character = Cast<ACharacter>(AIController->GetPawn());
-    if (!Character)
-    {
-        FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
-        return;
-    }
-
-    AActor* TargetActor = GetTargetFromBlackboard(OwnerComp);
-    if (!TargetActor)
-    {
-        FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
-        return;
-    }
-
-    // FaceTarget 호출 (ControllerYaw 모드에서 ControlRotation 보간)
-    
-
-    // AnimInstance 상태 확인
-    bool bReady = true;
-    if (USFEnemyAnimInstance* Anim = Cast<USFEnemyAnimInstance>(Character->GetMesh()->GetAnimInstance()))
-    {
-        // TurnInPlace 중이면 아직 완료되지 않음
-        bReady = !Anim->IsTurningInPlace();
-    }
-
-    // 각도 확인 (AcceptableAngle 이내면 완료)
-    float DeltaYaw = FMath::Abs(FMath::FindDeltaAngleDegrees(
-        Character->GetActorRotation().Yaw,
-        AIController->GetControlRotation().Yaw
-    ));
-
-    if (DeltaYaw > AcceptableAngle)
-        bReady = false;
-
-    if (bReady)
-        FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
-}
-
-EBTNodeResult::Type USFBTTask_FaceTarget::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
-{
-    // Task 중단 시 회전 모드를 ControllerYaw로 복귀
-    if (ASFBaseAIController* AIController = Cast<ASFBaseAIController>(OwnerComp.GetAIOwner()))
-    {
-        AIController->SetRotationMode(EAIRotationMode::ControllerYaw);
-    }
-
-    return EBTNodeResult::Failed;
-}
-AActor* USFBTTask_FaceTarget::GetTargetFromBlackboard(UBehaviorTreeComponent& OwnerComp) const
-{
-    if (UBlackboardComponent* BlackboardComp = OwnerComp.GetBlackboardComponent())
-    {
-        UObject* TargetObj = BlackboardComp->GetValueAsObject(BlackboardKey.SelectedKeyName);
-        if (AActor* TargetActor = Cast<AActor>(TargetObj))
+        if (USFTurnInPlaceComponent* TurnComp = DragonAI->GetTurnInPlaceComponent())
         {
-            return TargetActor;
+         
+            if (TurnComp->IsTurning()) return;
+
+            float AngleDiff = FMath::Abs(TurnComp->GetAngleToTarget());
+
+ 
+            if (AngleDiff <= AcceptableAngle)
+            {
+                TurnComp->SyncControlRotationToTarget();
+                AI->SetRotationMode(EAIRotationMode::ControllerYaw);
+                FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+                return;
+            }
+
+ 
+            if (AngleDiff < TurnComp->GetTurnThreshold())
+            {
+                TurnComp->SyncControlRotationToTarget();
+            }
+
+            return;
         }
     }
-    return nullptr;
+
+
+    APawn* Pawn = AI->GetPawn();
+    if (!Pawn) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
+
+    FRotator ControllerRot = AI->GetControlRotation();
+    FRotator ActorRot = Pawn->GetActorRotation();
+    float AngleDiff = FMath::Abs(FMath::FindDeltaAngleDegrees(ActorRot.Yaw, ControllerRot.Yaw));
+    if (AngleDiff <= AcceptableAngle)
+    {
+        FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+    }
 }
 
+void USFBTTask_FaceTarget::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
+{
+    ASFBaseAIController* AI = Cast<ASFBaseAIController>(OwnerComp.GetAIOwner());
+    if (AI)
+    {
+        AI->ClearFocus(EAIFocusPriority::Gameplay);
+    }
+
+    Super::OnTaskFinished(OwnerComp, NodeMemory, TaskResult);
+}

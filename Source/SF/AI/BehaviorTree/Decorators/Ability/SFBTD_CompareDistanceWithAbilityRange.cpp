@@ -3,24 +3,17 @@
 #include "AIController.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
-#include "AbilitySystem/Abilities/Enemy/Combat/SFGA_Enemy_BaseAttack.h"
-#include "Character/SFCharacterBase.h"
+#include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 
 USFBTD_CompareDistanceWithAbilityRange::USFBTD_CompareDistanceWithAbilityRange()
 {
     NodeName = "Compare Distance With Ability Range";
     bNotifyTick = true;
-    Operator = EArithmeticKeyOperation::Greater;
-
-    DistanceKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, DistanceKey));
-    DistanceKey.AllowNoneAsValue(true);  
-
-    AbilityTagKey.AddNameFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, AbilityTagKey));
-    AbilityTagKey.AllowNoneAsValue(true);  
+    FlowAbortMode = EBTFlowAbortMode::Self;
 
     TargetKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, TargetKey), AActor::StaticClass());
-
-    FlowAbortMode = EBTFlowAbortMode::Self;
+    DistanceKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, DistanceKey));
+    AbilityTagKey.AddNameFilter(this, GET_MEMBER_NAME_CHECKED(USFBTD_CompareDistanceWithAbilityRange, AbilityTagKey));
 }
 
 uint16 USFBTD_CompareDistanceWithAbilityRange::GetInstanceMemorySize() const
@@ -28,134 +21,120 @@ uint16 USFBTD_CompareDistanceWithAbilityRange::GetInstanceMemorySize() const
     return sizeof(FBTDistanceCompareMemory);
 }
 
-void USFBTD_CompareDistanceWithAbilityRange::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const
+void USFBTD_CompareDistanceWithAbilityRange::InitializeMemory(
+    UBehaviorTreeComponent& OwnerComp,
+    uint8* NodeMemory,
+    EBTMemoryInit::Type InitType) const
 {
     FBTDistanceCompareMemory* Memory = CastInstanceNodeMemory<FBTDistanceCompareMemory>(NodeMemory);
-    Memory->bLastResult = false;
+    if (Memory)
+    {
+        Memory->bLastResult = false;
+    }
 }
 
-bool USFBTD_CompareDistanceWithAbilityRange::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
+bool USFBTD_CompareDistanceWithAbilityRange::CalculateRawConditionValue(
+    UBehaviorTreeComponent& OwnerComp,
+    uint8* NodeMemory) const
+{
+    return CheckCondition(OwnerComp);
+}
+
+void USFBTD_CompareDistanceWithAbilityRange::TickNode(
+    UBehaviorTreeComponent& OwnerComp,
+    uint8* NodeMemory,
+    float DeltaSeconds)
+{
+    Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
+
+    FBTDistanceCompareMemory* Memory = CastInstanceNodeMemory<FBTDistanceCompareMemory>(NodeMemory);
+    if (!Memory) return;
+
+    const bool bCurrent = CheckCondition(OwnerComp);
+    if (Memory->bLastResult != bCurrent)
+    {
+        Memory->bLastResult = bCurrent;
+        OwnerComp.RequestExecution(this);
+    }
+}
+
+bool USFBTD_CompareDistanceWithAbilityRange::CheckCondition(
+    UBehaviorTreeComponent& OwnerComp) const
 {
     const UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
     if (!BB) return false;
 
-    // Target 없으면 실패
     AActor* Target = Cast<AActor>(BB->GetValueAsObject(TargetKey.SelectedKeyName));
     APawn* Pawn = OwnerComp.GetAIOwner() ? OwnerComp.GetAIOwner()->GetPawn() : nullptr;
     if (!Target || !Pawn) return false;
 
-    // 거리 계산: DistanceKey 우선, 없으면 Pawn ↔ Target 거리
+    // 거리 계산
     float Distance = 0.f;
-    if (DistanceKey.IsSet())
+    if (!DistanceKey.IsNone())
     {
         Distance = BB->GetValueAsFloat(DistanceKey.SelectedKeyName);
     }
     else
     {
-        Distance = CalculateDistance(OwnerComp);
+        Distance = FVector::Dist(Pawn->GetActorLocation(), Target->GetActorLocation());
     }
 
-    // Ability Range 가져오기
-    float AttackRange = 0.f;
+    // Ability Tag
+    if (AbilityTagKey.IsNone())
+        return false;
 
-    // AbilityTagKey가 설정되어 있으면 해당 어빌리티의 범위 사용
-    if (AbilityTagKey.IsSet())
-    {
-        const FName TagName = BB->GetValueAsName(AbilityTagKey.SelectedKeyName);
-        if (!TagName.IsNone())
-        {
-            const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TagName);
-            if (AbilityTag.IsValid())
-            {
-                AttackRange = GetAbilityAttackRange(OwnerComp, AbilityTag);
-            }
-        }
-    }
+    const FName TagName = BB->GetValueAsName(AbilityTagKey.SelectedKeyName);
+    if (TagName.IsNone())
+        return false;
 
-    // AbilityTagKey가 없거나 범위를 못 가져온 경우 실패
-    if (AttackRange <= 0.f) return false;
+    const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TagName);
 
-    // 연산 비교
-    bool bResult = false;
-    switch (Operator)
-    {
-    case EArithmeticKeyOperation::Equal:
-        bResult = FMath::IsNearlyEqual(Distance, AttackRange, 10.f);
-        break;
-    case EArithmeticKeyOperation::NotEqual:
-        bResult = !FMath::IsNearlyEqual(Distance, AttackRange, 10.f);
-        break;
-    case EArithmeticKeyOperation::Less:
-        bResult = Distance < AttackRange;
-        break;
-    case EArithmeticKeyOperation::LessOrEqual:
-        bResult = Distance <= AttackRange;
-        break;
-    case EArithmeticKeyOperation::Greater:
-        bResult = Distance > AttackRange;
-        break;
-    case EArithmeticKeyOperation::GreaterOrEqual:
-        bResult = Distance >= AttackRange;
-        break;
-    default:
-        break;
-    }
+    float MinRange = 0.f;
+    float MaxRange = 0.f;
+    GetAbilityAttackRange(OwnerComp, AbilityTag, MinRange, MaxRange);
 
-    return bResult;
+    if (MaxRange <= 0.f)
+        return false;
+    
+    return Distance > MinRange && Distance <= MaxRange;
 }
 
-void USFBTD_CompareDistanceWithAbilityRange::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+void USFBTD_CompareDistanceWithAbilityRange::GetAbilityAttackRange(
+    UBehaviorTreeComponent& OwnerComp,
+    const FGameplayTag& AbilityTag,
+    float& OutMinRange,
+    float& OutMaxRange) const
 {
-    Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
+    OutMinRange = 0.f;
+    OutMaxRange = 0.f;
 
-    FBTDistanceCompareMemory* Memory = CastInstanceNodeMemory<FBTDistanceCompareMemory>(NodeMemory);
-
-    const bool bCurrentResult = CalculateRawConditionValue(OwnerComp, NodeMemory);
-    if (Memory->bLastResult != bCurrentResult)
-    {
-        Memory->bLastResult = bCurrentResult;
-        OwnerComp.RequestExecution(this);
-    }
-}
-
-float USFBTD_CompareDistanceWithAbilityRange::CalculateDistance(UBehaviorTreeComponent& OwnerComp) const
-{
-    const UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
-    if (!BB) return 0.f;
-
-    AActor* Target = Cast<AActor>(BB->GetValueAsObject(TargetKey.SelectedKeyName));
     APawn* Pawn = OwnerComp.GetAIOwner() ? OwnerComp.GetAIOwner()->GetPawn() : nullptr;
-    if (!Target || !Pawn) return 0.f;
+    if (!Pawn) return;
 
-    return FVector::Dist(Pawn->GetActorLocation(), Target->GetActorLocation());
-}
+    UAbilitySystemComponent* ASC =
+        UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Pawn);
 
-float USFBTD_CompareDistanceWithAbilityRange::GetAbilityAttackRange(UBehaviorTreeComponent& OwnerComp, const FGameplayTag& AbilityTag) const
-{
-    AAIController* AIController = OwnerComp.GetAIOwner();
-    if (!AIController) return 0.f;
-
-    ASFCharacterBase* Character = Cast<ASFCharacterBase>(AIController->GetPawn());
-    if (!Character) return 0.f;
-
-    UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Character);
-    if (!ASC) return 0.f;
+    if (!ASC) return;
 
     for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
     {
-        if (!Spec.Ability) continue;
+        if (!Spec.Ability)
+            continue;
 
-        if (Spec.Ability->AbilityTags.HasTag(AbilityTag) || Spec.Ability->GetAssetTags().HasTag(AbilityTag))
+        if (Spec.Ability->AbilityTags.HasTag(AbilityTag) ||
+            Spec.Ability->GetAssetTags().HasTag(AbilityTag))
         {
-            UGameplayAbility* AbilityInstance = Spec.GetPrimaryInstance();
-            if (!AbilityInstance) AbilityInstance = Spec.Ability;
+            const float* MaxPtr =
+                Spec.SetByCallerTagMagnitudes.Find(
+                    SFGameplayTags::Data_EnemyAbility_AttackRange);
 
-            if (USFGA_Enemy_BaseAttack* BaseAttack = Cast<USFGA_Enemy_BaseAttack>(AbilityInstance))
-            {
-                return BaseAttack->GetAttackRange();
-            }
+            const float* MinPtr =
+                Spec.SetByCallerTagMagnitudes.Find(
+                    SFGameplayTags::Data_EnemyAbility_MinAttackRange);
+
+            OutMinRange = MinPtr ? *MinPtr : 0.f;
+            OutMaxRange = MaxPtr ? *MaxPtr : 0.f;
+            break;
         }
     }
-
-    return 0.f;
 }

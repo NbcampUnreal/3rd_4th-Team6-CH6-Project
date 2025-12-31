@@ -8,8 +8,13 @@
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "AI/Controller/SFEnemyCombatComponent.h"
 #include "AI/Controller/SFEnemyController.h"
+#include "AI/Controller/SFBaseAIController.h"
 #include "Character/SFCharacterBase.h"
 #include "Character/SFCharacterGameplayTags.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "AIController.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SFGA_Enemy_BaseAttack)
 
@@ -22,69 +27,16 @@ USFGA_Enemy_BaseAttack::USFGA_Enemy_BaseAttack(const FObjectInitializer& ObjectI
 
 	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_Attacking);
 	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_UsingAbility);
-
-
+	
 	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Dead);
 	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Stunned);
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Hit); 
-	ActivationBlockedTags.AddTag(SFGameplayTags::Ability_Cooldown_Enemy_Attack);
+	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Hit);
 	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Blocking);
 	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Parried);
+	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_TurningInPlace);  
 
 	bIsCancelable = true;
 }
-
-bool USFGA_Enemy_BaseAttack::CanActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayTagContainer* SourceTags,
-	const FGameplayTagContainer* TargetTags,
-	OUT FGameplayTagContainer* OptionalRelevantTags) const
-{
-	
-	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
-		return false;
-	
-
-	if (!ActorInfo->IsNetAuthority())
-		return true;
-	
-	const FGameplayAbilitySpec* Spec = ActorInfo->AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
-	AActor* Self = ActorInfo->AvatarActor.Get();
-	AActor* Target = GetCurrentTarget();
-
-	if (!Spec || !Self || !Target)
-		return false;
-
-	return CheckRangeAndAngle(Self, Target, Spec);
-}
-
-void USFGA_Enemy_BaseAttack::ActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
-{
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	
-}
-
-void USFGA_Enemy_BaseAttack::EndAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
-{
-
-	if (HasAuthority(&ActivationInfo) && !bWasCancelled)
-	{
-		ApplyCooldown(Handle, ActorInfo, ActivationInfo);
-	}
-
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-}
-
 
 // Range ,Angle Check
 bool USFGA_Enemy_BaseAttack::CheckRangeAndAngle(
@@ -178,80 +130,61 @@ bool USFGA_Enemy_BaseAttack::CanAttackTarget(const FEnemyAbilitySelectContext& C
 	return IsWithinAttackRange(Context) && IsWithinAttackAngle(Context);
 }
 
-// AI Score
 float USFGA_Enemy_BaseAttack::CalcAIScore(const FEnemyAbilitySelectContext& Context) const
 {
-	// Validation
-	if (!Context.Self || !Context.Target || !Context.AbilitySpec)
-		return -FLT_MAX;
+    if (!Context.Self || !Context.Target || !Context.AbilitySpec)
+        return 0.f;
 
+    auto GetValueFromSpec = [&](const FGameplayTag& Tag, float DefaultValue) -> float
+    {
+        const float* ValuePtr = Context.AbilitySpec->SetByCallerTagMagnitudes.Find(Tag);
+        return ValuePtr ? *ValuePtr : DefaultValue;
+    };
+
+    const float BaseDamage = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_BaseDamage, 0.f);
+    const float Cooldown = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_Cooldown, 1.f);
+    const float Dist = Context.DistanceToTarget;
+
+    // 최소 사거리 미만이면 0점
+    const float MinAttackRange = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_MinAttackRange, 0.f);
+
+    const float BlindCheckRange = 300.0f;
+    const bool bIsWithinAngle = (Dist <= BlindCheckRange) || IsWithinAttackAngle(Context);
+    const bool bIsInRange = IsWithinAttackRange(Context);
 	
-	auto GetValueFromSpec = [&](const FGameplayTag& Tag, float DefaultValue) -> float
-	{
-		const float* ValuePtr = Context.AbilitySpec->SetByCallerTagMagnitudes.Find(Tag);
-		return ValuePtr ? *ValuePtr : DefaultValue;
-	};
 
+    float Score = 10.f; 
 	
-	const float BaseDamage = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_BaseDamage, 0.f);
-	const float Cooldown = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_Cooldown, 1.f);
+    const float CooldownSafe = FMath::Max(Cooldown, 0.1f);
+    Score += (BaseDamage / CooldownSafe) * 5.f;
+
+    // 3. 거리 보너스 
+    if (bIsInRange)
+    {
+        Score += 1000.f; 
+
+        const float AttackRange = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_AttackRange, 0.f);
+        const float OptimalDistance = (AttackRange + MinAttackRange) * 0.5f;
+        const float DistFromOptimal = FMath::Abs(Dist - OptimalDistance);
+        const float MaxDeviation = FMath::Max((AttackRange - MinAttackRange) * 0.5f, 1.f);
+
+        const float DistanceScore = FMath::Clamp(1.0f - (DistFromOptimal / MaxDeviation), 0.f, 1.f);
+        Score += DistanceScore * 500.f;
+    }
 	
-	const float Dist = Context.DistanceToTarget;
+    if (bIsWithinAngle)
+    {
+        Score += 1000.f; 
+    }
 
-	// 1. Min Range Check 
-	const float MinAttackRange = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_MinAttackRange, 0.f);
-	if (Dist <= MinAttackRange)
-		return 0.f;
+    Score += CalcScoreModifier(Context);
 
-	//Angle Check with Blind Spot Exception
-	// 근거리(300 미만)면 뒤에서도 공격 허용 (AI가 빠르게 회전)
-	// 원거리면 각도 엄격히 체크
-	const float BlindCheckRange = 300.0f;
-	if (Dist > BlindCheckRange)
-	{
-		if (!IsWithinAttackAngle(Context))
-			return 0.f;
-	}
 
-	// 3. Calculate Base Score
-	float Score = 0.f;
+    if (Context.bMustFirst)
+        Score += 100000.f;
 
-	const bool bIsInRange = IsWithinAttackRange(Context);
-
-	if (bIsInRange)
-	{
-		// 사거리 내 높은 기본 점수
-		Score = 1500.f;
-
-		// 최적 거리 보너스 
-		const float AttackRange = GetValueFromSpec(SFGameplayTags::Data_EnemyAbility_AttackRange, 0.f);
-		const float OptimalDistance = (AttackRange + MinAttackRange) * 0.5f;
-		const float DistFromOptimal = FMath::Abs(Dist - OptimalDistance);
-		const float MaxDeviation = FMath::Max((AttackRange - MinAttackRange) * 0.5f, 1.f);
-
-		// 최적 거리에 가까울수록 높은 점수 
-		const float DistanceScore = FMath::Clamp(1.0f - (DistFromOptimal / MaxDeviation), 0.f, 1.f);
-		Score += DistanceScore * 500.f;
-	}
-	else
-	{
-		// 사거리 밖: 낮은 점수 
-		Score = 500.f;
-	}
-
-	// 4. DPS 가중치 
-	const float CooldownSafe = FMath::Max(Cooldown, 0.1f);
-	Score += (BaseDamage / CooldownSafe) * 10.f;
-
-	// 5. Ability별 추가 보정치 
-	const float Modifier = CalcScoreModifier(Context);
-	Score += Modifier;
-
-	// 6. 우선순위 플래그 
-	if (Context.bMustFirst)
-		Score += 100000.f;
-
-	return Score;
+    
+    return FMath::Max(Score, 0.1f);
 }
 
 float USFGA_Enemy_BaseAttack::CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const
@@ -394,18 +327,30 @@ void USFGA_Enemy_BaseAttack::ApplyLaunchToTarget(AActor* Target, const FVector& 
 	}
 }
 
-//Utility
 
 AActor* USFGA_Enemy_BaseAttack::GetCurrentTarget() const
 {
 	if (ISFAIControllerInterface* Interface = Cast<ISFAIControllerInterface>(GetControllerFromActorInfo()))
 	{
-		if (USFEnemyCombatComponent* CombatComp = Interface->GetCombatComponent())
+		if (USFCombatComponentBase* CombatComp = Interface->GetCombatComponent())
 		{
 			return CombatComp->GetCurrentTarget();
 		}
 	}
 	return nullptr;
+}
+
+const FGameplayTagContainer* USFGA_Enemy_BaseAttack::GetCooldownTags() const
+{
+	// static을 사용하여 안전하게 내 태그만 포함된 컨테이너 반환
+	static FGameplayTagContainer TempContainer;
+	TempContainer.Reset();
+	if (const FGameplayTagContainer* ParentTags = Super::GetCooldownTags())
+	{
+		TempContainer.AppendTags(*ParentTags);
+	}
+	TempContainer.AddTag(CoolDownTag);
+	return &TempContainer;
 }
 
 void USFGA_Enemy_BaseAttack::ApplyCooldown(
@@ -471,3 +416,4 @@ float USFGA_Enemy_BaseAttack::GetAttackAngle() const
 {
 	return GetSetByCallerValue(SFGameplayTags::Data_EnemyAbility_AttackAngle, 45.f);
 }
+

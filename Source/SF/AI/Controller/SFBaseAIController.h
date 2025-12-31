@@ -10,32 +10,18 @@ class USFEnemyCombatComponent;
 class UBehaviorTreeComponent;
 class UBlackboardComponent;
 class UBehaviorTree;
-class USFTurnInPlaceComponent;
-
-
-
-/// 혹시 Enemy만들때 참고
-/// 소형 360 ~ 540
-/// 중형 
-
-
-
-
-
 
 
 UENUM(BlueprintType)
 enum class EAIRotationMode : uint8
 {
-	None,                 // CC 상태 등
-	MovementDirection,    // 비전투 이동
-	ControllerYaw        // 전투 모드 (이동+정지 모두 처리)
+	None, // 회전 없음
+	MovementDirection,    // 비전투 이동 (이동 방향으로 회전)
+	ControllerYaw        // 전투 모드 (Controller 방향으로 회전)
 };
 
 UCLASS(Abstract)
-class SF_API ASFBaseAIController 
-	: public ADetourCrowdAIController
-	, public ISFAIControllerInterface
+class SF_API ASFBaseAIController  : public ADetourCrowdAIController, public ISFAIControllerInterface
 {
 	GENERATED_BODY()
 
@@ -44,8 +30,8 @@ public:
 
 	/* ISFAIControllerInterface */
 	virtual void InitializeAIController() override;
-	virtual USFEnemyCombatComponent* GetCombatComponent() const override;
-
+	virtual USFCombatComponentBase* GetCombatComponent() const override;
+	virtual void Tick(float DeltaSeconds) override;
 protected:
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
@@ -92,23 +78,14 @@ public:
 	TObjectPtr<AActor> TargetActor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI|Combat")
-	TObjectPtr<USFEnemyCombatComponent> CombatComponent;
-#pragma endregion
-
-#pragma region TurnInPlace
-protected:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|TurnInPlace")
-	TObjectPtr<USFTurnInPlaceComponent> TurnInPlaceComponent;
-
-public:
-	UFUNCTION(BlueprintCallable, Category="AI|TurnInPlace")
-	USFTurnInPlaceComponent* GetTurnInPlaceComponent() const { return TurnInPlaceComponent; }
+	TObjectPtr<USFCombatComponentBase> CombatComponent;
 #pragma endregion
 
 #pragma region Team
 public:
 	virtual void SetGenericTeamId(const FGenericTeamId& InTeamID) override;
 	virtual FGenericTeamId GetGenericTeamId() const override;
+	virtual bool ShouldRotateActorByController() const;
 	void SetbSuppressControlRotationUpdates(bool bInSuppress) { bSuppressControlRotationUpdates = bInSuppress; }
 protected:
 	UPROPERTY(Replicated)
@@ -124,33 +101,17 @@ protected:
 
 	virtual void UpdateControlRotation(float DeltaTime, bool bUpdatePawn) override;
 
-	void RestoreRotationAfterAbility();
-	void SetMovementBasedRotation(bool bIsMoving);
-
 public:
 	void SetRotationMode(EAIRotationMode NewMode);
 	EAIRotationMode GetCurrentRotationMode() const { return CurrentRotationMode; }
+	
+	virtual bool IsTurningInPlace() const { return false; }
+	
+	virtual float GetTurnThreshold() const { return 45.0f; }
 
-	void EnsureRotationModeReset();
-	void DisableTurnInPlaceFor(float Duration);
-	bool CanTurnInPlace() const;
-
-	UFUNCTION(BlueprintCallable, Category="AI|Rotation")
-	bool IsTurningInPlace() const;
-
-	//회전 속도
+protected:
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|Rotation", meta=(ClampMin="0.0", ClampMax="1080.0"))
-	float MovingRotationRate = 540.f;  // 이동 중 회전 속도 
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|Rotation", meta=(ClampMin="0.0", ClampMax="1080.0"))
-	float StationaryRotationRate = 360.f;  // 정지 중 회전 속도 
-
-private:
-	float DisableTurnInPlaceUntilTime = 0.f;
-	FTimerHandle RotationRestoreTimerHandle;
-	bool bWasMovingLastFrame = false;
-
-	UFUNCTION()
-	void OnAbilityStateChanged(FGameplayTag Tag, int32 NewCount);
+	float RotationInterpSpeed = 8.f;  // 회전 보간 속도
 #pragma endregion
 };

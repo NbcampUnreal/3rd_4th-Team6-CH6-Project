@@ -34,31 +34,7 @@ class SF_API USFGA_Enemy_BaseAttack : public USFGameplayAbility, public ISFEnemy
 public:
     USFGA_Enemy_BaseAttack(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
     
-    //~ Begin UGameplayAbility Interface
-    virtual bool CanActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayTagContainer* SourceTags = nullptr,
-        const FGameplayTagContainer* TargetTags = nullptr,
-        OUT FGameplayTagContainer* OptionalRelevantTags = nullptr
-    ) const override;
-    
-    virtual void ActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        const FGameplayEventData* TriggerEventData
-    ) override;
-    
-    virtual void EndAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        bool bReplicateEndAbility,
-        bool bWasCancelled
-    ) override;
-    //~ End UGameplayAbility Interface
-    
+ 
     //~ Begin ISFEnemyAbilityInterface
     virtual float CalcAIScore(const FEnemyAbilitySelectContext& Context) const override;
     virtual float CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const override;
@@ -114,6 +90,7 @@ protected:
 
     UFUNCTION(BlueprintCallable, Category = "Attack")
     virtual AActor* GetCurrentTarget() const;
+    const FGameplayTagContainer* GetCooldownTags() const;
 
 
     virtual void ApplyCooldown(

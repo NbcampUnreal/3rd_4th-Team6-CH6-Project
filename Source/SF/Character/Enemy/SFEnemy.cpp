@@ -50,22 +50,23 @@ ASFEnemy::ASFEnemy(const FObjectInitializer& ObjectInitializer)
 	SetNetUpdateFrequency(100.f);
 	//사실 PlayerState에서 Ability세팅할때랑 똑같이 세팅을 라이라에서는 하는것 같다
 
-    // ✅ Lyra 철학: Character는 Controller 회전을 직접 따라가지 않음
-    // 회전은 AnimInstance의 TurnInPlace 또는 CharacterMovement의 OrientRotationToMovement로 처리
+    // ✅ Souls-like 철학: Character는 Controller 회전을 직접 따라가지 않음
+    // 회전은 AIController의 SetMovementBasedRotation() 또는 TurnInPlace 시스템으로 처리
     bUseControllerRotationYaw = false;
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
 
     if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
     {
-    	// ✅ 수정: true로 설정 - Actor가 자동으로 ControlRotation을 따라감
-    	// 작은 각도는 자연스럽게 회전, 큰 각도만 Turn In Place로 처리
-        MoveComp->bUseControllerDesiredRotation = true;
+    	// ✅ Souls-like: 기본값 false - 정지 상태에서 회전하지 않음
+    	// AIController의 SetMovementBasedRotation()이 이동 상태에 따라 동적으로 설정
+    	// 이동 중에만 true로 변경되어 Strafe 동작 수행
+        MoveComp->bUseControllerDesiredRotation = false;
     	// 이동 방향으로 자동 회전 비활성화 (ControllerYaw 우선)
         MoveComp->bOrientRotationToMovement = false;
 
-        // 자동 회전 속도 설정 (360도/초)
-        MoveComp->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
+        // 회전 속도 (AIController가 동적으로 변경)
+        MoveComp->RotationRate = FRotator::ZeroRotator;
 
     	MoveComp->MaxAcceleration = 500.0f;
     	MoveComp->BrakingDecelerationWalking = 1024.0f;
@@ -131,6 +132,12 @@ UAbilitySystemComponent* ASFEnemy::GetAbilitySystemComponent() const
 }
 
 #pragma region InitializeComponents
+void ASFEnemy::InitializeComponents()
+{
+	InitializeAbilitySystem();
+	InitializeMovementComponent();
+}
+
 void ASFEnemy::InitializeAbilitySystem()
 {
 	if (!AbilitySystemComponent)

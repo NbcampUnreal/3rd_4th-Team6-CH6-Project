@@ -2,12 +2,16 @@
 
 #include "BTService_UpdateTarget.h"
 
+#include "AbilitySystemComponent.h"
 #include "AIController.h"
 #include "AI/Controller/SFEnemyController.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISense_Sight.h"
 #include "GameFramework/Pawn.h"
+#include "AbilitySystemGlobals.h"
+#include "Character/SFCharacterGameplayTags.h"
+#include "Character/Enemy/SFEnemyGameplayTags.h"
 
 UBTService_UpdateTarget::UBTService_UpdateTarget()
 {
@@ -37,15 +41,19 @@ void UBTService_UpdateTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
 	ASFBaseAIController* AIController = Cast<ASFBaseAIController>(OwnerComp.GetAIOwner());
 	if (!AIController) return;
 
-	// CC 상태나 TurnInPlace 중에는 타겟 업데이트 스킵
-	if (AIController->GetCurrentRotationMode() == EAIRotationMode::None ||
-		AIController->IsTurningInPlace())
-	{
-		return;
-	}
-
-
+	// Ability 사용 중에는 타겟 업데이트 스킵
 	APawn* MyPawn = AIController->GetPawn();
+	if (MyPawn)
+	{
+		if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn))
+		{
+			if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_UsingAbility))
+			{
+				return;
+			}
+		}
+	}
+	
 	if (!MyPawn) return;
 
 	UBlackboardComponent* BlackboardComp = OwnerComp.GetBlackboardComponent();

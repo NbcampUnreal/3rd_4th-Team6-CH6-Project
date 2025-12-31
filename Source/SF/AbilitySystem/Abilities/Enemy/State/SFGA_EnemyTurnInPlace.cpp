@@ -1,30 +1,41 @@
 #include "SFGA_EnemyTurnInPlace.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "AbilitySystemBlueprintLibrary.h"
+
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/SFGameplayAbilityTags.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
-#include "Character/SFCharacterGameplayTags.h"
-#include "AI/Controller/SFBaseAIController.h"
+#include "AbilitySystem/Task/SFAbilityTask_RotateWithCurve.h"
+#include "AI/Controller/Dragon/SFDragonController.h"
 #include "AI/Controller/SFTurnInPlaceComponent.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 USFGA_EnemyTurnInPlace::USFGA_EnemyTurnInPlace()
 {
-	ActivationPolicy = ESFAbilityActivationPolicy::Manual;
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	bIsRightTurn = false;
+	InitialYaw = 0.f;
+	RotateTask = nullptr;
 
-	AbilityTags.AddTag(SFGameplayTags::Ability_Enemy_TurnInPlace);
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FAbilityTriggerData Trigger90R;
+		Trigger90R.TriggerTag = SFGameplayTags::GameplayEvent_Turn_90R;
+		Trigger90R.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+		AbilityTriggers.Add(Trigger90R);
 
-	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_TurningInPlace);
-	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_UsingAbility);
+		FAbilityTriggerData Trigger90L;
+		Trigger90L.TriggerTag = SFGameplayTags::GameplayEvent_Turn_90L;
+		Trigger90L.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+		AbilityTriggers.Add(Trigger90L);
 
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Dead);
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Stunned);
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_Knockdown);
-	ActivationBlockedTags.AddTag(SFGameplayTags::Character_State_TurningInPlace);
+		FAbilityTriggerData Trigger180R;
+		Trigger180R.TriggerTag = SFGameplayTags::GameplayEvent_Turn_180R;
+		Trigger180R.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+		AbilityTriggers.Add(Trigger180R);
 
-	MontagePlayRate = 1.0f;
+		FAbilityTriggerData Trigger180L;
+		Trigger180L.TriggerTag = SFGameplayTags::GameplayEvent_Turn_180L;
+		Trigger180L.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+		AbilityTriggers.Add(Trigger180L);
+	}
 }
 
 void USFGA_EnemyTurnInPlace::ActivateAbility(
@@ -33,7 +44,29 @@ void USFGA_EnemyTurnInPlace::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	bIsEnding = false;
+	USFGameplayAbility::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+	if (ACharacter* Char = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+	{
+		if (AController* Controller = Char->GetController())
+		{
+			if (ASFBaseAIController* BaseAI = Cast<ASFBaseAIController>(Controller))
+			{
+				BaseAI->SetRotationMode(EAIRotationMode::None);
+			}
+		}
+
+		if (UCharacterMovementComponent* MC = Char->GetCharacterMovement())
+		{
+			MC->StopMovementImmediately();
+			MC->bOrientRotationToMovement = false;
+			MC->bUseControllerDesiredRotation = false;
+			MC->RotationRate = FRotator::ZeroRotator;
+		}
+
+		Char->bUseControllerRotationYaw = false;
+	}
 
 	if (!ValidateTriggerEvent(TriggerEventData))
 	{
@@ -43,22 +76,40 @@ void USFGA_EnemyTurnInPlace::ActivateAbility(
 
 	TriggerEventTag = TriggerEventData->EventTag;
 	ActualTurnYaw = TriggerEventData->EventMagnitude;
+	bIsRightTurn = ActualTurnYaw > 0.f;
 
 	if (AActor* Avatar = GetAvatarActorFromActorInfo())
 	{
-		float CurrentYaw = Avatar->GetActorRotation().Yaw;
-		TargetYaw = CurrentYaw + ActualTurnYaw;
+		InitialYaw = Avatar->GetActorRotation().Yaw;
+		TargetYaw = FMath::UnwindDegrees(InitialYaw + ActualTurnYaw);
 	}
 
-	if (!StartTurnMontage(TriggerEventTag))
+	// 몽타주 실행 및 길이 가져오기
+	float MontageDuration = 0.f;
+	if (!StartTurnMontage(TriggerEventTag, MontageDuration))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	if (ASFBaseAIController* AI = Cast<ASFBaseAIController>(ActorInfo->PlayerController.Get()))
+	// 시간 기반 회전 Task 생성
+	RotateTask = USFAbilityTask_RotateWithCurve::CreateRotateWithCurveTask(
+		this,
+		FName("RotateWithCurve"),
+		MontageDuration,
+		TargetYaw,
+		ActualTurnYaw
+	);
+
+	if (RotateTask)
 	{
-		AI->DisableTurnInPlaceFor(2.0f);
+		RotateTask->OnCompleted.AddDynamic(this, &USFGA_EnemyTurnInPlace::OnRotationTaskCompleted);
+		RotateTask->OnCancelled.AddDynamic(this, &USFGA_EnemyTurnInPlace::OnRotationTaskCancelled);
+		RotateTask->ReadyForActivation();
+	}
+	else
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 	}
 }
 
@@ -69,40 +120,56 @@ void USFGA_EnemyTurnInPlace::EndAbility(
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
+	if (bIsEnding) return;
+	bIsEnding = true;
 
-	CleanupMontageTask();
-	ActualTurnYaw = 0.f;
-	TriggerEventTag = FGameplayTag::EmptyTag;
+	if (RotateTask)
+	{
+		RotateTask->EndTask();
+		RotateTask = nullptr;
+	}
+	
+	bIsRightTurn = false;
+	InitialYaw = 0.f;
+	
+	NotifyTurnFinished();
 
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	USFGameplayAbility::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-void USFGA_EnemyTurnInPlace::OnTurnComplete()
+void USFGA_EnemyTurnInPlace::OnRotationTaskCompleted()
 {
-	if (ACharacter* Char = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
-	{
-		if (ASFBaseAIController* AI = Cast<ASFBaseAIController>(Char->GetController()))
-		{
-			if (USFTurnInPlaceComponent* TurnComp = AI->GetTurnInPlaceComponent())
-			{
-				TurnComp->OnTurnFinished();
-			}
-		}
-	}
-
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
-void USFGA_EnemyTurnInPlace::OnTurnCancelled()
+void USFGA_EnemyTurnInPlace::OnRotationTaskCancelled()
 {
-	NotifyTurnFinished();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
-void USFGA_EnemyTurnInPlace::OnTurnInterrupted()
+bool USFGA_EnemyTurnInPlace::StartTurnMontage(const FGameplayTag& EventTag, float& OutDuration)
 {
-	NotifyTurnFinished();
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+	UAnimMontage* const* MontagePtr = TurnMontageMap.Find(EventTag);
+	if (!MontagePtr || !*MontagePtr)
+	{
+		return false;
+	}
+
+	UAnimMontage* Montage = *MontagePtr;
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		float PlayedDuration = ASC->PlayMontage(this, CurrentActivationInfo, Montage, MontagePlayRate);
+		
+		if (PlayedDuration > 0.f)
+		{
+			// 몽타주 실제 재생 길이 계산 (PlayRate 적용)
+			OutDuration = Montage->GetPlayLength() / MontagePlayRate;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool USFGA_EnemyTurnInPlace::ValidateTriggerEvent(const FGameplayEventData* TriggerEventData)
@@ -111,60 +178,16 @@ bool USFGA_EnemyTurnInPlace::ValidateTriggerEvent(const FGameplayEventData* Trig
 	{
 		return false;
 	}
-
-	const FGameplayTag TurnParentTag =
-		FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.Turn"));
-
-	return TriggerEventData->EventTag.MatchesTag(TurnParentTag);
-}
-
-bool USFGA_EnemyTurnInPlace::StartTurnMontage(const FGameplayTag& EventTag)
-{
-	UAnimMontage* const* MontagePtr = TurnMontageMap.Find(EventTag);
-	if (!MontagePtr || !*MontagePtr)
-	{
-		return false;
-	}
-
-	CurrentMontageTask =
-		UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this,
-			NAME_None,
-			*MontagePtr,
-			MontagePlayRate,
-			NAME_None,
-			true
-		);
-
-	if (!CurrentMontageTask)
-	{
-		return false;
-	}
-
-	CurrentMontageTask->OnCompleted.AddDynamic(this, &USFGA_EnemyTurnInPlace::OnTurnComplete);
-	CurrentMontageTask->OnCancelled.AddDynamic(this, &USFGA_EnemyTurnInPlace::OnTurnCancelled);
-	CurrentMontageTask->OnInterrupted.AddDynamic(this, &USFGA_EnemyTurnInPlace::OnTurnInterrupted);
-
-	CurrentMontageTask->ReadyForActivation();
 	return true;
-}
-
-void USFGA_EnemyTurnInPlace::CleanupMontageTask()
-{
-	if (CurrentMontageTask)
-	{
-		CurrentMontageTask->EndTask();
-		CurrentMontageTask = nullptr;
-	}
 }
 
 void USFGA_EnemyTurnInPlace::NotifyTurnFinished()
 {
 	if (ACharacter* Char = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{
-		if (ASFBaseAIController* AI = Cast<ASFBaseAIController>(Char->GetController()))
+		if (ASFDragonController* DragonAI = Cast<ASFDragonController>(Char->GetController()))
 		{
-			if (USFTurnInPlaceComponent* TurnComp = AI->GetTurnInPlaceComponent())
+			if (USFTurnInPlaceComponent* TurnComp = DragonAI->GetTurnInPlaceComponent())
 			{
 				TurnComp->OnTurnFinished();
 			}

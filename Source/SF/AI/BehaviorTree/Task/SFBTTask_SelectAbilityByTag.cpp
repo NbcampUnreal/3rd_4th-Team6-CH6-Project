@@ -46,7 +46,7 @@ EBTNodeResult::Type USFBTTask_SelectAbilityByTag::ExecuteTask(
 
 	if (ISFAIControllerInterface* AI = Cast<ISFAIControllerInterface>(AIController))
 	{
-		USFEnemyCombatComponent* Combat = AI->GetCombatComponent();
+		USFCombatComponentBase* Combat = AI->GetCombatComponent();
 		if (!Combat)
 		{
 			return EBTNodeResult::Failed;
