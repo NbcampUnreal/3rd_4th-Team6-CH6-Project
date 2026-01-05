@@ -8,14 +8,10 @@
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Libraries/SFAbilitySystemLibrary.h"
-<<<<<<< Updated upstream
 #include "Player/SFPlayerState.h"
 #include "Player/Components/SFPlayerStatsComponent.h"
-
-=======
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "UI/InGame/UIDataStructs.h"
->>>>>>> Stashed changes
 
 USFPrimarySet::USFPrimarySet()
 {
