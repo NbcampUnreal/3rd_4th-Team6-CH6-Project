@@ -2,7 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/GameplayMessageSubsystem.h"
+#include "GameplayTagContainer.h"
 #include "System/Data/SFStageInfo.h"
+#include "UI/InGame/UIDataStructs.h"
 #include "SFPlayerController.generated.h"
 
 class USFSharedUIComponent;
@@ -14,6 +17,7 @@ class USFLoadingCheckComponent;
 class ASFPlayerState;
 class USFAbilitySystemComponent;
 class UUserWidget;
+class USFDamageWidget;
 class UInputAction;
 class UInputMappingContext;
 
@@ -66,8 +70,19 @@ protected:
 
 	// 인게임 메뉴 생성 함수
 	void ToggleInGameMenu();
+	
 	// 팀원 위젯 생성 함수
 	void CreateTeammateIndicators();
+	
+	// 몬스터 데미지 텍스트 메세지 함수 (서버 실행)
+	void OnDamageMessageReceived(FGameplayTag Channel, const FSFDamageMessageInfo& Payload);
+	
+	// 클라이언트 데미지 텍스트 출력 RPC 함수
+	UFUNCTION(Client, Unreliable)
+	void Client_ShowDamageText(float DamageAmount, AActor* TargetActor);
+	
+	// 게임 졸료 시 리스너 해제 함수 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION(Server, Reliable)
 	void Server_NotifyReadyForLobby();
@@ -123,5 +138,12 @@ private:
 
 	// 최소 전송 간격
 	static constexpr float ViewRotationSendInterval = 0.05f;
+	
+	// 리스너 등록증(핸들) 저장 변수
+	FGameplayMessageListenerHandle DamageMessageListenerHandle;
 
+public:
+	// 몬스터 데미지 텍스트 위젯(WBP) 변수
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|InGame")
+	TSubclassOf<USFDamageWidget> DamageWidgetClass;
 };

@@ -8,16 +8,24 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "Components/WidgetComponent.h"
+#include "Character/Enemy/Component/SFEnemyWidgetComponent.h"
 #include "Components/GameFrameworkInitStateInterface.h"
 #include "Components/SFDeathUIComponent.h"
 #include "Components/SFSharedUIComponent.h"
 #include "Components/SFSpectatorComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
+<<<<<<< Updated upstream
 #include "GameModes/SFGameOverManagerComponent.h"
+=======
+#include "GameFramework/GameplayMessageSubsystem.h"
+>>>>>>> Stashed changes
 #include "Kismet/GameplayStatics.h"
 #include "Pawn/SFSpectatorPawn.h"
 #include "System/SFPlayFabSubsystem.h"
 #include "UI/InGame/SFIndicatorWidgetBase.h"
+#include "UI/InGame/SFDamageWidget.h"
 
 ASFPlayerController::ASFPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -41,6 +49,15 @@ void ASFPlayerController::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+
+	// 몬스터 데미지 텍스트 관련 리스너 등록 (UI.Event.Damage) -> OnDamageMessageReceived() 실행
+	UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(this);
+	
+	DamageMessageListenerHandle = MessageSubsystem.RegisterListener(
+		FGameplayTag::RequestGameplayTag("UI.Event.Damage"), 
+		this, 
+		&ThisClass::OnDamageMessageReceived
+	);
 
 	// 로컬 플레이어인 경우 팀원 표시 로직 실행
 	if (IsLocalController())
@@ -282,6 +299,131 @@ void ASFPlayerController::CreateTeammateIndicators()
 			UE_LOG(LogTemp, Log, TEXT("Team Indicator Created for: %s"), *Actor->GetName());
 		}
 	}
+}
+
+void ASFPlayerController::OnDamageMessageReceived(FGameplayTag Channel, const FSFDamageMessageInfo& Payload)
+{
+	// 유효성 체크 -> 타겟 확인
+	if (!Payload.TargetActor) return;
+
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return;
+	APlayerState* MyPS = GetPlayerState<APlayerState>();
+
+	/*UE_LOG(LogTemp, Warning, TEXT("Damage Debug: Instigator=[%s], MyPawn=[%s], MyController=[%s]"),
+	Payload.Instigator ? *Payload.Instigator->GetName() : TEXT("NULL"),
+	*MyPawn->GetName(),
+	*GetName());
+	*/
+
+	bool bIsMyPawn = (Payload.Instigator == MyPawn);
+	bool bIsMyController = (Payload.Instigator == this);
+	bool bIsMyPlayerState = (MyPS && Payload.Instigator == MyPS);
+	
+	if (!bIsMyPawn && !bIsMyController && !bIsMyPlayerState)
+	{
+		return; 
+	}
+	
+	Client_ShowDamageText(Payload.DamageAmount, Payload.TargetActor);
+}
+
+void ASFPlayerController::Client_ShowDamageText_Implementation(float DamageAmount, AActor* TargetActor)
+{
+	// 1. 유효성 체크
+	if (!DamageWidgetClass || !TargetActor) return;
+
+	// 플레이어/아군 체크
+	APawn* TargetPawn = Cast<APawn>(TargetActor);
+	if (!TargetPawn) return;
+	if (TargetPawn->IsPlayerControlled()) return; 
+	if (TargetPawn->ActorHasTag(FName("Player"))) return;
+
+	FVector TextSpawnLocation = TargetActor->GetActorLocation();
+
+	USFEnemyWidgetComponent* HPBarComp = TargetActor->FindComponentByClass<USFEnemyWidgetComponent>();
+
+	if (HPBarComp)
+	{
+		TextSpawnLocation = HPBarComp->GetComponentLocation();
+	}
+	else
+	{
+		ACharacter* TargetCharacter = Cast<ACharacter>(TargetActor);
+		if (TargetCharacter)
+		{
+			TextSpawnLocation.Z += TargetCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 50.0f;
+		}
+	}
+
+	if (PlayerCameraManager)
+	{
+		const FTransform CamTransform = PlayerCameraManager->GetTransform();
+		const FVector CamRight = CamTransform.GetUnitAxis(EAxis::Y);
+		const FVector CamUp = CamTransform.GetUnitAxis(EAxis::Z);
+
+		// 오른쪽 50, 위 40
+		TextSpawnLocation += (CamRight * 50.0f) + (CamUp * 40.0f);
+	}
+
+	USFDamageWidget* NewDamageWidget = CreateWidget<USFDamageWidget>(this, DamageWidgetClass);
+	if (NewDamageWidget)
+	{
+		NewDamageWidget->AddToViewport();
+		NewDamageWidget->SetupDamageText(DamageAmount, TextSpawnLocation);
+	}
+}
+
+void ASFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 1. 팀원 검색 타이머 강제 종료
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TeammateSearchTimerHandle);
+	}
+
+	// 2. GameInstance 가져오기 
+	UGameInstance* GI = GetGameInstance();
+
+	// 만약 PC가 이미 연결이 끊겨서 GI를 가져올 수 없다면
+	if (!GI && GetWorld())
+	{
+		// 월드를 통해 강제로 GameInstance를 찾아옴.
+		GI = GetWorld()->GetGameInstance();
+	}
+
+	// GI를 찾았고, 시스템이 살아있다면
+	if (GI)
+	{
+		if (UGameplayMessageSubsystem* MessageSubsystem = GI->GetSubsystem<UGameplayMessageSubsystem>())
+		{
+			// 리스너 해제 (Unregister)
+			MessageSubsystem->UnregisterListener(DamageMessageListenerHandle);
+		}
+	}
+
+	// 3. 인게임 메뉴 위젯 정리
+	if (InGameMenuInstance)
+	{
+		if (InGameMenuInstance->IsInViewport())
+		{
+			InGameMenuInstance->RemoveFromParent();
+		}
+		InGameMenuInstance = nullptr;
+	}
+
+	// 4. 팀원 표시 위젯 정리 (Viewport 참조 해제)
+	for (auto& Elem : TeammateWidgetMap)
+	{
+		if (Elem.Value)
+		{
+			// 위젯이 유효하다면 부모(Viewport)에서 분리
+			Elem.Value->RemoveFromParent();
+		}
+	}
+	TeammateWidgetMap.Empty();
+	
+	Super::EndPlay(EndPlayReason);
 }
 
 void ASFPlayerController::Server_SendPermanentUpgradeData_Implementation(const FSFPermanentUpgradeData& InData)
