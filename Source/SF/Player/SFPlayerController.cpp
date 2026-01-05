@@ -16,11 +16,8 @@
 #include "Components/SFSpectatorComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
-<<<<<<< Updated upstream
 #include "GameModes/SFGameOverManagerComponent.h"
-=======
 #include "GameFramework/GameplayMessageSubsystem.h"
->>>>>>> Stashed changes
 #include "Kismet/GameplayStatics.h"
 #include "Pawn/SFSpectatorPawn.h"
 #include "System/SFPlayFabSubsystem.h"
