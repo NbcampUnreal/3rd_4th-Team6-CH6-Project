@@ -19,7 +19,7 @@ bool USFBTD_CompareBBEntries::CalculateRawConditionValue(UBehaviorTreeComponent&
 	if (!BB) return false;
 
 	
-	float LeftValue = BB->GetValueAsFloat(LeftKey.SelectedKeyName);
+		float LeftValue = BB->GetValueAsFloat(LeftKey.SelectedKeyName);
 	float RightValue = BB->GetValueAsFloat(RightKey.SelectedKeyName);
 	
 	switch (Operator)

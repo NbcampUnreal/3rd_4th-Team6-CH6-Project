@@ -66,4 +66,12 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Cooldown_Hero_Skill_Primary);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Cooldown_Hero_Skill_Secondary);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Cooldown_Hero_Skill_Identity);
+
+	//Dragon
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Takeoff);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Land);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Swoop);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Hover);
+	
+	
 }

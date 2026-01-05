@@ -45,5 +45,8 @@ namespace SFGameplayTags
 
 	// ========== 상호작용 ==========
 	UE_DEFINE_GAMEPLAY_TAG(Character_State_Interact, "Character.State.Interact");
+
+	//Eenmey
+	UE_DEFINE_GAMEPLAY_TAG(Character_State_PhaseIntro, "Character.State.PhaseIntro");
 	
 }

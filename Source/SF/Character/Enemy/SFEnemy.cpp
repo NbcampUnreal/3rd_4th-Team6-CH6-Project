@@ -16,7 +16,6 @@
 #include "Character/SFPawnExtensionComponent.h"
 #include "Component/SFEnemyMovementComponent.h"
 #include "Component/SFEnemyWidgetComponent.h"
-#include "Component/SFStateReactionComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameModes/SFEnemyManagerComponent.h"
 #include "GameModes/SFGameState.h"
@@ -39,9 +38,6 @@ ASFEnemy::ASFEnemy(const FObjectInitializer& ObjectInitializer)
 	//AttributeSet
 	PrimarySet = CreateDefaultSubobject<USFPrimarySet_Enemy>(TEXT("PrimarySet"));
 	CombatSet = CreateDefaultSubobject<USFCombatSet_Enemy>(TEXT("CombatSet"));
-
-	StateReactionComponent = ObjectInitializer.CreateDefaultSubobject<USFStateReactionComponent>(this, TEXT("StateReactionComponent"));
-	StateReactionComponent->SetIsReplicated(true);
 
 	EnemyWidgetComponent = ObjectInitializer.CreateDefaultSubobject<USFEnemyWidgetComponent>(this, TEXT("EnemyWidgetComponent"));
 	EnemyWidgetComponent->SetupAttachment(RootComponent);
@@ -136,6 +132,7 @@ void ASFEnemy::InitializeComponents()
 {
 	InitializeAbilitySystem();
 	InitializeMovementComponent();
+	RegisterCollisionTagEvents();
 }
 
 void ASFEnemy::InitializeAbilitySystem()
@@ -310,6 +307,34 @@ void ASFEnemy::OnRep_LastAttacker()
 		if (EnemyWidgetComponent)
 		{
 			EnemyWidgetComponent->MarkAsAttackedByLocalPlayer();
+		}
+	}
+}
+
+void ASFEnemy::RegisterCollisionTagEvents()
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_PhaseIntro, EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &ThisClass::OnCollisionTagChanged);
+
+		ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Dead, EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &ThisClass::OnCollisionTagChanged);
+	}
+}
+
+void ASFEnemy::OnCollisionTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+	if (Tag == SFGameplayTags::Character_State_PhaseIntro ||
+		Tag == SFGameplayTags::Character_State_Dead)
+	{
+		if (NewCount > 0)
+		{
+			TurnCollisionOff();
+		}
+		else if (Tag == SFGameplayTags::Character_State_PhaseIntro)
+		{
+			TurnCollisionOn();
 		}
 	}
 }

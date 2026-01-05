@@ -43,4 +43,8 @@ namespace SFGameplayTags
 	
 	// ========== 상호작용 ==========
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Interact);
+
+
+	//== Enemy==
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_PhaseIntro);
 }

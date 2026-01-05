@@ -19,6 +19,7 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Parried, "GameplayEvent.Parried");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Knockback, "GameplayEvent.Knockback");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Launched, "GameplayEvent.Launched");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_MoveStep, "GameplayEvent.MoveStep");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Groggy, "GameplayEvent.Groggy");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Revived, "GameplayEvent.Revived");
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Downed, "GameplayEvent.Downed");
@@ -96,4 +97,17 @@ namespace SFGameplayTags
 
 	// Player Buff
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_PlayerAbility_LastStand, "GameplayEvent.PlayerAbility.LastStand");
+
+
+// Dragon
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Dragon_Flight_Launch, "GameplayEvent.Dragon.Flight.Launch");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Dragon_Flight_Land, "GameplayEvent.Dragon.Flight.Land");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Dragon_Flight_Swoop, "GameplayEvent.Dragon.Flight.Swoop");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Dragon_Flight_Hover, "GameplayEvent.Dragon.Flight.Hover");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Dragon_Fireball_Launch, "GameplayEvent.Dragon.FireBallLaunch");
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Dragon_TakeOff_Completed, "GameplayEvent.Dragon.TakeOff.Completed");
+
+
+
+	
 }

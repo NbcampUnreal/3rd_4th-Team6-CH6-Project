@@ -3,175 +3,219 @@
 
 #include "Character/Enemy/Component/SFEnemyMovementComponent.h"
 
-#include "SFStateReactionComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "AbilitySystemComponent.h"
 #include "AI/SFAIGameplayTags.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "GameFramework/Character.h"
 
 void USFEnemyMovementComponent::InitializeMovementComponent()
 {
-	MappingStateFunction();
-	USFStateReactionComponent* StateReactionComponent = USFStateReactionComponent::FindStateReactionComponent(GetOwner());
-	if (IsValid(StateReactionComponent))
-	{
-		StateReactionComponent->OnStateStart.AddDynamic(this, &ThisClass::OnStateStart);
-		StateReactionComponent->OnStateEnd.AddDynamic(this, &ThisClass::OnStateEnd);
-		bUseRVOAvoidance = false;
-	}
-	
-}
+    MappingStateFunction();
 
-void USFEnemyMovementComponent::InternalDisableMovement()
-{
-	// ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	// if (!OwnerChar) return;
-	//
-	// UCharacterMovementComponent* MoveComp = OwnerChar->GetCharacterMovement();
-	// if (!MoveComp) return;
-	//
-	// // 안전한 디세이블 방식
-	// PreviousMovementMode = MoveComp->MovementMode;
-	//
-	// MoveComp->StopMovementImmediately();
-	//
-	// MoveComp->SetMovementMode(MOVE_None);
-}
+    // StateReactionComponent 제거 - 직접 Tag 감지
+    if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
+    {
+        RegisterStateTagEvents(ASC);
+    }
 
-void USFEnemyMovementComponent::InternalEnableMovement()
-{
-	// ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	// if (!OwnerChar) return;
-	//
-	// UCharacterMovementComponent* MoveComp = OwnerChar->GetCharacterMovement();
-	// if (!MoveComp) return;
-	//
-	// // 이전 모드가 정상이라면 복구
-	// if (PreviousMovementMode != MOVE_None)
-	// {
-	// 	MoveComp->SetMovementMode(PreviousMovementMode);
-	// }
-	// else
-	// {
-	// 	// 기본값 WALK
-	// 	MoveComp->SetMovementMode(MOVE_Walking);
-	// }
+    bUseRVOAvoidance = false;
 }
 
 void USFEnemyMovementComponent::MappingStateFunction()
 {
-	StateStartMap.Add(SFGameplayTags::Character_State_Parried, [this]() { StartStateParried(); });
-	StateStartMap.Add(SFGameplayTags::Character_State_Stunned, [this]() { StartStateStunned(); });
-	StateStartMap.Add(SFGameplayTags::Character_State_Groggy, [this]() { StartStateGroggy(); });
-	StateStartMap.Add(SFGameplayTags::Character_State_Hit, [this]() { StartStateHitReact(); });
-	StateStartMap.Add(SFGameplayTags::Character_State_Knockback, [this]() { StartStateKnockback(); });
-	StateStartMap.Add(SFGameplayTags::Character_State_Knockdown, [this]() { StartStateKnockdown(); });
-	StateStartMap.Add(SFGameplayTags::Character_State_Dead, [this]() { StartStateDead(); });
+    // Start Functions
+    StateStartMap.Add(SFGameplayTags::Character_State_Parried, [this]() { StartStateParried(); });
+    StateStartMap.Add(SFGameplayTags::Character_State_Stunned, [this]() { StartStateStunned(); });
+    StateStartMap.Add(SFGameplayTags::Character_State_Groggy, [this]() { StartStateGroggy(); });
+    StateStartMap.Add(SFGameplayTags::Character_State_Dead, [this]() { StartStateDead(); });
+    
+  
+    StateStartMap.Add(SFGameplayTags::Character_State_Hit, [this]() { StartStateHitReact(); });
+    StateStartMap.Add(SFGameplayTags::Character_State_Knockback, [this]() { StartStateKnockback(); });
+    StateStartMap.Add(SFGameplayTags::Character_State_Knockdown, [this]() { StartStateKnockdown(); });
 
-	StateEndMap.Add(SFGameplayTags::Character_State_Parried, [this]() { EndStateParried(); });
-	StateEndMap.Add(SFGameplayTags::Character_State_Stunned, [this]() { EndStateStunned(); });
-	StateEndMap.Add(SFGameplayTags::Character_State_Groggy, [this]() { EndStateGroggy(); });
-	StateEndMap.Add(SFGameplayTags::Character_State_Hit, [this]() { EndStateHitReact(); });
-	StateEndMap.Add(SFGameplayTags::Character_State_Knockback, [this]() { EndStateKnockback(); });
-	StateEndMap.Add(SFGameplayTags::Character_State_Knockdown, [this]() { EndStateKnockdown(); });
-	StateEndMap.Add(SFGameplayTags::Character_State_Dead, [this]() { EndStateDead(); });
 
+    // End Functions
+    StateEndMap.Add(SFGameplayTags::Character_State_Parried, [this]() { EndStateParried(); });
+    StateEndMap.Add(SFGameplayTags::Character_State_Stunned, [this]() { EndStateStunned(); });
+    StateEndMap.Add(SFGameplayTags::Character_State_Groggy, [this]() { EndStateGroggy(); });
+    StateEndMap.Add(SFGameplayTags::Character_State_Dead, [this]() { EndStateDead(); });
+
+ 
+    StateEndMap.Add(SFGameplayTags::Character_State_Hit, [this]() { EndStateHitReact(); });
+    StateEndMap.Add(SFGameplayTags::Character_State_Knockback, [this]() { EndStateKnockback(); });
+    StateEndMap.Add(SFGameplayTags::Character_State_Knockdown, [this]() { EndStateKnockdown(); });
+}
+
+void USFEnemyMovementComponent::InternalDisableMovement()
+{
+ 
+    StopMovementImmediately();
+    
+    if (MovementMode != MOVE_None)
+    {
+        PreviousMovementMode = MovementMode;
+    }
+
+    DisableMovement(); 
 }
 
 
+void USFEnemyMovementComponent::InternalEnableMovement()
+{
+  
+    if (PreviousMovementMode == MOVE_None)
+    {
+        SetMovementMode(DefaultLandMovementMode);
+    }
+    else
+    {
+        SetMovementMode(PreviousMovementMode);
+    }
+    
+    if (!IsActive())
+    {
+        Activate();
+    }
+}
+
+void USFEnemyMovementComponent::RegisterStateTagEvents(UAbilitySystemComponent* ASC)
+{
+    if (!ASC) return;
+
+    // 모든 CC 태그 등록
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Parried, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnStateTagChanged);
+
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Stunned, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnStateTagChanged);
+
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Knockback, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnStateTagChanged);
+
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Knockdown, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnStateTagChanged);
+
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Groggy, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnStateTagChanged);
+
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Hit, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnStateTagChanged);
+
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Dead, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnStateTagChanged);
+}
+
+void USFEnemyMovementComponent::OnStateTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+    if (!GetOwner()->HasAuthority()) return;
+
+    if (NewCount > 0)
+    {
+        OnStateStart(Tag);
+    }
+    else
+    {
+        OnStateEnd(Tag);
+    }
+}
+
 void USFEnemyMovementComponent::OnStateStart(FGameplayTag StateTag)
 {
-	
-	if (!GetOwner()->HasAuthority())
-	{
-		return;
-	}
-    
-	if (StateStartMap.Contains(StateTag))
-	{
-		StateStartMap[StateTag]();
-	}
+    if (!GetOwner()->HasAuthority())
+    {
+       return;
+    }
+
+    if (StateStartMap.Contains(StateTag))
+    {
+       StateStartMap[StateTag]();
+    }
 }
 
 void USFEnemyMovementComponent::OnStateEnd(FGameplayTag StateTag)
 {
-	
-	if (!GetOwner()->HasAuthority())
-	{
-		return;
-	}
-    
-	if (StateEndMap.Contains(StateTag))
-	{
-		StateEndMap[StateTag]();
-	}
+    if (!GetOwner()->HasAuthority())
+    {
+       return;
+    }
+
+    if (StateEndMap.Contains(StateTag))
+    {
+       StateEndMap[StateTag]();
+    }
 }
 
 void USFEnemyMovementComponent::StartStateParried()
 {
-	InternalDisableMovement();
+    InternalDisableMovement();
 }
 
 void USFEnemyMovementComponent::EndStateParried()
 {
-	InternalEnableMovement();
+    InternalEnableMovement();
 }
 
 void USFEnemyMovementComponent::StartStateStunned()
 {
-	InternalDisableMovement();
+    InternalDisableMovement();
 }
 
 void USFEnemyMovementComponent::EndStateStunned()
 {
-	InternalEnableMovement();
+    InternalEnableMovement();
 }
 
 void USFEnemyMovementComponent::StartStateGroggy()
 {
-	InternalDisableMovement();
+
+    InternalDisableMovement();
 }
 
 void USFEnemyMovementComponent::EndStateGroggy()
 {
-	InternalEnableMovement();
-}
-
-void USFEnemyMovementComponent::StartStateHitReact()
-{
-	InternalDisableMovement();
-}
-
-void USFEnemyMovementComponent::EndStateHitReact()
-{
-	InternalEnableMovement();
-}
-
-void USFEnemyMovementComponent::StartStateKnockback()
-{
-	InternalDisableMovement();
-}
-
-void USFEnemyMovementComponent::EndStateKnockback()
-{
-	InternalEnableMovement();
-}
-
-void USFEnemyMovementComponent::StartStateKnockdown()
-{
-	InternalDisableMovement();
-}
-
-void USFEnemyMovementComponent::EndStateKnockdown()
-{
-	InternalEnableMovement();
+    InternalEnableMovement();
 }
 
 void USFEnemyMovementComponent::StartStateDead()
 {
-	InternalDisableMovement();
+    InternalDisableMovement();
 }
 
 void USFEnemyMovementComponent::EndStateDead()
 {
-	InternalEnableMovement();
+
+}
+
+
+void USFEnemyMovementComponent::StartStateKnockback()
+{
+
+}
+
+void USFEnemyMovementComponent::EndStateKnockback()
+{
+    
+    InternalEnableMovement();
+}
+
+void USFEnemyMovementComponent::StartStateKnockdown()
+{
+ 
+}
+
+void USFEnemyMovementComponent::EndStateKnockdown()
+{
+    InternalEnableMovement();
+}
+
+void USFEnemyMovementComponent::StartStateHitReact()
+{
+ 
+}
+
+void USFEnemyMovementComponent::EndStateHitReact()
+{
+    InternalEnableMovement();
 }

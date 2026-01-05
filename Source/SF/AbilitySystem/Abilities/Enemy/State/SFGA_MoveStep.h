@@ -4,6 +4,7 @@
 #include "AbilitySystem/Abilities/SFGameplayAbility.h"
 #include "SFGA_MoveStep.generated.h"
 
+class UCurveFloat; // 전방 선언
 
 UCLASS()
 class SF_API USFGA_MoveStep : public USFGameplayAbility
@@ -20,15 +21,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	TObjectPtr<UAnimMontage> ForwardAnim; 
 
-
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	TObjectPtr<UAnimMontage> BackwardAnim;
 	
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float StepIntensity = 1200.f;
+	TObjectPtr<UCurveFloat> StepCurve;
 	
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float UpForce = 0.1f;
+	float StepIntensity = 1500.f; 
+	
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float StepDuration = 1.0f;
 
 private:
 	UFUNCTION()

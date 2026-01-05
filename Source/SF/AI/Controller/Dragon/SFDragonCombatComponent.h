@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayEffectTypes.h"
 #include "AI/Controller/SFCombatComponentBase.h"
 #include "SFDragonCombatComponent.generated.h"
 
+struct FSFPhaseData;
 /**
  * Boss Attack Zone - determines which abilities are available
  */
@@ -37,7 +39,7 @@ class SF_API USFDragonCombatComponent : public USFCombatComponentBase
 
 public:
     USFDragonCombatComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
+    
     virtual void InitializeCombatComponent() override;
     
     UFUNCTION()
@@ -66,6 +68,8 @@ protected:
 
     virtual void EvaluateTarget() override;
 
+    virtual void UpdateTargetActor(AActor* NewTarget) override;
+
 
     void UpdateSpatialData();
 
@@ -82,6 +86,10 @@ protected:
     
     bool IsValidTarget(AActor* Target) const;
     bool ShouldForceReleaseTarget(AActor* Target) const;
+
+    void CheckPhaseTransitions();
+
+    void OnHealthChanged(const FOnAttributeChangeData& OnAttributeChangeData);
 
 protected:
     // Target State Machine
@@ -140,6 +148,15 @@ protected:
     FTimerHandle StateMonitorTimerHandle;
     FTimerHandle ThreatUpdateTimerHandle;
 
-    // Last selected ability tag (prevent consecutive same attacks)
+  
     FGameplayTag LastSelectedAbilityTag;
+
+    UPROPERTY()
+    TArray<FSFPhaseData> PhaseData;
+
+    UPROPERTY()
+    TArray<FSFPhaseData> TriggerPhase;
+
+    FGameplayTag PendingPhaseTag;
+
 };

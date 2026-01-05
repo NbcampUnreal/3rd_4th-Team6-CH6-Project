@@ -106,36 +106,6 @@ void ASFEnemyController::OnCombatStateChanged(bool bInCombat)
     }
 }
 
-void ASFEnemyController::UpdateControlRotation(float DeltaTime, bool bUpdatePawn)
-{
-    APawn* MyPawn = GetPawn();
-    if (!MyPawn) return;
-
-    
-    Super::UpdateControlRotation(DeltaTime, false);
-    
-    if (CombatComponent && CombatComponent->GetCurrentTarget())
-    {
-        AActor* Target = CombatComponent->GetCurrentTarget();
-        FVector ToTarget = Target->GetActorLocation() - MyPawn->GetActorLocation();
-        ToTarget.Z = 0.f;
-        
-        if (!ToTarget.IsNearlyZero())
-        {
-            FRotator TargetRotation = ToTarget.Rotation();
-            SetControlRotation(TargetRotation);
-        }
-    }
-    
-    if (!ShouldRotateActorByController()) return;
-    if (!bUpdatePawn) return;
-
-    if (CurrentRotationMode == EAIRotationMode::ControllerYaw)
-    {
-        RotateActorTowardsController(DeltaTime);
-    }
-}
-
 void ASFEnemyController::RotateActorTowardsController(float DeltaTime)
 {
     APawn* MyPawn = GetPawn();

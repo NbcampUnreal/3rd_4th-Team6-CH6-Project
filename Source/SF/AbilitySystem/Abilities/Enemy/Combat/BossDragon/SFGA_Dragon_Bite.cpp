@@ -7,6 +7,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Character/SFCharacterBase.h"
+#include "Character/SFCharacterGameplayTags.h"
 #include "Character/Enemy/Component/Boss_Dragon/SFDragonGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 
@@ -15,14 +16,14 @@ USFGA_Dragon_Bite::USFGA_Dragon_Bite()
 	AbilityID = FName("Dragon_Bite");
 	AttackType = EAttackType::Melee;
 
-	// Ability Tags
+
 	AbilityTags.AddTag(SFGameplayTags::Ability_Dragon_Bite);
 
-	// Cooldown Tag
+	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_UsingAbility);
 	CoolDownTag = SFGameplayTags::Ability_Cooldown_Dragon_Bite;
 }
 
-void USFGA_Dragon_Bite::ActivateAbility( const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+void USFGA_Dragon_Bite::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
@@ -34,6 +35,9 @@ void USFGA_Dragon_Bite::ActivateAbility( const FGameplayAbilitySpecHandle Handle
 
 	CurrentBiteCount = 0;
 
+	CurrentHitCount = 0;
+	LastDamageTime = -999.0f;
+
 	StartBiteAttack();
 
 	if (!ActorInfo->IsNetAuthority())
@@ -42,11 +46,11 @@ void USFGA_Dragon_Bite::ActivateAbility( const FGameplayAbilitySpecHandle Handle
 	}
 
 	UAbilityTask_WaitGameplayEvent* WaitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		this,
-		SFGameplayTags::GameplayEvent_Tracing,
-		nullptr,
-		true,
-		true
+	   this,
+	   SFGameplayTags::GameplayEvent_Tracing,
+	   nullptr,
+	   true,
+	   true
 	);
 
 	if (WaitEventTask)
@@ -162,47 +166,53 @@ void USFGA_Dragon_Bite::OnGrabMontageCompleted()
 
 void USFGA_Dragon_Bite::OnMontageInterrupted()
 {
+	if (GrabbedTarget.IsValid())
+	{
+		return;
+	}
+
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
 void USFGA_Dragon_Bite::OnMontageCancelled()
 {
+
+	if (GrabbedTarget.IsValid())
+	{
+		return;
+	}
+
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 }
 
 
 void USFGA_Dragon_Bite::OnBiteHit(FGameplayEventData Payload)
 {
-    const FHitResult* HitResult = Payload.ContextHandle.GetHitResult();
-    if (!HitResult) return;
+	const FHitResult* HitResult = Payload.ContextHandle.GetHitResult();
+	if (!HitResult) return;
+    
+	AActor* HitActor = HitResult->GetActor();
+	if (!HitActor) return;
+
+	if (GetAttitudeTowards(HitActor) != ETeamAttitude::Hostile)
+		return;
+
+	if (GrabbedTarget.IsValid())
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext = MakeEffectContext(CurrentSpecHandle, CurrentActorInfo);
+	EffectContext.AddHitResult(*HitResult);
+
+	ApplyDamageToTarget(HitActor, EffectContext);
+	ApplyGrabEffect(HitActor);
+	AttachTargetToJaw(HitActor);
+	GrabbedTarget = HitActor;
+	ApplyPressureToTarget(HitActor);
 	
-    AActor* HitActor = HitResult->GetActor();
-    if (!HitActor) return;
-
-    if (GetAttitudeTowards(HitActor) != ETeamAttitude::Hostile)
-        return;
-
-    if (GrabbedTarget.IsValid())
-    {
-        return;
-    }
-
-    FGameplayEffectContextHandle EffectContext =
-        MakeEffectContext(CurrentSpecHandle, CurrentActorInfo);
-    EffectContext.AddHitResult(*HitResult);
-
-    ApplyDamageToTarget(HitActor, EffectContext);
-
-    ApplyGrabEffect(HitActor);
-
-    AttachTargetToJaw(HitActor);
-
-    GrabbedTarget = HitActor;
-
-    // Pressure 적용 (ISFDragonPressureInterface)
-    ApplyPressureToTarget(HitActor);
+	PlayGrabMontage();
 }
-
 
 
 void USFGA_Dragon_Bite::ApplyGrabEffect(AActor* Target)

@@ -13,6 +13,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "AI/Controller/SFBaseAIController.h"
 #include "Character/SFCharacterGameplayTags.h"
+#include "Character/Enemy/Component/Boss_Dragon/SFDragonGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SFEnemyAnimInstance)
 
@@ -138,7 +139,6 @@ void USFEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 	CachedLocation = Character->GetActorLocation();
 	CachedRotation = Character->GetActorRotation();
-	CachedWorldVelocity2D = FVector(CachedMovementComponent->Velocity.X, CachedMovementComponent->Velocity.Y, 0.0f);
 	CachedWorldAcceleration2D = CachedMovementComponent->GetCurrentAcceleration();
 
 	if (CachedAIController)
@@ -156,15 +156,35 @@ void USFEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 void USFEnemyAnimInstance::UpdateAimOffsetData(float DeltaSeconds)
 {
 	FRotator Delta = UKismetMathLibrary::NormalizedDeltaRotator(CachedControlRotation, CachedRotation);
-	
+    
 	const float TargetPitch = Delta.Pitch;
 	const float TargetYaw = Delta.Yaw;
+    
 	
-	AimPitch = FMath::FInterpTo(AimPitch, TargetPitch, DeltaSeconds, 15.0f);
-	AimYaw = FMath::FInterpTo(AimYaw, TargetYaw, DeltaSeconds, 15.0f);
-	
-	AimPitch = FMath::Clamp(AimPitch, -90.0f, 90.0f);
-	AimYaw = FMath::Clamp(AimYaw, -90.0f, 90.0f);
+	bool bIsAttacking = false;
+	float MaxYawOffset = 30.0f;  
+	float MaxPitchOffset = 30.0f;
+	float InterpSpeed = 10.0f;
+    
+	if (CachedAbilitySystemComponent)
+	{
+		bIsAttacking = 
+			CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Ability_Dragon_FlameBreath_Line) ||
+			CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Ability_Dragon_Bite);
+        
+		if (bIsAttacking)
+		{
+			MaxYawOffset = 90.0f;   
+			MaxPitchOffset = 90.0f;
+			InterpSpeed = 15.0f;     
+		}
+	}
+    
+	AimPitch = FMath::FInterpTo(AimPitch, TargetPitch, DeltaSeconds, InterpSpeed);
+	AimYaw = FMath::FInterpTo(AimYaw, TargetYaw, DeltaSeconds, InterpSpeed);
+    
+	AimPitch = FMath::Clamp(AimPitch, -MaxPitchOffset, MaxPitchOffset);
+	AimYaw = FMath::Clamp(AimYaw, -MaxYawOffset, MaxYawOffset);
 }
 
 
@@ -224,19 +244,18 @@ void USFEnemyAnimInstance::UpdateRotationData()
 	
 }
 
-
 void USFEnemyAnimInstance::UpdateVelocityData()
 {
-	if (CachedMovementComponent)
-	{
-		CachedWorldVelocity2D = FVector(CachedMovementComponent->Velocity.X, CachedMovementComponent->Velocity.Y, 0.0f);
-	}
+	if (!CachedMovementComponent) return;
+    
+	FVector Velocity = CachedMovementComponent->GetLastUpdateVelocity();
+    
+	WorldVelocity2D = FVector(Velocity.X, Velocity.Y, 0.0f);
+    
+	GroundSpeed = WorldVelocity2D.Size(); 
+	FlySpeed = Velocity.Size();         
 
-	WorldVelocity2D = CachedWorldVelocity2D;
-	const float VelocityLength = WorldVelocity2D.Size();
-	
-	bHasVelocity = VelocityLength > 3.0f;
-
+	bHasVelocity = (GroundSpeed > 3.0f) || (FlySpeed > 3.0f);
 	
 	FRotator RotationForLocalCalc = CachedRotation;
 	if (bIsTurningInPlace)
@@ -246,26 +265,20 @@ void USFEnemyAnimInstance::UpdateVelocityData()
 
 	if (bHasVelocity)
 	{
-		
 		float TargetAngle = UKismetAnimationLibrary::CalculateDirection(WorldVelocity2D, RotationForLocalCalc);
 		float AngleDelta = FMath::FindDeltaAngleDegrees(LocalVelocityDirectionAngle, TargetAngle);
 		LocalVelocityDirectionAngle = FMath::FInterpTo(LocalVelocityDirectionAngle, LocalVelocityDirectionAngle + AngleDelta, CachedDeltaSeconds, 5.0f);
 		LocalVelocityDirectionAngle = FMath::UnwindDegrees(LocalVelocityDirectionAngle);
-
-		FVector TargetLocalVelocity = RotationForLocalCalc.UnrotateVector(WorldVelocity2D);
-		LocalVelocity2D = FMath::VInterpTo(LocalVelocity2D, TargetLocalVelocity, CachedDeltaSeconds, 5.0f);
 	}
 	else
 	{
-		LocalVelocity2D = FVector::ZeroVector;
 		LocalVelocityDirectionAngle = 0.0f; 
-		WorldVelocity2D = FVector::ZeroVector; 
 	}
-
+	
 	LocalVelocityDirection = GetCardinalDirectionFromAngle(LocalVelocityDirectionAngle, CardinalDirectionDeadZone, LocalVelocityDirection, bWasMovingLastFrame);
+	
 	bWasMovingLastFrame = bHasVelocity;
 }
-
 void USFEnemyAnimInstance::UpdateAccelerationData()
 {
 	// 서버는 실제 Acceleration, 클라이언트는 Velocity 변화량으로 추정

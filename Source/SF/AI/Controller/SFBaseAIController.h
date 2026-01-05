@@ -76,12 +76,11 @@ protected:
 
 #pragma region StateReaction
 protected:
-    // 상태 반응 콜백
-    UFUNCTION()
-    void ReceiveStateStart(FGameplayTag StateTag);
-
-    UFUNCTION()
-    void ReceiveStateEnd(FGameplayTag StateTag);
+    // StateReactionComponent 제거 - 직접 Tag 감지
+    void RegisterCCTagEvents(UAbilitySystemComponent* ASC);
+    void OnCCTagChanged(const FGameplayTag Tag, int32 NewCount);
+    void OnCCStart(FGameplayTag StateTag);
+    void OnCCEnd(FGameplayTag StateTag);
 #pragma endregion
 
 #pragma region Combat
@@ -105,10 +104,10 @@ protected:
 #pragma region Rotation
 public:
     
-    void SetRotationMode(EAIRotationMode NewMode);
+    virtual void SetRotationMode(EAIRotationMode NewMode);
     EAIRotationMode GetCurrentRotationMode() const { return CurrentRotationMode; }
 
-    
+    virtual void RotateActorTowardsController(float DeltaTime) { }
     virtual bool ShouldRotateActorByController() const;
     virtual bool IsTurningInPlace() const { return false; }
     virtual float GetTurnThreshold() const { return 45.0f; }
