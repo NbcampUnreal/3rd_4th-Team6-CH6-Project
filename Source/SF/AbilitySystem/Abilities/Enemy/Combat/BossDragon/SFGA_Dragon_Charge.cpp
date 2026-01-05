@@ -1,228 +1,290 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// SFGA_Dragon_Charge.cpp
 
 #include "SFGA_Dragon_Charge.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "Abilities/Tasks/AbilityTask_MoveToLocation.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "AbilitySystem/Task/SFAbilityTask_MoveToTargetAndCheckDistance.h"
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "Character/SFCharacterBase.h"
 #include "Character/Enemy/Component/Boss_Dragon/SFDragonGameplayTags.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Interface/SFEnemyAbilityInterface.h"
 #include "AI/Controller/Dragon/SFDragonCombatComponent.h"
 
 USFGA_Dragon_Charge::USFGA_Dragon_Charge()
 {
-	AbilityID= FName("Dragon_Charge");
-	AttackType = EAttackType::Melee;
+    AbilityID = FName("Dragon_Charge");
+    AttackType = EAttackType::Melee;
 
-	AbilityTags.AddTag(SFGameplayTags::Ability_Dragon_Charge);
-	CoolDownTag = SFGameplayTags::Ability_Cooldown_Dragon_Charge;
+    AbilityTags.AddTag(SFGameplayTags::Ability_Dragon_Charge);
+    CoolDownTag = SFGameplayTags::Ability_Cooldown_Dragon_Charge;
 }
 
 void USFGA_Dragon_Charge::ActivateAbility(
-	const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    const FGameplayEventData* TriggerEventData)
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
+    if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
 
-	ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
-	AActor* Target = GetCurrentTarget();
-	if (!Dragon || !Target)
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
+    ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
+    AActor* Target = GetCurrentTarget(); 
 
-	
-	if (ChargeMontage)
-	{
-		UAbilityTask_PlayMontageAndWait* MontageTask =
-			UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-				this, NAME_None, ChargeMontage);
+    if (!Dragon)
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
 
-		if (MontageTask)
-		{
-			MontageTask->OnCompleted.AddDynamic(this, &USFGA_Dragon_Charge::OnMontageEnded);
-			MontageTask->OnInterrupted.AddDynamic(this, &USFGA_Dragon_Charge::OnMontageEnded);
-			MontageTask->OnCancelled.AddDynamic(this, &USFGA_Dragon_Charge::OnMontageEnded);
-			MontageTask->ReadyForActivation();
-		}
-	}
+ 
+    if (ChargeMontage)
+    {
+        MontageTaskRef = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+            this, NAME_None, ChargeMontage, 1.0f, NAME_None, true, 1.0f, 0.0f
+        );
 
-	if (!ActorInfo->IsNetAuthority())
-	{
-		return;
-	}
+        if (MontageTaskRef)
+        {
+            
+            // Interrupted/Cancelled만 연결
+            MontageTaskRef->OnInterrupted.AddDynamic(this, &USFGA_Dragon_Charge::OnMontageEnded);
+            MontageTaskRef->OnCancelled.AddDynamic(this, &USFGA_Dragon_Charge::OnMontageEnded);
+            MontageTaskRef->ReadyForActivation();
+        }
+    }
 
-	if (Dragon->GetMesh())
-	{
-		OriginalPawnResponse = Dragon->GetMesh()->GetCollisionResponseToChannel(ECC_Pawn);
-		Dragon->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-		Dragon->GetMesh()->OnComponentBeginOverlap.AddDynamic(
-			this, &USFGA_Dragon_Charge::OnChargeOverlap);
-	}
+    if (!ActorInfo->IsNetAuthority())
+    {
+        return;
+    }
 
-	const FVector Start = Dragon->GetActorLocation();
-	const FVector TargetLoc = Target->GetActorLocation();
-	const FVector Dir = (TargetLoc - Start).GetSafeNormal2D();
-	FVector Loc = TargetLoc - (Dir * StopDistance);
-	Loc.Z = Start.Z;
+    if (Dragon->GetMesh())
+    {
+        OriginalPawnResponse = Dragon->GetMesh()->GetCollisionResponseToChannel(ECC_Pawn);
+        Dragon->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+        
+        if (UCapsuleComponent* Capsule = Dragon->GetCapsuleComponent())
+        {
+            Capsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+            Capsule->OnComponentBeginOverlap.AddDynamic(this, &USFGA_Dragon_Charge::OnChargeOverlap);
+        }
+        else
+        {
+            Dragon->GetMesh()->OnComponentBeginOverlap.AddDynamic(this, &USFGA_Dragon_Charge::OnChargeOverlap);
+        }
+    }
+    
+    FVector ChargeDir = Dragon->GetActorForwardVector();
+    if (Target)
+    {
+        ChargeDir = (Target->GetActorLocation() - Dragon->GetActorLocation()).GetSafeNormal2D();
+    }
 
-	USFAbilityTask_MoveToTargetAndCheckDistance* MoveTask =
-		USFAbilityTask_MoveToTargetAndCheckDistance::MoveToTargetAndCheckDistance(
-			this, Target,  StopDistance,ChargeDuration, ChargeSpeedCurve);
+    // 루트 모션 적용 (Duration 끝나면 OnChargeFinished 호출됨)
+    UAbilityTask_ApplyRootMotionConstantForce* ForceTask =
+        UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(
+            this,
+            FName("DragonChargeForce"),
+            ChargeDir,
+            ChargeSpeed,
+            ChargeDuration,   
+            false,
+            nullptr,
+            ERootMotionFinishVelocityMode::SetVelocity,
+            FVector::ZeroVector,
+            0.f,
+            true
+        );
 
-	if (MoveTask)
-	{
-		MoveTask->OnFinished.AddDynamic(this, &USFGA_Dragon_Charge::OnMoveFinished);
-		MoveTask->ReadyForActivation();
-	}
+    if (ForceTask)
+    {
+        ForceTask->OnFinish.AddDynamic(this, &USFGA_Dragon_Charge::OnChargeFinished);
+        ForceTask->ReadyForActivation();
+    }
 }
 
-
-void USFGA_Dragon_Charge::FinishCharge(bool bCancelled)
+void USFGA_Dragon_Charge::OnChargeFinished()
 {
-	if (!IsActive())
-		return;
 
-	ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
-	if (Dragon && Dragon->GetCharacterMovement())
-	{
-		Dragon->GetCharacterMovement()->StopMovementImmediately();
-	}
+    if (MontageTaskRef && MontageTaskRef->IsActive())
+    {
+        MontageTaskRef->ExternalCancel();
+    }
 
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bCancelled);
-}
-
-void USFGA_Dragon_Charge::OnMoveFinished(bool bSuccess)
-{
-	FinishCharge(false);
-}
-
-void USFGA_Dragon_Charge::OnMoveCancelled()
-{
-	FinishCharge(true);
+    FinishCharge(false);
 }
 
 void USFGA_Dragon_Charge::OnMontageEnded()
 {
-	FinishCharge(false);
+    FinishCharge(false);
 }
 
-
-void USFGA_Dragon_Charge::EndAbility( const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,  bool bReplicateEndAbility,bool bWasCancelled)
+void USFGA_Dragon_Charge::FinishCharge(bool bCancelled)
 {
-	ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
-	if (Dragon && Dragon->GetMesh())
-	{
-		Dragon->GetMesh()->OnComponentBeginOverlap.RemoveAll(this);
-		Dragon->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, OriginalPawnResponse);
-	}
+    if (!IsActive())
+        return;
 
-	HitActors.Empty();
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+    ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
+    
+    if (Dragon && Dragon->GetCharacterMovement())
+    {
+        Dragon->GetCharacterMovement()->StopMovementImmediately();
+    }
+    
+    if (MontageTaskRef && MontageTaskRef->IsActive())
+    {
+        MontageTaskRef->EndTask();
+    }
+    MontageTaskRef = nullptr;
+
+    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bCancelled);
 }
 
-bool USFGA_Dragon_Charge::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
-	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
+void USFGA_Dragon_Charge::EndAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    bool bReplicateEndAbility,
+    bool bWasCancelled)
 {
-	// 부모 클래스 체크 (Cooldown, Tags, Cost 등)
-	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
-		return false;
+    ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
+    
+    if (Dragon)
+    {
+        if (UCapsuleComponent* Capsule = Dragon->GetCapsuleComponent())
+        {
+            Capsule->OnComponentBeginOverlap.RemoveAll(this);
+            Capsule->SetCollisionResponseToChannel(ECC_Pawn, OriginalPawnResponse);
+        }
+        
+        if (Dragon->GetMesh())
+        {
+            Dragon->GetMesh()->OnComponentBeginOverlap.RemoveAll(this);
+            Dragon->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, OriginalPawnResponse);
+        }
+    }
 
-	if (!ActorInfo->IsNetAuthority())
-		return true;
+    MontageTaskRef = nullptr;
+    HitActors.Empty();
 
-	// 타겟만 있으면 실행 (사거리/각도는 SelectAbility에서 이미 체크)
-	AActor* Target = GetCurrentTarget();
-	return Target != nullptr;
+    Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
+bool USFGA_Dragon_Charge::CanActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayTagContainer* SourceTags,
+    const FGameplayTagContainer* TargetTags,
+    FGameplayTagContainer* OptionalRelevantTags) const
+{
+    if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+        return false;
+    
+    if (ActorInfo->IsNetAuthority())
+    {
+        AActor* Target = GetCurrentTarget();
+        return Target != nullptr;
+    }
+
+    return true;
+}
 
 void USFGA_Dragon_Charge::OnChargeOverlap(
-	UPrimitiveComponent* OverlappedComp,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+    UPrimitiveComponent* OverlappedComp,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComp,
+    int32 OtherBodyIndex,
+    bool bFromSweep,
+    const FHitResult& SweepResult)
 {
-	if (!OtherActor || HitActors.Contains(OtherActor))
-		return;
+    if (!OtherActor || OtherActor == GetAvatarActorFromActorInfo() || HitActors.Contains(OtherActor))
+        return;
+    
+    if (GetAttitudeTowards(OtherActor) != ETeamAttitude::Hostile)
+        return;
 
-	if (GetAttitudeTowards(OtherActor) != ETeamAttitude::Hostile)
-		return;
-
-	ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
-	if (Dragon)
-	{
-		ApplyKnockBackToTarget(OtherActor, Dragon->GetActorLocation());
-		HitActors.Add(OtherActor);
-	}
+    ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
+    if (Dragon)
+    {
+        ApplyKnockBackToTarget(OtherActor, Dragon->GetActorLocation());
+        HitActors.Add(OtherActor);
+    }
 }
 
 float USFGA_Dragon_Charge::CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const
 {
-	// 1500 미만이면 완전히 필터링 (근접에서는 사용 안 함)
-	if (Context.DistanceToTarget < 1500.f)
-	{
-		return -10000.f;  // 충분히 큰 음수로 완전 필터링
-	}
+    // 이제 돌진은 내가 봤을때 많이 멀때 사용하자 
+    if (Context.DistanceToTarget < 1500.f)
+    {
+        return -10000.f;
+    }
 
-	const FBossEnemyAbilitySelectContext* BossContext =
-		static_cast<const FBossEnemyAbilitySelectContext*>(&Context);
+    if (Context.Self && Context.Target)
+    {
+        FVector OwnerLoc = Context.Self->GetActorLocation();
+        FVector TargetLoc = Context.Target->GetActorLocation();
+        OwnerLoc.Z = 0.f;
+        TargetLoc.Z = 0.f;
 
-	float Modifier = 0.f;
+        FVector ToTarget = (TargetLoc - OwnerLoc).GetSafeNormal();
+        FVector OwnerForward = Context.Self->GetActorForwardVector();
+        OwnerForward.Z = 0.f;
+        OwnerForward.Normalize();
 
-	// OutOfRange일 때 최우선 순위
-	if (BossContext && BossContext->Zone == EBossAttackZone::OutOfRange)
-	{
-		Modifier += 2000.f;  // OutOfRange에서 Charge 최우선 선택
-	}
+        float DotResult = FVector::DotProduct(OwnerForward, ToTarget);
+        
+        if (DotResult < 0.8f)
+        {
+            return -5000.f;
+        }
+    }
 
-	// Long Range일 때 높은 점수 부여
-	if (BossContext && BossContext->Zone == EBossAttackZone::Long)
-	{
-		Modifier += 1500.f;  // Long Range에서 Charge 우선 선택
-	}
+    const FBossEnemyAbilitySelectContext* BossContext =
+        static_cast<const FBossEnemyAbilitySelectContext*>(&Context);
 
-	// Mid Range에서도 사용 가능
-	if (BossContext && BossContext->Zone == EBossAttackZone::Mid)
-	{
-		Modifier += 500.f;  // Mid Range에서는 다른 스킬보다 낮은 우선순위
-	}
+    float Modifier = 0.f;
+    
+    if (BossContext && BossContext->Zone == EBossAttackZone::OutOfRange)
+    {
+        Modifier += 2000.f;
+    }
 
-	// 거리가 매우 멀 때 추가 점수
-	if (Context.DistanceToTarget > 5000.f)
-	{
-		Modifier += 1000.f;  // 멀어졌을 때 높은 점수
-	}
+    if (BossContext && BossContext->Zone == EBossAttackZone::Long)
+    {
+        Modifier += 1500.f;
+    }
 
-	if (!Context.Target)
-		return Modifier;
+    if (BossContext && BossContext->Zone == EBossAttackZone::Mid)
+    {
+        Modifier += 500.f;
+    }
 
-	UAbilitySystemComponent* TargetASC =
-		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Context.Target);
+    if (Context.DistanceToTarget > 5000.f)
+    {
+        Modifier += 1000.f;
+    }
 
-	if (!TargetASC)
-		return Modifier;
+    if (!Context.Target)
+        return Modifier;
 
-	// Back Pressure 중이면 추가 점수 (도망가는 플레이어 추격)
-	if (TargetASC->HasMatchingGameplayTag(SFGameplayTags::Dragon_Pressure_Back))
-	{
-		Modifier += 500.f;
-	}
+    UAbilitySystemComponent* TargetASC =
+        UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Context.Target);
 
-	return Modifier;
+    if (!TargetASC)
+        return Modifier;
+    
+    if (TargetASC->HasMatchingGameplayTag(SFGameplayTags::Dragon_Pressure_Back))
+    {
+        Modifier += 500.f;
+    }
+
+    return Modifier;
 }

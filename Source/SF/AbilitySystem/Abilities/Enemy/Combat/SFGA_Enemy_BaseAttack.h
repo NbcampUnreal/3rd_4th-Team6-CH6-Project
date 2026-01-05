@@ -90,7 +90,6 @@ protected:
 
     UFUNCTION(BlueprintCallable, Category = "Attack")
     virtual AActor* GetCurrentTarget() const;
-    const FGameplayTagContainer* GetCooldownTags() const;
 
 
     virtual void ApplyCooldown(
@@ -98,6 +97,8 @@ protected:
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
+
+    virtual bool CheckCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Animation Montage")

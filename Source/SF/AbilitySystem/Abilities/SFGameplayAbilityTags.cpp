@@ -55,6 +55,8 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Interact_Active, "Ability.Interact.Active")
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Interact_Object, "Ability.Interact.Object")
 	
+	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Drink, "Ability.Hero.Drink")
+	
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Dodge, "Ability.Hero.Dodge");
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Downed, "Ability.Hero.Downed");
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Death, "Ability.Hero.Death");
@@ -63,4 +65,10 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Cooldown_Hero_Skill_Primary, "Ability.Cooldown.Hero.Skill.Primary", "Cooldown for primary skill");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Cooldown_Hero_Skill_Secondary, "Ability.Cooldown.Hero.Skill.Secondary", "Cooldown for Secondary skill");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Cooldown_Hero_Skill_Identity, "Ability.Cooldown.Hero.Skill.Identity", "Cooldown for Identity skill");
+
+	//Dragon
+	UE_DEFINE_GAMEPLAY_TAG(Ability_Dragon_Movement_Takeoff, "Ability.Dragon.Movement.Takeoff");
+	UE_DEFINE_GAMEPLAY_TAG(Ability_Dragon_Movement_Land, "Ability.Dragon.Movement.Land");
+	UE_DEFINE_GAMEPLAY_TAG(Ability_Dragon_Movement_Swoop, "Ability.Dragon.Movement.Swoop");
+	UE_DEFINE_GAMEPLAY_TAG(Ability_Dragon_Movement_Hover, "Ability.Dragon.Movement.Hover");
 }

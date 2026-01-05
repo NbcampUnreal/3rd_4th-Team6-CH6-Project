@@ -24,14 +24,13 @@ public:
 
 protected:
 	//~ Begin ASFBaseAIController Interface
-	virtual void UpdateControlRotation(float DeltaTime, bool bUpdatePawn = true) override;
 	virtual bool ShouldRotateActorByController() const override;
 	virtual float GetTurnThreshold() const override;
 	virtual bool IsTurningInPlace() const override;
 	//~ End ASFBaseAIController Interface
 
 
-	void RotateActorTowardsController(float DeltaTime);
+	virtual void RotateActorTowardsController(float DeltaTime)override;
 	
 	UFUNCTION()
 	void OnCombatStateChanged(bool bInCombat);

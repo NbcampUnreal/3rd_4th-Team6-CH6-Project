@@ -25,6 +25,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="AI|TurnInPlace")
 	USFTurnInPlaceComponent* GetTurnInPlaceComponent() const { return TurnInPlaceComponent; }
 
+	virtual void SetRotationMode(EAIRotationMode NewMode) override;
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|TurnInPlace")
 	TObjectPtr<USFTurnInPlaceComponent> TurnInPlaceComponent;

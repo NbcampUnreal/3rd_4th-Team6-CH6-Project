@@ -21,6 +21,7 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Knockback);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Launched);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Groggy);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_MoveStep);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Revived);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Downed);
 
@@ -97,4 +98,14 @@ namespace SFGameplayTags
 
 	// Player Buff
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_PlayerAbility_LastStand);
+
+	//Dragon
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Dragon_Flight_Launch);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Dragon_Flight_Land);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Dragon_Flight_Swoop);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Dragon_Flight_Hover);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Dragon_Fireball_Launch);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Dragon_TakeOff_Completed);
+	
+	
 }

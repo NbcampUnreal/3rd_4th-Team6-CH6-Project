@@ -9,7 +9,6 @@
 
 class USFCombatSet_Enemy;
 class USFPrimarySet_Enemy;
-class USFStateReactionComponent;
 class USFCombatSet;
 class USFPawnData;
 class USFPrimarySet;
@@ -50,6 +49,10 @@ protected:
 	//PawnData에 있는 AbilitySet GIVE
 	void GrantAbilitiesFromPawnData();
 
+	// Collision 처리를 위한 Tag 감지
+	void RegisterCollisionTagEvents();
+	void OnCollisionTagChanged(const FGameplayTag Tag, int32 NewCount);
+
 protected:
 	UPROPERTY(VisibleAnywhere, Category= "Abilites")
 	TObjectPtr<USFAbilitySystemComponent> AbilitySystemComponent;
@@ -66,12 +69,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PawnData")
 	TObjectPtr<const USFPawnData> EnemyPawnData;
 
-	// 향후 제거를 위해 
+	// 향후 제거를 위해
 	UPROPERTY()
 	TArray<FGameplayAbilitySpecHandle> GrantedAbilityHandles;
-
-	UPROPERTY(VisibleAnywhere, Category= "Component")
-	TObjectPtr<USFStateReactionComponent> StateReactionComponent;
 
 	UPROPERTY(VisibleAnywhere, Category="Component")
 	TObjectPtr<class USFEnemyWidgetComponent> EnemyWidgetComponent;

@@ -16,6 +16,7 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Charging);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Downed);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_TurningInPlace);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Drink);
 
 	// ========== 방어/회피 ==========
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Blocking);
@@ -42,4 +43,8 @@ namespace SFGameplayTags
 	
 	// ========== 상호작용 ==========
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Interact);
+
+
+	//== Enemy==
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_PhaseIntro);
 }

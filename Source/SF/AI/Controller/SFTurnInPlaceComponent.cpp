@@ -73,8 +73,6 @@ float USFTurnInPlaceComponent::GetAngleToTarget() const
     return FMath::FindDeltaAngleDegrees(Pawn->GetActorRotation().Yaw, TargetRot.Yaw);
 }
 
-
-
 void USFTurnInPlaceComponent::SyncControlRotationToTarget()
 {
     ASFBaseAIController* AI = GetAIController();
@@ -90,7 +88,6 @@ void USFTurnInPlaceComponent::SyncControlRotationToTarget()
     }
 }
 
-
 void USFTurnInPlaceComponent::RequestTurnToTarget(AActor* Target)
 {
     if (!Target || bIsTurning) return;
@@ -104,33 +101,33 @@ void USFTurnInPlaceComponent::RequestTurnToTarget(AActor* Target)
     if (ToTarget.IsNearlyZero()) return;
 
     const FRotator TargetRot = ToTarget.Rotation();
-    const float Yaw = FMath::FindDeltaAngleDegrees(Pawn->GetActorRotation().Yaw, TargetRot.Yaw);
-    const float AbsYaw = FMath::Abs(Yaw);
-
+    const float YawDelta = FMath::FindDeltaAngleDegrees(Pawn->GetActorRotation().Yaw, TargetRot.Yaw);
+    const float AbsYaw = FMath::Abs(YawDelta);
 
     if (AbsYaw >= TurnThreshold)
     {
-        if (!CanTurnInPlace()) return;
-
-      
-        DisableSmoothRotation();
-        AI->SetRotationMode(EAIRotationMode::None);
-
-        if (ACharacter* Char = Cast<ACharacter>(Pawn))
+        if (CanTurnInPlace())
         {
-            Char->bUseControllerRotationYaw = false;
+            DisableSmoothRotation();
+            AI->SetRotationMode(EAIRotationMode::None);
+
+            if (ACharacter* Char = Cast<ACharacter>(Pawn))
+            {
+                Char->bUseControllerRotationYaw = false;
+            }
+            AI->SetControlRotation(TargetRot);
+            ExecuteTurn(YawDelta);
+            return;
         }
-
-
-        AI->SetControlRotation(TargetRot);
-
-   
-        ExecuteTurn(Yaw);
     }
 
+    if (AbsYaw > AcceptableAngle)
+    {
+        FRotator NewRot = FMath::RInterpTo(Pawn->GetActorRotation(), TargetRot, GetWorld()->GetDeltaSeconds(), RotationInterpSpeed);
+        Pawn->SetActorRotation(NewRot);
+        AI->SetControlRotation(NewRot);
+    }
 }
-
-
 
 void USFTurnInPlaceComponent::ExecuteTurn(float DeltaYaw)
 {
@@ -146,20 +143,14 @@ void USFTurnInPlaceComponent::ExecuteTurn(float DeltaYaw)
     const float AbsDeltaYaw = FMath::Abs(LockedDeltaYaw);
     FGameplayTag EventTag;
 
-
     if (AbsDeltaYaw >= LargeTurnThreshold)
     {
-        EventTag = (LockedDeltaYaw > 0.f) 
-            ? SFGameplayTags::GameplayEvent_Turn_180R 
-            : SFGameplayTags::GameplayEvent_Turn_180L;
+        EventTag = (LockedDeltaYaw > 0.f) ? SFGameplayTags::GameplayEvent_Turn_180R : SFGameplayTags::GameplayEvent_Turn_180L;
     }
     else
     {
-        EventTag = (LockedDeltaYaw > 0.f) 
-            ? SFGameplayTags::GameplayEvent_Turn_90R 
-            : SFGameplayTags::GameplayEvent_Turn_90L;
+        EventTag = (LockedDeltaYaw > 0.f) ? SFGameplayTags::GameplayEvent_Turn_90R : SFGameplayTags::GameplayEvent_Turn_90L;
     }
-
 
     FGameplayEventData Payload;
     Payload.EventTag = EventTag;
@@ -168,7 +159,6 @@ void USFTurnInPlaceComponent::ExecuteTurn(float DeltaYaw)
 
     UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Pawn, EventTag, Payload);
 }
-
 
 void USFTurnInPlaceComponent::OnTurnFinished()
 {
@@ -180,27 +170,11 @@ void USFTurnInPlaceComponent::OnTurnFinished()
     LockedDeltaYaw = 0.f;
 
     AI->SetControlRotation(Pawn->GetActorRotation());
-
-
-    EnableSmoothRotation();
-    AI->SetRotationMode(EAIRotationMode::ControllerYaw);
+    AI->SetRotationMode(EAIRotationMode::MovementDirection);
 
     if (ACharacter* Char = Cast<ACharacter>(Pawn))
     {
         Char->bUseControllerRotationYaw = false;
-    }
-}
-
-
-void USFTurnInPlaceComponent::EnableSmoothRotation()
-{
-    if (ACharacter* Char = Cast<ACharacter>(GetControlledPawn()))
-    {
-        if (UCharacterMovementComponent* MoveComp = Char->GetCharacterMovement())
-        {
-            MoveComp->bUseControllerDesiredRotation = true;
-            MoveComp->RotationRate = FRotator(0.f, 360.f, 0.f);
-        }
     }
 }
 
@@ -216,31 +190,21 @@ void USFTurnInPlaceComponent::DisableSmoothRotation()
     }
 }
 
-
 bool USFTurnInPlaceComponent::CanTurnInPlace() const
 {
     APawn* Pawn = GetControlledPawn();
     if (!Pawn || !Pawn->HasAuthority()) return false;
-
-
     if (bIsTurning) return false;
-
-
     if (Pawn->GetVelocity().Size2D() > 10.f) return false;
-
-
     if (!GetTargetActor()) return false;
-
 
     UAbilitySystemComponent* ASC = GetASC();
     if (!ASC) return false;
-
 
     if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_UsingAbility)) return false;
     if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Attacking)) return false;
     if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_TurningInPlace)) return false;
 
-   
     if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Stunned) ||
         ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Knockdown) ||
         ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead))

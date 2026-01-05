@@ -181,33 +181,45 @@ void USFGA_Dragon_TailSwipe::EndAbility(const FGameplayAbilitySpecHandle Handle,
 
 float USFGA_Dragon_TailSwipe::CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const
 {
-	float Modifier = 800.f;
+	float Modifier = 0.f; 
 
-	// 플레이어가 뒤쪽에 있을 때 매우 높은 점수
-	if (Context.AngleToTarget > 120.f)
+	const FBossEnemyAbilitySelectContext* BossContext =
+	   static_cast<const FBossEnemyAbilitySelectContext*>(&Context);
+
+	
+	if (BossContext && BossContext->Zone == EBossAttackZone::Melee)
 	{
-		Modifier += 600.f;
+		Modifier += 800.f;
+	}
+	else
+	{
+		return -1000.f; 
 	}
 
-	if (!Context.Target)
-		return Modifier;
+	if (!Context.Target) return Modifier;
+	
+	if (Context.AngleToTarget < 60.f) // 전방 60도 이내
+	{
+		Modifier += 400.f;
+	}
+	else if (Context.AngleToTarget > 120.f) // 내 뒤에 있음
+	{
+		Modifier -= 1000.f; 
+	}
 
 	UAbilitySystemComponent* TargetASC =
-		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Context.Target);
+	   UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Context.Target);
 
-	if (!TargetASC)
-		return Modifier;
-
-	// Forward Pressure 중이면 증가 (앞 압박 후 뒤로 도망가는 플레이어 견제)
+	if (!TargetASC) return Modifier;
+	
 	if (TargetASC->HasMatchingGameplayTag(SFGameplayTags::Dragon_Pressure_Forward))
 	{
-		Modifier += 300.f;
+		Modifier += 500.f; // 달라붙은 적을 떼어놓기 위해 우선순위 급상승
 	}
-
-	// 이미 Back Pressure 중이면 우선순위 감소 (중복 압박 방지)
+	
 	if (TargetASC->HasMatchingGameplayTag(SFGameplayTags::Dragon_Pressure_Back))
 	{
-		Modifier -= 200.f;
+		Modifier -= 300.f;
 	}
 
 	return Modifier;

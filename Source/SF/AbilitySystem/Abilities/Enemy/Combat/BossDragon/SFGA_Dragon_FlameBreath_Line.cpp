@@ -10,6 +10,7 @@
 #include "AI/Controller/SFEnemyCombatComponent.h"
 #include "Interface/SFAIControllerInterface.h"
 #include "Animation/AnimInstance.h"
+#include "Character/SFCharacterGameplayTags.h"
 #include "Character/Enemy/Component/Boss_Dragon/SFDragonGameplayTags.h"
 #include "Engine/OverlapResult.h"
 
@@ -20,6 +21,7 @@ USFGA_Dragon_FlameBreath_Line::USFGA_Dragon_FlameBreath_Line()
 
 	// Ability Tags
 	AbilityTags.AddTag(SFGameplayTags::Ability_Dragon_FlameBreath_Line);
+	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_UsingAbility);
 
 	// Cooldown Tag
 	CoolDownTag = SFGameplayTags::Ability_Cooldown_Dragon_FlameBreath_Line;
@@ -164,17 +166,30 @@ void USFGA_Dragon_FlameBreath_Line::TransitionToBreath()
 
 void USFGA_Dragon_FlameBreath_Line::ApplyBreathDamage()
 {
-    ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
-    if (!Dragon) return;
+	ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
+	if (!Dragon) return;
 
-    // 1. 기본 정보 설정
-    const FVector Start = Dragon->GetMesh()->GetSocketLocation(TEXT("JawSocket"));
-    const FVector Forward = Dragon->GetActorForwardVector();
-    const float Radius = BreathRange;
-    const float HalfAngleDeg = 30.f;
+	USkeletalMeshComponent* Mesh = Dragon->GetMesh();
+	if (!Mesh) return;
+    
+
+	const FVector Start = Mesh->GetSocketLocation(TEXT("JawSocket"));
 	
-    const float CosThreshold = FMath::Cos(FMath::DegreesToRadians(HalfAngleDeg));
+	const FVector Forward = Dragon->GetActorForwardVector();
+
+	const float Radius = BreathRange;
+	const float HalfAngleDeg = 30.f; 
+    
+	const float CosThreshold = FMath::Cos(FMath::DegreesToRadians(HalfAngleDeg));
 	
+    if (bIsDebug)
+    {
+        DrawDebugCone(GetWorld(), Start, Forward, Radius, 
+            FMath::DegreesToRadians(HalfAngleDeg), FMath::DegreesToRadians(HalfAngleDeg), 
+            12, FColor::Red, false, BreathTickRate, 0, 1.0f);
+    }
+
+
     TArray<FOverlapResult> Overlaps;
     FCollisionShape SphereShape = FCollisionShape::MakeSphere(Radius);
     FCollisionQueryParams QueryParams;
@@ -184,15 +199,8 @@ void USFGA_Dragon_FlameBreath_Line::ApplyBreathDamage()
         Overlaps, Start, FQuat::Identity, ECC_Pawn, SphereShape, QueryParams
     );
 
-    if (bIsDebug)
-    {
-        DrawDebugCone(GetWorld(), Start, Forward, Radius, 
-            FMath::DegreesToRadians(HalfAngleDeg), FMath::DegreesToRadians(HalfAngleDeg), 
-            12, FColor::Red, false, BreathTickRate, 0, 1.0f);
-    }
-
     if (!bHasOverlap) return;
-	
+    
     for (const FOverlapResult& Overlap : Overlaps)
     {
         AActor* HitActor = Overlap.GetActor();
@@ -201,7 +209,7 @@ void USFGA_Dragon_FlameBreath_Line::ApplyBreathDamage()
     	
         FVector ToTarget = (HitActor->GetActorLocation() - Start);
         float DistanceSqr = ToTarget.SizeSquared(); 
-    	
+        
         if (DistanceSqr > FMath::Square(Radius)) continue;
 
         ToTarget.Normalize();
@@ -210,14 +218,13 @@ void USFGA_Dragon_FlameBreath_Line::ApplyBreathDamage()
         
         if (DotProduct >= CosThreshold)
         {
-            
+          
             FHitResult ViewHit;
             if (GetWorld()->LineTraceSingleByChannel(ViewHit, Start, HitActor->GetActorLocation(), ECC_Visibility, QueryParams))
             {
                 if (ViewHit.GetActor() != HitActor) continue;
             }
-
-            // 최종 대미지 적용
+        	
             FGameplayEffectContextHandle EffectContext = MakeEffectContext(CurrentSpecHandle, CurrentActorInfo);
             ApplyRawDamageToTarget(HitActor, BreathDamagePerTick, EffectContext);
             ApplyPressureToTarget(HitActor);
@@ -233,6 +240,15 @@ void USFGA_Dragon_FlameBreath_Line::StopBreath()
 	{
 		World->GetTimerManager().ClearTimer(BreathTickTimer);
 	}
+	
+	if (ChargeStartMontageTask)
+	{
+		ChargeStartMontageTask->OnCompleted.RemoveAll(this);
+		ChargeStartMontageTask->OnInterrupted.RemoveAll(this);
+		ChargeStartMontageTask->OnCancelled.RemoveAll(this);
+		ChargeStartMontageTask->EndTask();
+		ChargeStartMontageTask = nullptr;
+	}
 
 	ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
 	if (Dragon && Dragon->GetMesh())
@@ -240,25 +256,26 @@ void USFGA_Dragon_FlameBreath_Line::StopBreath()
 		UAnimInstance* AnimInst = Dragon->GetMesh()->GetAnimInstance();
 		if (AnimInst && BreathMontage)
 		{
+		
 			AnimInst->Montage_SetNextSection(
-				FName("BreathLoop"),
-				FName("BreathEnd"),
-				BreathMontage
+			   FName("BreathLoop"),
+			   FName("BreathEnd"),
+			   BreathMontage
 			);
 
 			AnimInst->Montage_JumpToSection(FName("BreathEnd"), BreathMontage);
 		}
 	}
-
+	
 	if (BreathMontage)
 	{
 		BreathEndMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this,
-			NAME_None,
-			BreathMontage,
-			1.f,
-			FName("BreathEnd"),
-			false
+		   this,
+		   NAME_None,
+		   BreathMontage,
+		   1.f,
+		   FName("BreathEnd"),
+		   false // StopWhenAbilityEnds
 		);
 
 		if (BreathEndMontageTask)

@@ -15,13 +15,14 @@ public:
 
 protected:
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-
-	// Ability 종료 콜백
+	
 	UFUNCTION()
 	void OnAbilityEnded(const FAbilityEndedData& EndedData, TWeakObjectPtr<UBehaviorTreeComponent> OwnerCompPtr);
 
 	UFUNCTION()
 	void Cleanup(UBehaviorTreeComponent* OwnerComp);
+
+
 
 public:
 	UPROPERTY(EditAnywhere, Category="Ability")
@@ -29,6 +30,18 @@ public:
 
 	UPROPERTY(EditAnywhere, Category= "BlackBoard")
 	FBlackboardKeySelector TargetKey;
+
+	UPROPERTY(EditAnywhere, Category= "BlackBoard")
+	FBlackboardKeySelector DistanceKey;
+
+	UPROPERTY(EditAnywhere, Category= "BlackBoard")
+	FBlackboardKeySelector MinRangeKey;
+
+	UPROPERTY(EditAnywhere, Category= "BlackBoard")
+	FBlackboardKeySelector MaxRangeKey;
+
+	UPROPERTY(EditAnywhere, Category= "BlackBoard")
+	FBlackboardKeySelector ZoneKey;
 
 private:
 	FGameplayAbilitySpecHandle RunningAbilityHandle;

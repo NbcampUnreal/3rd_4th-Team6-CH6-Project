@@ -210,7 +210,7 @@ void USFGA_Enemy_BaseAttack::ApplyDamageToTarget(
 	if (!SourceASC)
 		return;
 
-	// DamageGameplayEffectClass 사용 (SFDamageEffectExecCalculation 실행)
+
 	FGameplayEffectSpecHandle SpecHandle =
 		MakeOutgoingGameplayEffectSpec(DamageGameplayEffectClass, GetAbilityLevel());
 
@@ -340,40 +340,78 @@ AActor* USFGA_Enemy_BaseAttack::GetCurrentTarget() const
 	return nullptr;
 }
 
-const FGameplayTagContainer* USFGA_Enemy_BaseAttack::GetCooldownTags() const
-{
-	// static을 사용하여 안전하게 내 태그만 포함된 컨테이너 반환
-	static FGameplayTagContainer TempContainer;
-	TempContainer.Reset();
-	if (const FGameplayTagContainer* ParentTags = Super::GetCooldownTags())
-	{
-		TempContainer.AppendTags(*ParentTags);
-	}
-	TempContainer.AddTag(CoolDownTag);
-	return &TempContainer;
-}
-
 void USFGA_Enemy_BaseAttack::ApplyCooldown(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	if (!bHasCooldown)
-		return;
-	
-	if (!CooldownGameplayEffectClass)
-		return;
+	UE_LOG(LogTemp, Warning, TEXT("ApplyCooldown Called - bHasCooldown: %s"), 
+		bHasCooldown ? TEXT("true") : TEXT("false"));
+    
+	if (!bHasCooldown) return;
+    
+	UGameplayEffect* CooldownGE = GetCooldownGameplayEffect();
+	UE_LOG(LogTemp, Warning, TEXT("CooldownGE: %s"), 
+		CooldownGE ? *CooldownGE->GetName() : TEXT("NULL"));
+    
+	if (!CooldownGE) return;
 
 	FGameplayEffectSpecHandle SpecHandle =
-		MakeOutgoingGameplayEffectSpec(CooldownGameplayEffectClass, GetAbilityLevel());
+		MakeOutgoingGameplayEffectSpec(CooldownGE->GetClass(), GetAbilityLevel());
 
 	if (!SpecHandle.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("SpecHandle is Invalid!"));
 		return;
+	}
 
-	SpecHandle.Data->SetDuration(GetCooldown(), true);
-	SpecHandle.Data->DynamicGrantedTags.AddTag(CoolDownTag);
+	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
+	if (!Spec)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Spec is NULL!"));
+		return;
+	}
+    
+	float CooldownDuration = GetCooldown();
+	UE_LOG(LogTemp, Warning, TEXT("CooldownDuration: %f"), CooldownDuration);
+    
+	Spec->SetDuration(CooldownDuration, true);
+    
+	if (CoolDownTag.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Adding CoolDownTag: %s"), *CoolDownTag.ToString());
+		Spec->DynamicGrantedTags.AddTag(CoolDownTag);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("CoolDownTag is INVALID!"));
+	}
 
 	ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
+    
+	UE_LOG(LogTemp, Warning, TEXT("Cooldown Applied Successfully!"));
+}
+
+bool USFGA_Enemy_BaseAttack::CheckCooldown(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!bHasCooldown)
+	{
+		return true;
+	}
+	if (CoolDownTag.IsValid() && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+	{
+		if (ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(CoolDownTag))
+		{
+			const FGameplayTag& CooldownTag = CoolDownTag;
+			if (OptionalRelevantTags && CooldownTag.IsValid())
+			{
+				OptionalRelevantTags->AddTag(CooldownTag);
+			}
+			return false; 
+		}
+	}
+	return Super::CheckCooldown(Handle, ActorInfo, OptionalRelevantTags);
 }
 
 // SetByCaller

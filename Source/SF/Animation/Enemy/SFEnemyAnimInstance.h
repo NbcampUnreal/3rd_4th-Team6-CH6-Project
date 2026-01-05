@@ -143,8 +143,6 @@ protected:
     UPROPERTY(Transient)
     FRotator CachedControlRotation; 
 
-    // 부드러운 보간을 위한 임시 변수
-    // FRotator AimOffsetRotationRaw;
     
     
     //  Velocity Data 
@@ -156,6 +154,12 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Velocity Data")
     FVector LocalVelocity2D;
+    
+    UPROPERTY(BlueprintReadOnly, Category = "Velocity Data")
+    float GroundSpeed;
+    
+    UPROPERTY(BlueprintReadOnly, Category = "Velocity Data")
+    float FlySpeed;
     
     UPROPERTY(BlueprintReadOnly, Category = "Velocity Data")
     float LocalVelocityDirectionAngle;

@@ -10,7 +10,6 @@
 #include "AI/Controller/SFEnemyCombatComponent.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Character/SFPawnExtensionComponent.h"
-#include "Character/Enemy/Component/SFStateReactionComponent.h"
 #include "GameFramework/Character.h"
 #include "Team/SFTeamTypes.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -47,18 +46,10 @@ void ASFBaseAIController::InitializeAIController()
     {
         BindingStateMachine(InPawn);
 
-        USFStateReactionComponent* StateReactionComponent = USFStateReactionComponent::FindStateReactionComponent(InPawn);
-        if (StateReactionComponent)
+        // StateReactionComponent 제거 - 직접 Tag 감지
+        if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(InPawn))
         {
-            if (!StateReactionComponent->OnStateStart.IsAlreadyBound(this, &ThisClass::ReceiveStateStart))
-            {
-                StateReactionComponent->OnStateStart.AddDynamic(this, &ThisClass::ReceiveStateStart);
-            }
-
-            if (!StateReactionComponent->OnStateEnd.IsAlreadyBound(this, &ThisClass::ReceiveStateEnd))
-            {
-                StateReactionComponent->OnStateEnd.AddDynamic(this, &ThisClass::ReceiveStateEnd);
-            }
+            RegisterCCTagEvents(ASC);
         }
     }
 
@@ -150,12 +141,49 @@ void ASFBaseAIController::OnUnPossess()
     Super::OnUnPossess();
 }
 
-void ASFBaseAIController::ReceiveStateStart(FGameplayTag StateTag)
+void ASFBaseAIController::RegisterCCTagEvents(UAbilitySystemComponent* ASC)
+{
+    if (!ASC) return;
+
+    // PhaseIntro
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_PhaseIntro, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnCCTagChanged);
+
+    // Stunned
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Stunned, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnCCTagChanged);
+
+    // Groggy
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Groggy, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnCCTagChanged);
+
+    // Dead
+    ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Dead, EGameplayTagEventType::NewOrRemoved)
+        .AddUObject(this, &ThisClass::OnCCTagChanged);
+}
+
+void ASFBaseAIController::OnCCTagChanged(const FGameplayTag Tag, int32 NewCount)
+{
+    if (!HasAuthority()) return;
+
+    if (NewCount > 0)
+    {
+        OnCCStart(Tag);
+    }
+    else
+    {
+        OnCCEnd(Tag);
+    }
+}
+
+void ASFBaseAIController::OnCCStart(FGameplayTag StateTag)
 {
     if (!HasAuthority()) return;
 
     if (StateTag == SFGameplayTags::Character_State_Stunned ||
-        StateTag == SFGameplayTags::Character_State_Dead)
+        StateTag == SFGameplayTags::Character_State_Dead ||
+        StateTag == SFGameplayTags::Character_State_Groggy ||
+        StateTag == SFGameplayTags::Character_State_PhaseIntro)
     {
         SetActorTickEnabled(false);
         if (UBehaviorTreeComponent* BTComp = Cast<UBehaviorTreeComponent>(BrainComponent))
@@ -176,7 +204,7 @@ void ASFBaseAIController::ReceiveStateStart(FGameplayTag StateTag)
     }
 }
 
-void ASFBaseAIController::ReceiveStateEnd(FGameplayTag StateTag)
+void ASFBaseAIController::OnCCEnd(FGameplayTag StateTag)
 {
     if (!HasAuthority() || StateTag == SFGameplayTags::Character_State_Dead) return;
 
@@ -262,6 +290,7 @@ bool ASFBaseAIController::ShouldRotateActorByController() const
     return true;
 }
 
+// SFBaseAIController.cpp
 void ASFBaseAIController::UpdateControlRotation(float DeltaTime, bool bUpdatePawn)
 {
     APawn* MyPawn = GetPawn();
@@ -269,50 +298,23 @@ void ASFBaseAIController::UpdateControlRotation(float DeltaTime, bool bUpdatePaw
     
     if (IsTurningInPlace()) return;
     
-    bool bIsUsingAbility = false;
-    if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MyPawn))
-    {
-        if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_UsingAbility))
-        {
-            bIsUsingAbility = true;
-        }
-    }
-    // Controller 회전만 갱신 
     Super::UpdateControlRotation(DeltaTime, false);
-    
-    if (bIsUsingAbility)
-    {
-        return;
-    }
     
     if (CombatComponent && CombatComponent->GetCurrentTarget())
     {
-        FVector ToTarget = CombatComponent->GetCurrentTarget()->GetActorLocation() - MyPawn->GetActorLocation();
+        AActor* Target = CombatComponent->GetCurrentTarget();
+        FVector ToTarget = Target->GetActorLocation() - MyPawn->GetActorLocation();
         ToTarget.Z = 0.f;
         if (!ToTarget.IsNearlyZero())
         {
-            SetControlRotation(ToTarget.Rotation());
+            SetControlRotation(ToTarget.Rotation()); 
         }
     }
+
     
-    if (!ShouldRotateActorByController()) return;
-
-    // ControllerYaw 모드일 때만 Base에서 Actor 회전 처리
-    if (CurrentRotationMode == EAIRotationMode::ControllerYaw)
+    if (ShouldRotateActorByController())
     {
-        FRotator TargetRot = GetControlRotation();
-        TargetRot.Pitch = 0.f;
-        TargetRot.Roll = 0.f;
-
-        FRotator CurrentActorRot = MyPawn->GetActorRotation();
-        float AngleDiff = FMath::Abs(FMath::FindDeltaAngleDegrees(CurrentActorRot.Yaw, TargetRot.Yaw));
-        float Threshold = GetTurnThreshold();
-        
-        if (AngleDiff < Threshold)
-        {
-            FRotator NewActorRot = FMath::RInterpTo(CurrentActorRot, TargetRot, DeltaTime, RotationInterpSpeed);
-            MyPawn->SetActorRotation(NewActorRot);
-        }
+        RotateActorTowardsController(DeltaTime); 
     }
 }
 
@@ -330,19 +332,18 @@ void ASFBaseAIController::SetRotationMode(EAIRotationMode NewMode)
 
     switch (NewMode)
     {
-    case EAIRotationMode::None:
-        MoveComp->bOrientRotationToMovement = false;
-        MoveComp->bUseControllerDesiredRotation = false;
-        MoveComp->RotationRate = FRotator::ZeroRotator;
-        break;
-
     case EAIRotationMode::MovementDirection:
-        MoveComp->bOrientRotationToMovement = true;
-        MoveComp->bUseControllerDesiredRotation = false;
-        MoveComp->RotationRate = FRotator(0.f, 540.f, 0.f);
+        MoveComp->bOrientRotationToMovement = true; 
+        MoveComp->bUseControllerDesiredRotation = false; 
         break;
 
     case EAIRotationMode::ControllerYaw:
+        MoveComp->bOrientRotationToMovement = false; 
+        MoveComp->bUseControllerDesiredRotation = true; 
+        MoveComp->RotationRate = FRotator(0.f, 360.f, 0.f); 
+        break;
+
+    case EAIRotationMode::None: 
         MoveComp->bOrientRotationToMovement = false;
         MoveComp->bUseControllerDesiredRotation = false;
         MoveComp->RotationRate = FRotator::ZeroRotator;

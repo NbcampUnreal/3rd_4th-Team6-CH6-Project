@@ -56,6 +56,8 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Interact_Active);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Interact_Object);
 
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Hero_Drink);
+
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Hero_Dodge);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Hero_Downed);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Hero_Death);
@@ -64,4 +66,12 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Cooldown_Hero_Skill_Primary);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Cooldown_Hero_Skill_Secondary);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Cooldown_Hero_Skill_Identity);
+
+	//Dragon
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Takeoff);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Land);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Swoop);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dragon_Movement_Hover);
+	
+	
 }

@@ -10,6 +10,7 @@
 
 class USFState;
 class UBehaviorTree;
+struct FSFPhaseData;
 
 USTRUCT(BlueprintType)
 struct FSFBehaviourWrapper
@@ -98,11 +99,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Montage")
 	FSTTaggedMontageContainer MontageContainer;
 
-	// Turn In Place 설정
-	// true: Turn 애니메이션이 RootMotion을 가지고 있음 (잡몹)
-	// false: Turn 애니메이션이 In-Place이며 AI Controller가 회전시킴 (보스)
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Animation")
-	bool bUseTurnInPlaceRootMotion = true;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Phase|Boss")
+	TArray<FSFPhaseData> PhaseData;
 
 
 };

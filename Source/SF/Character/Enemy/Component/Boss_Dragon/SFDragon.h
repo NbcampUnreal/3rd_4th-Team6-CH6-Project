@@ -20,8 +20,6 @@ public:
 	virtual void InitializeMovementComponent() override;
 
 	virtual void InitializeComponents() override;
-protected:
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "MovementComponent")
-	TObjectPtr<USFDragonMovementComponent> DragonMovementComponent;
+
+
 };
