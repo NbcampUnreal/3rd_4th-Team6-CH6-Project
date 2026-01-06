@@ -8,9 +8,12 @@
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Libraries/SFAbilitySystemLibrary.h"
+#include "Character/SFCharacterBase.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Player/SFPlayerState.h"
 #include "Player/Components/SFPlayerStatsComponent.h"
-
+#include "GameFramework/GameplayMessageSubsystem.h"
+#include "UI/InGame/UIDataStructs.h"
 
 USFPrimarySet::USFPrimarySet()
 {
@@ -96,6 +99,18 @@ void USFPrimarySet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDa
         // Apply damage
         const float NewHealth = GetHealth() - DamageDone;
         SetHealth(NewHealth);
+
+        // [UI] 데미지 폰트 띄우기 메시지
+        if (DamageDone > 0.0f)
+        {
+            FSFDamageMessageInfo Message;
+            Message.TargetActor = GetOwningActor();
+            Message.DamageAmount = DamageDone;
+            Message.Instigator = Data.EffectSpec.GetEffectContext().GetInstigator();
+
+            UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(GetWorld());
+            MessageSubsystem.BroadcastMessage(FGameplayTag::RequestGameplayTag("UI.Event.Damage"), Message);
+        }
         
         if (NewHealth > 0)
         {
@@ -165,6 +180,21 @@ void USFPrimarySet::PostAttributeChange(const FGameplayAttribute& Attribute, flo
         }
     }
     
+    if (Attribute == GetMoveSpeedAttribute())
+    {
+        // 1. 값이 변했는지 확인
+        UE_LOG(LogTemp, Warning, TEXT("[SFPrimarySet] MoveSpeed Changed! Old: %f -> New: %f"), OldValue, NewValue);
+
+        if (ASFCharacterBase* Character = Cast<ASFCharacterBase>(GetOwningActor()))
+        {
+            if (UCharacterMovementComponent* CMC = Character->GetCharacterMovement())
+            {
+                // 2. 실제 캐릭터 속도에 반영되었는지 확인
+                CMC->MaxWalkSpeed = NewValue;
+                UE_LOG(LogTemp, Warning, TEXT("[SFPrimarySet] CMC MaxWalkSpeed Updated to: %f"), CMC->MaxWalkSpeed);
+            }
+        }
+    }
 }
 
 void USFPrimarySet::HandleZeroHealth(USFAbilitySystemComponent* SFASC, const FGameplayEffectModCallbackData& Data)
@@ -235,6 +265,13 @@ void USFPrimarySet::OnRep_MaxHealth(const FGameplayAttributeData& OldValue)
 void USFPrimarySet::OnRep_MoveSpeed(const FGameplayAttributeData& OldValue)
 {
     GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MoveSpeed, OldValue);
+    if (ASFCharacterBase* Character = Cast<ASFCharacterBase>(GetOwningActor()))
+    {
+        if (UCharacterMovementComponent* CMC = Character->GetCharacterMovement())
+        {
+            CMC->MaxWalkSpeed = MoveSpeed.GetCurrentValue();
+        }
+    }
 }
 
 void USFPrimarySet::OnRep_MoveSpeedPercent(const FGameplayAttributeData& OldValue)

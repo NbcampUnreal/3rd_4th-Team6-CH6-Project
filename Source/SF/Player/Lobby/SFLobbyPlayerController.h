@@ -14,6 +14,7 @@ class SF_API ASFLobbyPlayerController : public ASFMenuPlayerController
 
 public:
 	ASFLobbyPlayerController();
+	virtual void SetupInputComponent() override;
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_RequestStartMatch();
@@ -24,4 +25,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class USFInGameMenuComponent> InGameMenuComponent;
 };

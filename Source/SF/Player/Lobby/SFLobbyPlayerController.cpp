@@ -2,13 +2,27 @@
 
 #include "SFLobbyPlayerState.h"
 #include "System/SFGameInstance.h"
+#include "UI/Compoent/SFInGameMenuComponent.h"
 
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Actor.h"
+#include "EnhancedInputComponent.h"
 
 ASFLobbyPlayerController::ASFLobbyPlayerController()
 {
 	bAutoManageActiveCameraTarget = false;
+	InGameMenuComponent = CreateDefaultSubobject<USFInGameMenuComponent>(TEXT("InGameMenuComponent"));
+}
+
+void ASFLobbyPlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	// 컴포넌트 -> 입력 바인딩 위임
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
+	{
+		InGameMenuComponent->SetupInputBindings(EnhancedInputComponent);
+	}
 }
 
 void ASFLobbyPlayerController::BeginPlay()
@@ -32,6 +46,10 @@ void ASFLobbyPlayerController::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Failed to find Actor with tag 'LobbyCam'. Check your Level"));
 	}
+
+	SetInputMode(FInputModeGameAndUI());
+	SetShowMouseCursor(true);
+	
 }
 
 void ASFLobbyPlayerController::Server_RequestStartMatch_Implementation()

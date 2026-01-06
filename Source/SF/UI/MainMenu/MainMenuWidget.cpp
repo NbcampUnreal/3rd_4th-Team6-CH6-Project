@@ -86,6 +86,8 @@ void UMainMenuWidget::OnOptionsClicked()
 	if (OptionsWidget)
 	{
 		OptionsWidget->AddToViewport(100);
+
+		OptionsWidget->SetKeyboardFocus();
 	}
 }
 

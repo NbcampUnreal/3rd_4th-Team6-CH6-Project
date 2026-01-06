@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 
 #include "UI/Common/CommonButtonBase.h"
+#include "Player/Lobby/SFLobbyPlayerController.h"
 
 void USFInGameMenuWidget::NativeConstruct()
 {
@@ -39,8 +40,22 @@ void USFInGameMenuWidget::OnResumeClicked()
 
 	if (APlayerController* PC = GetOwningPlayer())
 	{
-		PC->SetInputMode(FInputModeGameOnly());
-		PC->bShowMouseCursor = false;
+		// 1. 로비 컨트롤러 = 로비 레벨 -> (IsA를 사용해 타입 검사)
+		if (PC->IsA(ASFLobbyPlayerController::StaticClass()))
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			InputMode.SetHideCursorDuringCapture(false);
+			
+			PC->SetInputMode(InputMode);
+			PC->bShowMouseCursor = true;
+		}
+		// 2. 그 외(인게임)
+		else
+		{
+			PC->SetInputMode(FInputModeGameOnly());
+			PC->bShowMouseCursor = false;
+		}
 	}
 }
 
@@ -57,6 +72,8 @@ void USFInGameMenuWidget::OnOptionsClicked()
 	if (OptionsWidget)
 	{
 		OptionsWidget->AddToViewport(100);
+
+		OptionsWidget->SetKeyboardFocus();
 	}
 }
 
