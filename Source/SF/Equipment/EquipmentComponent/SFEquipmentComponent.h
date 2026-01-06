@@ -35,8 +35,6 @@ public:
 	// Instance로 직접 장비 제거
 	void UnequipItemByInstance(USFEquipmentInstance* EquipmentInstance);
 	
-	void ReapplyItemAnimLayers();
-	
 	UFUNCTION(BlueprintPure, Category = "Equipment")
 	TArray<USFEquipmentInstance*> GetEquippedItems() const;
 	

@@ -1,8 +1,6 @@
 #include "SFEquipmentTypes.h"
+
 #include "EquipmentInstance/SFEquipmentInstance.h"
-#include "Equipment/EquipmentComponent/SFEquipmentComponent.h"
-#include "Equipment/SFEquipmentDefinition.h"
-#include "GameFramework/Character.h"
 
 void FSFEquipmentList::PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize)
 {
@@ -12,23 +10,6 @@ void FSFEquipmentList::PreReplicatedRemove(const TArrayView<int32> RemovedIndice
 		if (Entry.Instance)
 		{
 			Entry.Instance->OnUnequipped();
-
-			if (OwnerComponent)
-			{
-				if (USFEquipmentDefinition* Def = Entry.Instance->GetEquipmentDefinition())
-				{
-					if (Def->AnimLayerInfo)
-					{
-						if (ACharacter* Character = Cast<ACharacter>(OwnerComponent->GetOwner()))
-						{
-							if (USkeletalMeshComponent* TargetMesh = Character->GetMesh())
-							{
-								TargetMesh->UnlinkAnimClassLayers(Def->AnimLayerInfo);
-							}
-						}
-					}
-				}
-			}
 		}
 	}
 }
@@ -41,23 +22,6 @@ void FSFEquipmentList::PostReplicatedAdd(const TArrayView<int32> AddedIndices, i
 		if (Entry.Instance)
 		{
 			Entry.Instance->OnEquipped();
-
-			if (OwnerComponent)
-			{
-				if (USFEquipmentDefinition* Def = Entry.Instance->GetEquipmentDefinition())
-				{
-					if (Def->AnimLayerInfo)
-					{
-						if (ACharacter* Character = Cast<ACharacter>(OwnerComponent->GetOwner()))
-						{
-							if (USkeletalMeshComponent* TargetMesh = Character->GetMesh())
-							{
-								TargetMesh->LinkAnimClassLayers(Def->AnimLayerInfo);
-							}
-						}
-					}
-				}
-			}
 		}
 	}
 }
