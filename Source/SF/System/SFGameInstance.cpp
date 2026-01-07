@@ -1,8 +1,10 @@
 #include "SFGameInstance.h"
 
 #include "GenericTeamAgentInterface.h"
+#include "NetworkMessage.h"
 #include "SFInitGameplayTags.h"
 #include "Components/GameFrameworkComponentManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "Team/SFTeamTypes.h"
 
 void USFGameInstance::Init()
@@ -130,4 +132,70 @@ const FAbilityBaseData* USFGameInstance::FindAbilityData(FName AbilityID) const
 FAbilityDataWrapper* USFGameInstance::FindAbilityDataWrapper(FName AbilityID)
 {
 	return EnemyAbilityMap.Find(AbilityID);
+}
+
+void USFGameInstance::PlayBGM(USoundBase* NewBGM, float FadeDuration)
+{
+	// 1. 안전 장치: BGM 파일이 없으면 중단
+	if (!NewBGM)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayBGM: NewBGM is NULL"));
+		StopBGM(FadeDuration);
+		return;
+	}
+
+	// 2. 컴포넌트가 없으면 생성 (지연 생성)
+	// bPersistAcrossLevelTransition을 true -> 맵 이동 시 파괴방지 (내부적으로 처리됨)
+	if (!MainAudioComponent)
+	{
+		MainAudioComponent = UGameplayStatics::CreateSound2D(this, NewBGM, 1.0f,
+			1.0f,0.0f,nullptr, true, false);
+
+		if (MainAudioComponent)
+		{
+			MainAudioComponent->bAutoDestroy = false; // 소리 끝났다고 컴포넌트 삭제되지 않게 설정
+		}
+		else
+		{
+			return;
+		}
+	}
+	
+	// 3. 이미 같은 노래가 나오고 있으면 무시
+	if (CurrentBGMSound == NewBGM && MainAudioComponent->IsPlaying())
+	{
+		
+		return;
+	}
+
+	// 4. 재생 로직
+	CurrentBGMSound = NewBGM;
+
+	// 만약 이미 재생 중이면 페이드 아웃 후 교체 (자연스럽게)
+	if (MainAudioComponent->IsPlaying())
+	{
+		// 기존 BGM 페이드 아웃 
+		MainAudioComponent->SetSound(NewBGM);
+		MainAudioComponent->FadeIn(FadeDuration, 1.0f);
+	}
+	else
+	{
+		// 멈춰있던 상태면 그냥 재생
+		MainAudioComponent->SetSound(NewBGM);
+		MainAudioComponent->FadeIn(FadeDuration, 1.0f);
+	}
+}
+
+void USFGameInstance::StopBGM(float FadeDuration)
+{
+	if (MainAudioComponent && MainAudioComponent->IsPlaying())
+	{
+		MainAudioComponent->FadeOut(FadeDuration, 0.0f);
+		CurrentBGMSound = nullptr;
+	}
+}
+
+void USFGameInstance::SetCombatState(bool bInCombat)
+{
+	return;
 }
