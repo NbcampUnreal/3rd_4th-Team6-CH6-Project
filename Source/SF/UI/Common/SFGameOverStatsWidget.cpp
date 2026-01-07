@@ -1,7 +1,6 @@
 #include "SFGameOverStatsWidget.h"
 
 #include "SFPlayerStatsEntryWidget.h"
-#include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "GameFramework/GameStateBase.h"
@@ -10,6 +9,7 @@
 #include "Messages/SFPortalInfoMessages.h"
 #include "Player/SFPlayerController.h"
 #include "Player/SFPlayerInfoTypes.h"
+#include "UI/Common/CommonButtonBase.h"
 
 USFGameOverStatsWidget::USFGameOverStatsWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -32,7 +32,7 @@ void USFGameOverStatsWidget::NativeConstruct()
 
     if (ReadyButton)
     {
-        ReadyButton->OnClicked.AddDynamic(this, &ThisClass::OnReadyButtonClicked);
+        ReadyButton->OnButtonClickedDelegate.AddDynamic(this, &ThisClass::OnReadyButtonClicked);
     }
 }
 
