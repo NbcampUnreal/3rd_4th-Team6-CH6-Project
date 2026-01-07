@@ -39,7 +39,13 @@ ASFDragon::ASFDragon()
     GetMesh()->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
 
     GetMesh()->SetUseCCD(true); 
-    GetMesh()->SetGenerateOverlapEvents(true); 
+    GetMesh()->SetGenerateOverlapEvents(true);
+	
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	
+	GetMesh()->bEnableUpdateRateOptimizations = false; 
+	
+	GetCapsuleComponent()->SetCollisionResponseToChannel(SF_ObjectChannel_Weapon, ECR_Overlap);
 
 
 }

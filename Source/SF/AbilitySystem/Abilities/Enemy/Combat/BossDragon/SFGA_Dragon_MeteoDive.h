@@ -31,6 +31,9 @@ protected:
     
     void ApplyImpactDamage(const FVector& ImpactLocation);
 
+    UFUNCTION()
+    void UpdateRotationToTarget();
+
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "SF|Dive|Preparation")
     float HoverDuration = 1.0f; 
@@ -46,13 +49,12 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "SF|Dive|Impact")
     float ImpactRadius = 2000.0f;
-    
-    UPROPERTY(EditDefaultsOnly, Category = "SF|Dive|Impact")
-    FGameplayTag ImpactCueTag;
 
     UPROPERTY(EditDefaultsOnly, Category = "SF|Dive|Debug")
     bool bShowDebugSphere = false;
 
 private:
     FVector TargetLandLocation;
+
+    FTimerHandle RotationTimerHandle;
 };

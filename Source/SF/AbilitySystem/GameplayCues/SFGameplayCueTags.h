@@ -19,4 +19,25 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Event_Parry);
 	
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Animation_PlayMontage);
+
+	//Dragon
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Stomp);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_TailSwipe);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Bite_Start);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Bite_Loop);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Breath_Line_Start);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Breath_Line_Fire);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Breath_Line_Ground);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Charge);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Flying);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Land);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_PhaseIntro);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_FireBallExplosion);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Indicator);
+	
+	
 }

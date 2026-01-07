@@ -7,6 +7,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "AbilitySystem/GameplayCues/SFGameplayCueTags.h"
 #include "AbilitySystem/GameplayEffect/SFGameplayEffectContext.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Character/SFCharacterBase.h"
@@ -29,12 +30,7 @@ void USFGA_Dragon_Stomp::ActivateAbility(const FGameplayAbilitySpecHandle Handle
                                          const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
+	
 
 	if (StompMontage)
 	{
@@ -87,12 +83,10 @@ void USFGA_Dragon_Stomp::EmitShockWave(FGameplayEventData Payload)
 	{
 		return;
 	}
-
-	// HitResult Null 체크
+	
 	const FHitResult* HitResult = Payload.ContextHandle.GetHitResult();
 	if (!HitResult)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EmitShockWave: No HitResult in Payload!"));
 		return;
 	}
 
@@ -111,7 +105,7 @@ void USFGA_Dragon_Stomp::EmitShockWave(FGameplayEventData Payload)
 		QueryParams
 	);
 
-	// 디버그 표시
+	
 	if (bIsDebug)
 	{
 		DrawDebugSphere(
@@ -144,8 +138,7 @@ void USFGA_Dragon_Stomp::EmitShockWave(FGameplayEventData Payload)
 
 				// Pressure 적용
 				ApplyPressureToTarget(HitActor);
-
-				// 디버그: 히트된 액터 표시
+				
 				if (bIsDebug)
 				{
 					DrawDebugLine(
@@ -161,6 +154,16 @@ void USFGA_Dragon_Stomp::EmitShockWave(FGameplayEventData Payload)
 				}
 			}
 		}
+	}
+	if (CurrentActorInfo->IsNetAuthority())
+	{
+		FGameplayCueParameters CueParams;
+		CueParams.EffectCauser = GetAvatarActorFromActorInfo();
+		CueParams.Location = StompLoc; 
+		CueParams.RawMagnitude = ShockwaveRadius;
+		CueParams.Instigator = GetAvatarActorFromActorInfo();
+		
+		FireGameplayCueWithCosmetic_Static(SFGameplayTags::GameplayCue_Dragon_Stomp, CueParams);
 	}
 }
 
@@ -200,14 +203,12 @@ float USFGA_Dragon_Stomp::CalcScoreModifier(const FEnemyAbilitySelectContext& Co
 
 	if (!TargetASC)
 		return Modifier;
-
-	// 플레이어가 측면/후방에 있을 때 유용 (360도 공격)
+	
 	if (Context.AngleToTarget > 90.f)
 	{
 		Modifier += 400.f;
 	}
-
-	// 이미 All Pressure 중이면 우선순위 감소 (중복 압박 방지)
+	
 	if (TargetASC->HasMatchingGameplayTag(SFGameplayTags::Dragon_Pressure_All))
 	{
 		Modifier -= 200.f;

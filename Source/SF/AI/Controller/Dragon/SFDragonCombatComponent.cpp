@@ -154,7 +154,6 @@ void USFDragonCombatComponent::EvaluateTarget()
         }
 
         CurrentTargetState = EBossTargetState::Grace;
-        UE_LOG(LogTemp, Log, TEXT("[Dragon] Target lost, entering Grace period."));
         return;
     }
 
@@ -171,7 +170,6 @@ void USFDragonCombatComponent::EvaluateTarget()
 			CachedDistance = 0.f;
 			CachedAngle = 0.f;
 
-			UE_LOG(LogTemp, Log, TEXT("[Dragon] Grace expired → Target cleared"));
 		}
 	}
 

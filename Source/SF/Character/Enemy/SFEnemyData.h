@@ -8,6 +8,7 @@
 #include "Character/SFPawnData.h"
 #include "SFEnemyData.generated.h"
 
+class USF_EffectConfig;
 class USFState;
 class UBehaviorTree;
 struct FSFPhaseData;
@@ -101,6 +102,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Phase|Boss")
 	TArray<FSFPhaseData> PhaseData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Phase|Boss")
+	TObjectPtr<USF_EffectConfig> EffectConfig;
 
 
 };

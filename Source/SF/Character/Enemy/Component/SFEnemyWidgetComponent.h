@@ -15,8 +15,7 @@ public:
 	USFEnemyWidgetComponent();
 	
 	void InitializeWidget();
-	
-	void MarkAsAttackedByLocalPlayer();
+	virtual void BeginPlay() override;
 
 protected:
 	virtual void InitWidget() override;
@@ -56,10 +55,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "SF|Widget")
 	float HideOnAngle = 90.f;
 
-	// --- 상태 변수 ---
+   
 	float CurrentVisibleTime = 0.f;
-	bool bEngagedByLocalPlayer = false;
-	float CachedMaxHealth = 0.f;
     
 	FTimerHandle EngagementTimerHandle;
 };

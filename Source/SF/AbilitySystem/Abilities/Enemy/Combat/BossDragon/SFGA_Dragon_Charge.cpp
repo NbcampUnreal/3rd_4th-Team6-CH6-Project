@@ -5,12 +5,14 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
+#include "AbilitySystem/GameplayCues/SFGameplayCueTags.h"
 #include "Character/SFCharacterBase.h"
 #include "Character/Enemy/Component/Boss_Dragon/SFDragonGameplayTags.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Interface/SFEnemyAbilityInterface.h"
 #include "AI/Controller/Dragon/SFDragonCombatComponent.h"
+
 
 USFGA_Dragon_Charge::USFGA_Dragon_Charge()
 {
@@ -29,12 +31,6 @@ void USFGA_Dragon_Charge::ActivateAbility(
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-    if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-    {
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
-    }
-
     ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
     AActor* Target = GetCurrentTarget(); 
 
@@ -44,6 +40,14 @@ void USFGA_Dragon_Charge::ActivateAbility(
         return;
     }
 
+    if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+    {
+        FGameplayCueParameters CueParams;
+        CueParams.Location = Dragon->GetActorLocation();
+        CueParams.EffectCauser = Dragon;
+        CueParams.Instigator = Dragon;
+        ASC->AddGameplayCue(SFGameplayTags::GameplayCue_Dragon_Charge, CueParams);
+    }
  
     if (ChargeMontage)
     {
@@ -53,33 +57,27 @@ void USFGA_Dragon_Charge::ActivateAbility(
 
         if (MontageTaskRef)
         {
-            
-            // Interrupted/Cancelled만 연결
             MontageTaskRef->OnInterrupted.AddDynamic(this, &USFGA_Dragon_Charge::OnMontageEnded);
             MontageTaskRef->OnCancelled.AddDynamic(this, &USFGA_Dragon_Charge::OnMontageEnded);
             MontageTaskRef->ReadyForActivation();
         }
     }
 
+    if (UCapsuleComponent* Capsule = Dragon->GetCapsuleComponent())
+    {
+        OriginalPawnResponse = Capsule->GetCollisionResponseToChannel(ECC_Pawn);
+        Capsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+        Capsule->SetGenerateOverlapEvents(true);
+
+        if (ActorInfo->IsNetAuthority())
+        {
+            Capsule->OnComponentBeginOverlap.AddDynamic(this, &USFGA_Dragon_Charge::OnChargeOverlap);
+        }
+    }
+
     if (!ActorInfo->IsNetAuthority())
     {
         return;
-    }
-
-    if (Dragon->GetMesh())
-    {
-        OriginalPawnResponse = Dragon->GetMesh()->GetCollisionResponseToChannel(ECC_Pawn);
-        Dragon->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-        
-        if (UCapsuleComponent* Capsule = Dragon->GetCapsuleComponent())
-        {
-            Capsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-            Capsule->OnComponentBeginOverlap.AddDynamic(this, &USFGA_Dragon_Charge::OnChargeOverlap);
-        }
-        else
-        {
-            Dragon->GetMesh()->OnComponentBeginOverlap.AddDynamic(this, &USFGA_Dragon_Charge::OnChargeOverlap);
-        }
     }
     
     FVector ChargeDir = Dragon->GetActorForwardVector();
@@ -88,7 +86,6 @@ void USFGA_Dragon_Charge::ActivateAbility(
         ChargeDir = (Target->GetActorLocation() - Dragon->GetActorLocation()).GetSafeNormal2D();
     }
 
-    // 루트 모션 적용 (Duration 끝나면 OnChargeFinished 호출됨)
     UAbilityTask_ApplyRootMotionConstantForce* ForceTask =
         UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(
             this,
@@ -113,7 +110,6 @@ void USFGA_Dragon_Charge::ActivateAbility(
 
 void USFGA_Dragon_Charge::OnChargeFinished()
 {
-
     if (MontageTaskRef && MontageTaskRef->IsActive())
     {
         MontageTaskRef->ExternalCancel();
@@ -156,6 +152,11 @@ void USFGA_Dragon_Charge::EndAbility(
     bool bWasCancelled)
 {
     ASFCharacterBase* Dragon = GetSFCharacterFromActorInfo();
+
+    if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+    {
+        ActorInfo->AbilitySystemComponent->RemoveGameplayCue(SFGameplayTags::GameplayCue_Dragon_Charge);
+    }
     
     if (Dragon)
     {
@@ -164,16 +165,12 @@ void USFGA_Dragon_Charge::EndAbility(
             Capsule->OnComponentBeginOverlap.RemoveAll(this);
             Capsule->SetCollisionResponseToChannel(ECC_Pawn, OriginalPawnResponse);
         }
-        
-        if (Dragon->GetMesh())
-        {
-            Dragon->GetMesh()->OnComponentBeginOverlap.RemoveAll(this);
-            Dragon->GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, OriginalPawnResponse);
-        }
     }
 
     MontageTaskRef = nullptr;
     HitActors.Empty();
+
+    CommitAbilityCooldown(Handle, ActorInfo, ActivationInfo, true);
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -221,7 +218,6 @@ void USFGA_Dragon_Charge::OnChargeOverlap(
 
 float USFGA_Dragon_Charge::CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const
 {
-    // 이제 돌진은 내가 봤을때 많이 멀때 사용하자 
     if (Context.DistanceToTarget < 1500.f)
     {
         return -10000.f;

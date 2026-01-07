@@ -39,7 +39,7 @@ ASFEnemy::ASFEnemy(const FObjectInitializer& ObjectInitializer)
 
 	EnemyWidgetComponent = ObjectInitializer.CreateDefaultSubobject<USFEnemyWidgetComponent>(this, TEXT("EnemyWidgetComponent"));
 	EnemyWidgetComponent->SetupAttachment(RootComponent);
-	EnemyWidgetComponent->SetIsReplicated(true);
+	EnemyWidgetComponent->SetIsReplicated(false);
 
 	SetNetUpdateFrequency(100.f);
 	//사실 PlayerState에서 Ability세팅할때랑 똑같이 세팅을 라이라에서는 하는것 같다
@@ -62,11 +62,15 @@ ASFEnemy::ASFEnemy(const FObjectInitializer& ObjectInitializer)
 	
 }
 
+UAbilitySystemComponent* ASFEnemy::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
+}
+
 void ASFEnemy::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 서버에서만 EnemyManager에 등록
+	
 	if (HasAuthority())
 	{
 		if (ASFGameState* SFGameState = GetWorld()->GetGameState<ASFGameState>())
@@ -77,6 +81,7 @@ void ASFEnemy::BeginPlay()
 			}
 		}
 	}
+	
 }
 
 void ASFEnemy::PossessedBy(AController* NewController)
@@ -105,16 +110,28 @@ void ASFEnemy::PossessedBy(AController* NewController)
 	}
 	PawnExtComp->SetPawnData(EnemyPawnData);
 	
-
 }
 
-
 #pragma region InitializeComponents
+
 void ASFEnemy::InitializeComponents()
 {
 	InitializeMovementComponent();
 	RegisterCollisionTagEvents();
 	EnemyWidgetComponent->InitializeWidget();
+}
+
+void ASFEnemy::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (!HasAuthority())
+	{
+		if (USFPawnExtensionComponent* PawnExtComp = USFPawnExtensionComponent::FindPawnExtensionComponent(this))
+		{
+			PawnExtComp->InitializeAbilitySystem(AbilitySystemComponent, this);
+		}
+	}
 }
 
 void ASFEnemy::InitializeAbilitySystem()
@@ -133,11 +150,15 @@ void ASFEnemy::InitializeAbilitySystem()
 	PawnExtComp->InitializeAbilitySystem(AbilitySystemComponent, this);
 	InitializeAttributeSet(PawnExtComp);
 	GrantAbilitiesFromPawnData();
-	
 }
 
 void ASFEnemy::InitializeAttributeSet(USFPawnExtensionComponent* PawnExtComp)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
 	const USFEnemyData* EnemyData = PawnExtComp->GetPawnData<USFEnemyData>();
 	if (!EnemyData)
 	{
@@ -187,6 +208,10 @@ void ASFEnemy::InitializeAttributeSet(USFPawnExtensionComponent* PawnExtComp)
 
 void ASFEnemy::InitializeMovementComponent()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
 	if (USFEnemyMovementComponent* MoveComp =  Cast<USFEnemyMovementComponent>(GetMovementComponent()))
 	{
 		MoveComp->InitializeMovementComponent();
@@ -253,58 +278,21 @@ void ASFEnemy::GrantAbilitiesFromPawnData()
 
 }
 
-void ASFEnemy::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	
-	DOREPLIFETIME(ThisClass, LastAttacker);
-}
-
-void ASFEnemy::SetLastAttacker(AActor* Attacker)
-{
-
-	if (!HasAuthority())
-	{
-		return;
-	}
-	
-	LastAttacker = Attacker;
-
-
-	if (Attacker)
-	{
-		// 내 컨트롤러를 ASFEnemyController로 캐스팅하여 함수 호출
-		if (ASFEnemyController* AIC = Cast<ASFEnemyController>(GetController()))
-		{
-			AIC->SetTargetForce(Attacker);
-		}
-	}
-
-	OnRep_LastAttacker();
-}
-
-void ASFEnemy::OnRep_LastAttacker()
-{
-	
-	if (LastAttacker && LastAttacker->HasLocalNetOwner())
-	{
-		if (EnemyWidgetComponent)
-		{
-			EnemyWidgetComponent->MarkAsAttackedByLocalPlayer();
-		}
-	}
-}
-
 void ASFEnemy::RegisterCollisionTagEvents()
 {
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
 		ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_PhaseIntro, EGameplayTagEventType::NewOrRemoved)
-			.AddUObject(this, &ThisClass::OnCollisionTagChanged);
+		   .AddUObject(this, &ThisClass::OnCollisionTagChanged);
 
 		ASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Dead, EGameplayTagEventType::NewOrRemoved)
-			.AddUObject(this, &ThisClass::OnCollisionTagChanged);
+		   .AddUObject(this, &ThisClass::OnCollisionTagChanged);
+		
+		if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_PhaseIntro) || 
+			ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead))
+		{
+			TurnCollisionOff();
+		}
 	}
 }
 
@@ -326,14 +314,31 @@ void ASFEnemy::OnCollisionTagChanged(const FGameplayTag Tag, int32 NewCount)
 
 void ASFEnemy::TurnCollisionOn()
 {
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	GetCapsuleComponent()->SetGenerateOverlapEvents(true);
+	if (GetCapsuleComponent())
+	{
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		GetCapsuleComponent()->SetGenerateOverlapEvents(true);
+	}
+	if (GetMesh())
+	{
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		GetMesh()->SetGenerateOverlapEvents(true);
+	}
 }
 
 void ASFEnemy::TurnCollisionOff()
 {
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetCapsuleComponent()->SetGenerateOverlapEvents(false);
+	if (GetCapsuleComponent())
+	{
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		GetCapsuleComponent()->SetGenerateOverlapEvents(false);
+	}
+	
+	if (GetMesh())
+	{
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		GetMesh()->SetGenerateOverlapEvents(false);
+	}
 }
 
 void ASFEnemy::OnAbilitySystemInitialized()

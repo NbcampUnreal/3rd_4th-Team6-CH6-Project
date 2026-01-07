@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,127 +8,112 @@
 /**
  * Dragon Bite Attack Ability
  * Monster Hunter style Grab & Rescue mechanic
- * Implements ISFDragonPressureInterface to apply Forward Pressure
  */
 UCLASS()
 class SF_API USFGA_Dragon_Bite : public USFGA_Enemy_BaseAttack, public ISFDragonPressureInterface
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	USFGA_Dragon_Bite();
+    USFGA_Dragon_Bite();
 
-	// ISFDragonPressureInterface 구현
-	virtual EDragonPressureType GetPressureType() const override { return EDragonPressureType::Forward; }
-	virtual float GetPressureDuration() const override { return PressureDuration; }
-	virtual TSubclassOf<UGameplayEffect> GetPressureEffectClass() const override { return PressureEffectClass; }
+    virtual EDragonPressureType GetPressureType() const override { return EDragonPressureType::Forward; }
+    virtual float GetPressureDuration() const override { return PressureDuration; }
+    virtual TSubclassOf<UGameplayEffect> GetPressureEffectClass() const override { return PressureEffectClass; }
 
-	// CalcScoreModifier 구현 (Pressure 기반 AI 점수 조정)
-	virtual float CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const override;
+    virtual float CalcScoreModifier(const FEnemyAbilitySelectContext& Context) const override;
 
-	virtual void ActivateAbility(	const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
-protected:
-	// === Section Control Functions ===
-	void StartBiteAttack();
-	void PlayBiteLoop();
-	void PlayGrabMontage();
-
-	// === Montage Callbacks ===
-	UFUNCTION()
-	void OnBiteMontageCompleted();
-
-	UFUNCTION()
-	void OnGrabMontageCompleted();
-
-	UFUNCTION()
-	void OnMontageInterrupted();
-
-	UFUNCTION()
-	void OnMontageCancelled();
-
-	// === Hit & Grab Logic ===
-	UFUNCTION()
-	void OnBiteHit(FGameplayEventData Payload);
-
-	void ApplyGrabEffect(AActor* Target);
-
-	void AttachTargetToJaw(AActor* Target);
-
-	void DetachTarget(AActor* Target);
-
-	// === Rescue Logic ===
-	UFUNCTION()
-	void OnDamageRecieved(UAbilitySystemComponent* Source, const FGameplayEffectSpec& SpecApplied,FActiveGameplayEffectHandle ActiveHandle);
-
-	void ApplyExecutionDamage(AActor* Target);
-
-	void ApplyStaggerToSelf();
-
+    virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+    virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
-	// === Montage ===
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Montage")
-	TObjectPtr<UAnimMontage> BiteMontage;
+    void StartBiteAttack();
+    void PlayBiteLoop();
+    void PlayGrabMontage();
 
-	// === GameplayEffect ===
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Effect")
-	TSubclassOf<UGameplayEffect> GrabGameplayEffectClass;
+    UFUNCTION()
+    void OnBiteMontageCompleted();
 
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Effect")
-	TSubclassOf<UGameplayEffect> StaggerGameplayEffectClass;
+    UFUNCTION()
+    void OnGrabMontageCompleted();
 
-	// === Bite Settings ===
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Bite")
-	int32 BiteCount = 2;
+    UFUNCTION()
+    void OnMontageInterrupted();
 
-	// === Grab Settings ===
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Grab")
-	FName JawSocketName = "";
+    UFUNCTION()
+    void OnMontageCancelled();
 
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Grab")
-	float GrabDuration = 5.f;
+    UFUNCTION()
+    void OnBiteHit(FGameplayEventData Payload);
 
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Grab")
-	float ExecutionDamage = 9999.f;
+    void ApplyGrabEffect(AActor* Target);
+    void AttachTargetToJaw(AActor* Target);
+    void DetachTarget(AActor* Target);
 
-	// === Rescue Settings ===
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Rescue")
-	int32 RescueCount = 3;
+    UFUNCTION()
+    void OnDamageRecieved(UAbilitySystemComponent* Source, const FGameplayEffectSpec& SpecApplied,FActiveGameplayEffectHandle ActiveHandle);
 
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Rescue")
-	float DamageCountCoolDown = 0.5f;
+    void ApplyExecutionDamage(AActor* Target);
+    void ApplyStaggerToSelf();
 
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Rescue")
-	float StaggerDamageOnRescue = 50.f;
 
-	// === Pressure Settings ===
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Pressure")
-	float PressureDuration = 5.0f;
+    void UpdateRotationToTarget();
+    AActor* FindPrimaryTarget();
 
-	UPROPERTY(EditDefaultsOnly, Category = "Dragon|Pressure")
-	TSubclassOf<UGameplayEffect> PressureEffectClass;
+protected:
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Montage")
+    TObjectPtr<UAnimMontage> BiteMontage;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Effect")
+    TSubclassOf<UGameplayEffect> GrabGameplayEffectClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Effect")
+    TSubclassOf<UGameplayEffect> StaggerGameplayEffectClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Bite")
+    int32 BiteCount = 2;
+    
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Bite")
+    float RotationSpeed = 10.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Grab")
+    FName JawSocketName = "JawSocket";
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Grab")
+    float GrabDuration = 5.f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Grab")
+    float ExecutionDamage = 9999.f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Rescue")
+    int32 RescueCount = 3;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Rescue")
+    float DamageCountCoolDown = 0.5f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Rescue")
+    float StaggerDamageOnRescue = 50.f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Pressure")
+    float PressureDuration = 5.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Dragon|Pressure")
+    TSubclassOf<UGameplayEffect> PressureEffectClass;
 
 private:
+    UPROPERTY()
+    TWeakObjectPtr<AActor> GrabbedTarget;
+    
+    UPROPERTY()
+    TWeakObjectPtr<AActor> PrimaryTarget;
 
-	UPROPERTY()
-	TWeakObjectPtr<AActor> GrabbedTarget;
+    int32 CurrentBiteCount = 0;
+    float LastDamageTime = -999.f;
+    int32 CurrentHitCount = 0;
 
-	int32 CurrentBiteCount = 0;
+    FTimerHandle GrabDurationTimerHandle;
+    FTimerHandle RotationTimerHandle;
 
-	float LastDamageTime = -999.f;
-
-	int32 CurrentHitCount = 0;
-
-	FTimerHandle GrabDurationTimerHandle;
-
-	FDelegateHandle OnDamageRecivedHandle;
-
-	// Grab Effect Handle (태그 제거를 위해 저장)
-	FActiveGameplayEffectHandle ActiveGrabEffectHandle;
-	
-	
-
+    FDelegateHandle OnDamageRecivedHandle;
+    FActiveGameplayEffectHandle ActiveGrabEffectHandle;
 };
-

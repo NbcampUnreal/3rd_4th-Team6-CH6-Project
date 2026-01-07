@@ -155,12 +155,22 @@ void USFEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 void USFEnemyAnimInstance::UpdateAimOffsetData(float DeltaSeconds)
 {
-	FRotator Delta = UKismetMathLibrary::NormalizedDeltaRotator(CachedControlRotation, CachedRotation);
+	FRotator DesiredRotation = CachedControlRotation;
+
+	if (CachedAIController)
+	{
+		FVector FocalPoint = CachedAIController->GetFocalPoint();
+		if (!FocalPoint.IsZero())
+		{
+			DesiredRotation = UKismetMathLibrary::FindLookAtRotation(CachedLocation, FocalPoint);
+		}
+	}
+
+	FRotator Delta = UKismetMathLibrary::NormalizedDeltaRotator(DesiredRotation, CachedRotation);
     
 	const float TargetPitch = Delta.Pitch;
 	const float TargetYaw = Delta.Yaw;
     
-	
 	bool bIsAttacking = false;
 	float MaxYawOffset = 30.0f;  
 	float MaxPitchOffset = 30.0f;
@@ -169,8 +179,8 @@ void USFEnemyAnimInstance::UpdateAimOffsetData(float DeltaSeconds)
 	if (CachedAbilitySystemComponent)
 	{
 		bIsAttacking = 
-			CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Ability_Dragon_FlameBreath_Line) ||
-			CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Ability_Dragon_Bite);
+		   CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Ability_Dragon_FlameBreath_Line) ||
+		   CachedAbilitySystemComponent->HasMatchingGameplayTag(SFGameplayTags::Ability_Dragon_Bite);
         
 		if (bIsAttacking)
 		{

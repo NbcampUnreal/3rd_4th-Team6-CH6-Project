@@ -1,6 +1,7 @@
 ﻿#include "SFGA_PhaseIntro.h"
 #include "AbilitySystemComponent.h"
 #include "TimerManager.h"
+#include "AbilitySystem/GameplayCues/SFGameplayCueTags.h"
 #include "AI/SFAIGameplayTags.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "GameFramework/Character.h"
@@ -45,9 +46,14 @@ void USFGA_PhaseIntro::ActivateAbility(
         EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
         return;
     }
-
+    
     CurrentStepIndex = 0;
     PlayNextStep();
+    FGameplayCueParameters CueParams;
+    CueParams.EffectCauser = GetAvatarActorFromActorInfo();
+    CueParams.Location = GetAvatarActorFromActorInfo()->GetActorLocation();
+    
+    GetAbilitySystemComponentFromActorInfo()->AddGameplayCue(SFGameplayTags::GameplayCue_Dragon_PhaseIntro, FGameplayCueParameters());
 }
 void USFGA_PhaseIntro::PlayNextStep()
 {
@@ -132,6 +138,8 @@ void USFGA_PhaseIntro::OnStepFinished()
     {
         PlayNextStep();
     }
+
+    GetAbilitySystemComponentFromActorInfo()->RemoveGameplayCue(SFGameplayTags::GameplayCue_Dragon_PhaseIntro);
 }
 
 void USFGA_PhaseIntro::EndAbility(
@@ -169,6 +177,9 @@ void USFGA_PhaseIntro::EndAbility(
         GetWorld()->GetTimerManager().ClearTimer(StepTimerHandle);
     }
     
-   
+   if (GetAbilitySystemComponentFromActorInfo()->HasMatchingGameplayTag(SFGameplayTags::GameplayCue_Dragon_PhaseIntro))
+   {
+       GetAbilitySystemComponentFromActorInfo()->RemoveGameplayCue(SFGameplayTags::GameplayCue_Dragon_PhaseIntro);
+   }
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
