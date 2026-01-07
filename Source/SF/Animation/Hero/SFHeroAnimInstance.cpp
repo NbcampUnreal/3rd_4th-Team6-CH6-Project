@@ -103,5 +103,6 @@ void USFHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 		bIsBlocking = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Blocking);
 		bIsStunned = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Stunned);
 		bIsSprinting = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Sprint);
+		bIsLockedOn = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_LockedOn);
 	}
 }

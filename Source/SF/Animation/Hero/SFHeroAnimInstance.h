@@ -75,9 +75,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|State")
 	bool bIsStunned = false;
 	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|State")
+	bool bIsLockedOn = false;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|State")
 	bool bIsSprinting = false;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Data")
 	float LastMoveSpeed;
 };
