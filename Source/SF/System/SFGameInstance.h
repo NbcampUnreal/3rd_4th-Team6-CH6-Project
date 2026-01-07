@@ -7,6 +7,7 @@
 #include "AbilitySystem/Abilities/Enemy/Data/EnemyAttributeData.h"
 #include "AbilitySystem/Abilities/Enemy/Data/FEnemyAbilityBaseData.h"
 #include "Engine/GameInstance.h"
+#include "Components/AudioComponent.h"
 #include "SFGameInstance.generated.h"
 
 
@@ -73,6 +74,31 @@ public:
 	// Ability Data 검색 함수
 	const FAbilityBaseData* FindAbilityData(FName AbilityID) const;
 	FAbilityDataWrapper* FindAbilityDataWrapper(FName AbilityID);
+
+	// ------------------ BGM 관련 ----------------------
+	// 외부에서 BGM 변경을 요청할 때 사용
+	UFUNCTION(BlueprintCallable, Category = "SF|Audio")
+	void PlayBGM(USoundBase* NewBGM, float FadeDuration = 2.0f);
+
+	// 현재 BGM을 멈출 때 호출
+	UFUNCTION(BlueprintCallable, Category = "SF|Audio")
+	void StopBGM(float FadeDuration = 2.0f);
+
+	// 전투 상태 등 급박한 상황 
+	UFUNCTION(BlueprintCallable, Category = "SF|Audio")
+	void SetCombatState(bool bInCombat);
+
+protected:
+
+	// 실제 소리를 재생할 컴포넌트
+	UPROPERTY(EditDefaultsOnly, Category = "SF|Audio")
+	UAudioComponent* MainAudioComponent;
+
+	// 현재 재생 중인 사운드 저장 -> 중복 재생 방지
+	UPROPERTY(EditDefaultsOnly ,Category = "SF|Audio")
+	USoundBase* CurrentBGMSound;
+	
+	//--------------------------------------------------
 	
 protected:
 	virtual void Init() override;
