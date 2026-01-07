@@ -46,7 +46,7 @@ void USFAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActo
 			USFEnemyAnimInstance* AniminInstance = Cast<USFEnemyAnimInstance>(GetAvatarActor()->FindComponentByClass<USkeletalMeshComponent>()->GetAnimInstance());
 			if (IsValid(AniminInstance))
 			{
-				AniminInstance->InitializeWithAbilitySystem(this);
+				AniminInstance->InitializeWithAbilitySystem(this); 
 			}
 		}
 		else
