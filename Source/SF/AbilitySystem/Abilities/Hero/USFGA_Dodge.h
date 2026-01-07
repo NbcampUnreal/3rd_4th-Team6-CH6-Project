@@ -42,6 +42,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Animation")
 	TObjectPtr<UAnimMontage> DodgeMontage;
 
+	// 백스텝 몽타주 (입력 없이 스페이스바 눌렀을 때)
+	UPROPERTY(EditDefaultsOnly, Category = "SF|Animation")
+	UAnimMontage* BackstepMontage;
+	
 	// 구르기 이동 거리
 	UPROPERTY(EditDefaultsOnly, Category = "SF|Dodge")
 	float DodgeDistance = 500.f;
@@ -50,6 +54,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "SF|MotionWarping")
 	FName WarpTargetName = TEXT("Dodge");
 
+	// DodgeType 파라미터 추가 (0: 구르기, 1: 백스텝)
+	void CalculateDodgeParameters(FVector& OutLocation, FRotator& OutRotation, int32& OutDodgeType) const;
+	void ApplyDodge(const FVector& TargetLocation, const FRotator& TargetRotation, int32 DodgeType);
+	
 private:
 	// 서버에서 데이터를 기다릴 때 쓰는 핸들
 	FDelegateHandle ServerTargetDataDelegateHandle;

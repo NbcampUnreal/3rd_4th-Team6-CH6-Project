@@ -102,6 +102,10 @@ protected:
 	// 타겟 필터 태그 (Enemy 등)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
 	FGameplayTagContainer TargetTags;
+	
+	// 달리기 상태 태그
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
+	FGameplayTag SprintTag;
 
 	// ------------------------------------------
 	// 시야 가림(Occlusion) 유예 설정

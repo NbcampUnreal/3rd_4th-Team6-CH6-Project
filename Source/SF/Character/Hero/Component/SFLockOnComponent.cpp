@@ -245,10 +245,41 @@ void USFLockOnComponent::UpdateLogic_CharacterRotation(float DeltaTime)
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 	if (!OwnerPawn) return;
 
-	// 카메라(컨트롤러)가 바라보는 방향으로 캐릭터 몸통을 강제 정렬
-	// (Tick에서 강제로 맞추므로 진동 현상 해결)
-	FRotator TargetRot = FRotator(0.0f, LastLockOnRotation.Yaw, 0.0f);
-	OwnerPawn->SetActorRotation(TargetRot);
+	ACharacter* Character = Cast<ACharacter>(OwnerPawn);
+	if (!Character) return;
+
+	bool bIsSprinting = false;
+
+	// 1. 달리기 태그 확인 (GAS)
+	if (const IGameplayTagAssetInterface* TagInterface = Cast<const IGameplayTagAssetInterface>(Character))
+	{
+		// SprintTag가 할당되어 있고, 캐릭터가 그 태그를 가지고 있다면
+		if (SprintTag.IsValid() && TagInterface->HasMatchingGameplayTag(SprintTag))
+		{
+			bIsSprinting = true;
+		}
+	}
+
+	// 2. 상태에 따른 회전 로직 분기
+	if (bIsSprinting)
+	{
+		// [달리기 중]: 락온 고정 해제 -> 이동 방향을 바라봄 (Free Movement)
+		Character->GetCharacterMovement()->bOrientRotationToMovement = true;
+	}
+	else
+	{
+		// [일반 락온]: 이동 방향 회전 끄기 -> 타겟 방향 강제 고정 (Strafing)
+		Character->GetCharacterMovement()->bOrientRotationToMovement = false;
+
+		// 카메라(컨트롤러)가 바라보는 방향(=타겟 방향)으로 캐릭터 몸통 정렬
+		FRotator TargetRot = FRotator(0.0f, LastLockOnRotation.Yaw, 0.0f);
+        
+		// 부드럽게 회전
+		FRotator CurrentRot = Character->GetActorRotation();
+		FRotator SmoothRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, 15.0f);
+        
+		Character->SetActorRotation(SmoothRot);
+	}
 }
 
 void USFLockOnComponent::UpdateLogic_WidgetPosition(float DeltaTime)
