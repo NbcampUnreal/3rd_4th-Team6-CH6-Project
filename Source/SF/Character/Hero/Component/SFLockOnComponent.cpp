@@ -6,6 +6,9 @@
 #include "SF/Interface/EnemyActorComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Blueprint/UserWidget.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "SF/Character/SFCharacterGameplayTags.h" 
 
 USFLockOnComponent::USFLockOnComponent(const FObjectInitializer& ObjectInitializer)
@@ -30,44 +33,124 @@ void USFLockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		}
 		else
 		{
-			// TODO: 여기서 컨트롤러 회전 업데이트 등을 수행할 수도 있음 (GAS 단계에서 처리 예정)
+			APawn* OwnerPawn = Cast<APawn>(GetOwner());
+			if (OwnerPawn)
+			{
+				if (APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController()))
+				{
+					// 1. 타겟 스위칭 입력 처리
+					HandleTargetSwitching(DeltaTime);
+
+					// 2. 타겟 위치 가져오기
+					FVector TargetLoc = CurrentTarget->GetActorLocation();
+					if (USceneComponent* TargetMesh = CurrentTarget->FindComponentByClass<USceneComponent>())
+					{
+						if (TargetMesh->DoesSocketExist(LockOnSocketName))
+						{
+							TargetLoc = TargetMesh->GetSocketLocation(LockOnSocketName);
+						}
+						else
+						{
+							TargetLoc.Z += 50.0f; 
+						}
+					}
+
+					// 3. 목표 회전값 계산 (마우스 입력 무시하고, 코드 기반으로 계산)
+					FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();
+					FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(CameraLoc, TargetLoc);
+					LookAtRot.Pitch = FMath::Clamp(LookAtRot.Pitch, -45.0f, 45.0f);
+
+					// 4. 상황에 따른 가변 속도 적용
+					float InterpSpeed = 30.0f; // 기본: 아주 빠름 (Hard Lock 느낌)
+
+					if (bIsSwitchingTarget)
+					{
+						InterpSpeed = 8.0f; // 스위칭 중: 부드럽게 이동 (Slow)
+						
+						// 목표에 거의 도달했는지 확인 (Yaw 차이가 2도 미만이면 스위칭 종료)
+						FRotator Delta = (LookAtRot - LastLockOnRotation).GetNormalized();
+						if (FMath::Abs(Delta.Yaw) < 2.0f && FMath::Abs(Delta.Pitch) < 2.0f)
+						{
+							bIsSwitchingTarget = false; // 다시 Hard Lock 모드로 전환
+						}
+					}
+
+					// 5. 카메라 회전 적용 (마우스 무시하고 부드러운 값 적용)
+					FRotator SmoothRot = FMath::RInterpTo(LastLockOnRotation, LookAtRot, DeltaTime, InterpSpeed);
+					PC->SetControlRotation(SmoothRot);
+					LastLockOnRotation = SmoothRot;
+
+					// 6. 캐릭터 몸통 강제 회전
+					FRotator CharacterRot = FRotator(0.0f, SmoothRot.Yaw, 0.0f); // Pitch/Roll은 0으로
+					OwnerPawn->SetActorRotation(CharacterRot);
+				}
+			}
 		}
 	}
 }
 
 bool USFLockOnComponent::TryLockOn()
 {
-	// 1. 이미 락온 중이라면 해제 (Toggle 방식)
+	// 1. 쿨타임 체크 (키 홀드 시 무한 반복 방지)
+	double CurrentTime = GetWorld()->GetTimeSeconds();
+	if (CurrentTime - LastLockOnToggleTime < 0.2) // 0.2초 쿨타임
+	{
+		return true; // 쿨타임 중이면 "성공(처리됨)"으로 간주해 리셋 방지
+	}
+
+	// 2. 이미 락온 중이라면 해제 (Toggle)
 	if (CurrentTarget)
 	{
 		EndLockOn();
-		return false; // 해제됨
+		LastLockOnToggleTime = CurrentTime; // 시간 갱신
+		return true; // [중요] "해제 성공"도 true로 반환 (카메라 리셋 안 되게)
 	}
 
-	// 2. 새로운 타겟 탐색
+	// 3. 새로운 타겟 탐색
 	AActor* NewTarget = FindBestTarget();
 	if (NewTarget)
 	{
 		CurrentTarget = NewTarget;
 		
 		// 락온 상태 태그 적용
-		if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+		APawn* OwnerPawn = Cast<APawn>(GetOwner());
+		if (OwnerPawn)
 		{
 			if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerPawn))
 			{
 				ASC->AddLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
 			}
-		}
 
+			// 캐릭터 이동 모드 변경 (Strafe)
+			if (ACharacter* Character = Cast<ACharacter>(OwnerPawn))
+			{
+				Character->bUseControllerRotationYaw = false; // 컨트롤러 회전 고정
+				Character->GetCharacterMovement()->bOrientRotationToMovement = false; // 이동 방향으로 회전 끄기
+				Character->GetCharacterMovement()->MaxWalkSpeed *= 0.8f; // 락온 시 이동 속도 살짝 감소
+			}
+			
+			// 락온 시작 시 현재 컨트롤러 회전값을 저장 (초기화)
+			if (APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController()))
+			{
+				LastLockOnRotation = PC->GetControlRotation();
+			}
+			bIsSwitchingTarget = false;
+		}
+		
 		// TODO: 락온 성공 사운드 재생
+		CreateLockOnWidget();
+		LastLockOnToggleTime = CurrentTime; // 시간 갱신
 		return true; // 락온 성공
 	}
 
-	return false; // 타겟 없음 (이때 Controller에서 카메라 리셋 호출)
+	// 4. 타겟 없음 (이때만 false 반환하여 카메라 리셋 유도)
+	return false;
 }
 
 void USFLockOnComponent::EndLockOn()
 {
+	DestroyLockOnWidget();
+	
 	CurrentTarget = nullptr;
 
 	// 락온 상태 태그 제거
@@ -76,6 +159,13 @@ void USFLockOnComponent::EndLockOn()
 		if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerPawn))
 		{
 			ASC->RemoveLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
+		}
+
+		if (ACharacter* Character = Cast<ACharacter>(OwnerPawn))
+		{
+			Character->bUseControllerRotationYaw = false; 
+			Character->GetCharacterMovement()->bOrientRotationToMovement = true; 
+			Character->GetCharacterMovement()->MaxWalkSpeed /= 0.8f; 
 		}
 	}
 
@@ -172,7 +262,107 @@ bool USFLockOnComponent::IsTargetValid(AActor* TargetActor) const
 	return true;
 }
 
-void USFLockOnComponent::SwitchTarget(FVector2D InputDirection)
+void USFLockOnComponent::HandleTargetSwitching(float DeltaTime)
 {
-	// Phase 3에서 구현 (타겟 스위칭)
+    if (CurrentSwitchCooldown > 0.0f)
+    {
+        CurrentSwitchCooldown -= DeltaTime;
+        return;
+    }
+
+    APawn* OwnerPawn = Cast<APawn>(GetOwner());
+    if (!OwnerPawn) return;
+    APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
+    if (!PC) return;
+
+    float InputX = 0.0f;
+    float InputY = 0.0f;
+
+    // 패드 & 마우스 입력 통합
+    PC->GetInputAnalogStickState(EControllerAnalogStick::CAS_RightStick, InputX, InputY);
+    if (FMath::IsNearlyZero(InputX) && FMath::IsNearlyZero(InputY))
+    {
+        float MouseX = 0.0f, MouseY = 0.0f;
+        PC->GetInputMouseDelta(MouseX, MouseY);
+        float MouseSensitivity = 0.3f; 
+        InputX = MouseX * MouseSensitivity;
+        InputY = MouseY * MouseSensitivity;
+    }
+
+    FVector2D CurrentInput(InputX, InputY);
+    if (CurrentInput.Size() < SwitchInputThreshold) return;
+
+    // --- 타겟 탐색 ---
+    FVector CameraRight = PC->PlayerCameraManager->GetCameraRotation().RotateVector(FVector::RightVector);
+    FVector SearchDirection = (CameraRight * CurrentInput.X).GetSafeNormal(); 
+
+    TArray<AActor*> OverlappedActors;
+    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+    ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+    
+    UKismetSystemLibrary::SphereOverlapActors(
+        this, OwnerPawn->GetActorLocation(), LockOnDistance, ObjectTypes, 
+        ASFCharacterBase::StaticClass(), {OwnerPawn, CurrentTarget}, OverlappedActors
+    );
+
+    AActor* BestNewTarget = nullptr;
+    float BestDot = 0.5f; 
+
+    for (AActor* Candidate : OverlappedActors)
+    {
+        if (!IsTargetValid(Candidate)) continue;
+
+        FVector ToCandidate = (Candidate->GetActorLocation() - CurrentTarget->GetActorLocation()).GetSafeNormal();
+        float InputDot = FVector::DotProduct(SearchDirection, ToCandidate);
+
+        if (InputDot > BestDot) 
+        {
+            BestDot = InputDot;
+            BestNewTarget = Candidate;
+        }
+    }
+
+    if (BestNewTarget)
+    {
+        CurrentTarget = BestNewTarget;
+        CurrentSwitchCooldown = SwitchCooldown;
+        
+        DestroyLockOnWidget(); 
+        CreateLockOnWidget();
+        
+        // [핵심] 타겟이 바뀌었으므로 "스위칭 모드" 활성화 -> 부드럽게 이동 시작
+        bIsSwitchingTarget = true; 
+    }
+}
+
+// 위젯 생성
+void USFLockOnComponent::CreateLockOnWidget()
+{
+    if (!LockOnWidgetClass || !GetWorld()) return;
+
+    if (!LockOnWidgetInstance)
+    {
+        LockOnWidgetInstance = CreateWidget<UUserWidget>(GetWorld(), LockOnWidgetClass);
+    }
+
+    if (LockOnWidgetInstance)
+    {
+        if (!LockOnWidgetInstance->IsInViewport())
+        {
+            LockOnWidgetInstance->AddToViewport(-1); // Z-Order 뒤로
+        }
+        
+        // 블루프린트에서 위젯 위치 업데이트를 위해 타겟 정보를 넘겨주는 로직이 필요하다면 여기서 호출
+        // 예: LockOnWidgetInstance->SetTarget(CurrentTarget); (BP에서 함수 만들어야 함)
+    }
+}
+
+// [추가] 위젯 제거
+void USFLockOnComponent::DestroyLockOnWidget()
+{
+    if (LockOnWidgetInstance)
+    {
+        LockOnWidgetInstance->RemoveFromParent();
+        LockOnWidgetInstance = nullptr; 
+    }
 }
