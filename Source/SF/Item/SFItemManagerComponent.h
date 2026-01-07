@@ -54,10 +54,13 @@ public:
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Item")
 	void Server_DropItem(FSFItemSlotHandle Slot);
 
-	// ========== 아이템 픽업 (서버 전용) ==========
+public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Item")
 	bool TryPickupItem(ASFPickupableItemBase* PickupableItem);
+
+	// 슬롯에서 아이템 소모 (Cost에서 호출)
+	void ConsumeFromSlot(const FSFItemSlotHandle& Slot, int32 Count = 1);
 
 protected:
 

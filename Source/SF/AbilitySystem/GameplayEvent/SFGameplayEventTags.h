@@ -33,6 +33,9 @@ namespace SFGameplayTags
 
 	//Damage Events
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Damage_Critical);
+
+	// Use Item Tags
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_UseQuickbar);
     
     
 	// Data Tags (SetByCaller)

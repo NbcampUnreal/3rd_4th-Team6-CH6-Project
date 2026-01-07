@@ -10,8 +10,18 @@
 USFGA_Hero_DrinkPotion::USFGA_Hero_DrinkPotion(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ActivationPolicy = ESFAbilityActivationPolicy::Manual;
+	
 	AbilityTags.AddTag(SFGameplayTags::Ability_Hero_Drink);
 	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_Drink);
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FAbilityTriggerData TriggerData;
+		TriggerData.TriggerTag = SFGameplayTags::Ability_Hero_Drink;
+		TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+		AbilityTriggers.Add(TriggerData);
+	}
 }
 
 void USFGA_Hero_DrinkPotion::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)

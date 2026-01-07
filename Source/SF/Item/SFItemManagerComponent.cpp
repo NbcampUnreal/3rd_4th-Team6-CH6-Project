@@ -131,7 +131,7 @@ void USFItemManagerComponent::Server_UseItem_Implementation(FSFItemSlotHandle Sl
     }
 
     // 추후 다른 타입 추가
-}
+    }
 
 void USFItemManagerComponent::UseConsumableItem(USFItemInstance* ItemInstance, const class USFItemFragment_Consumable* ConsumeFrag, const FSFItemSlotHandle& Slot)
 {
@@ -268,6 +268,21 @@ bool USFItemManagerComponent::TryPickupItem(ASFPickupableItemBase* PickupableIte
 
     PickupableItem->Destroy();
     return true;
+}
+
+void USFItemManagerComponent::ConsumeFromSlot(const FSFItemSlotHandle& Slot, int32 Count)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (!IsValidSlot(Slot) || IsSlotEmpty(Slot))
+    {
+        return;
+    }
+
+    RemoveFromSlot(Slot, Count);
 }
 
 bool USFItemManagerComponent::IsValidSlot(const FSFItemSlotHandle& Slot) const

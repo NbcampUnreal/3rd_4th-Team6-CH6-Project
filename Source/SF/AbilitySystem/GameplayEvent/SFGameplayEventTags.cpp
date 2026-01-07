@@ -32,6 +32,9 @@ namespace SFGameplayTags
 
 	// Damage Events
 	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_Damage_Critical, "GameplayEvent.Damage.Critical");
+
+	// Use Item Tags
+	UE_DEFINE_GAMEPLAY_TAG(GameplayEvent_UseQuickbar, "GameplayEvent.UseQuickbar");
     
 	// Data Tags (SetByCaller)
     
