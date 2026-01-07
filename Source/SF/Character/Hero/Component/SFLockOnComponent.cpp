@@ -138,9 +138,12 @@ void USFLockOnComponent::HandleTargetSwitching(float DeltaTime)
 	if (CurrentInput.Size() < SwitchInputThreshold) return;
 
 	// 3. 스위칭 대상 탐색
-	FVector CameraRight = PC->PlayerCameraManager->GetCameraRotation().RotateVector(FVector::RightVector);
-	FVector SearchDirection = (CameraRight * CurrentInput.X).GetSafeNormal();
-
+	FRotator CamRot = PC->PlayerCameraManager->GetCameraRotation();
+	FVector CamRight = CamRot.RotateVector(FVector::RightVector);
+	FVector CamUp = CamRot.RotateVector(FVector::UpVector);
+	
+	FVector SearchDirection = (CamRight * CurrentInput.X + CamUp * CurrentInput.Y).GetSafeNormal();
+	
 	TArray<AActor*> OverlappedActors;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
@@ -151,19 +154,27 @@ void USFLockOnComponent::HandleTargetSwitching(float DeltaTime)
 	);
 
 	AActor* BestNewTarget = nullptr;
-	float BestDot = 0.5f; // 최소 45도 안쪽의 적만 허용
+	float ClosestDistSq = FLT_MAX; 
 
 	for (AActor* Candidate : OverlappedActors)
 	{
 		if (!IsTargetValidBasic(Candidate)) continue;
 
-		FVector ToCandidate = (Candidate->GetActorLocation() - CurrentTarget->GetActorLocation()).GetSafeNormal();
-		float InputDot = FVector::DotProduct(SearchDirection, ToCandidate);
+		// 현재 타겟에서 후보로 향하는 방향 벡터
+		FVector FromTargetToCand = Candidate->GetActorLocation() - CurrentTarget->GetActorLocation();
+		float DistSq = FromTargetToCand.SizeSquared(); // 거리의 제곱 (비교용)
+		FVector DirToCand = FromTargetToCand.GetSafeNormal();
 
-		if (InputDot > BestDot)
+		// 입력한 방향(SearchDirection)과 후보가 있는 방향(DirToCand)이 얼마나 일치하는지?
+		float InputDot = FVector::DotProduct(SearchDirection, DirToCand);
+
+		if (InputDot > SwitchAngularLimit) 
 		{
-			BestDot = InputDot;
-			BestNewTarget = Candidate;
+			if (DistSq < ClosestDistSq)
+			{
+				ClosestDistSq = DistSq;
+				BestNewTarget = Candidate;
+			}
 		}
 	}
 

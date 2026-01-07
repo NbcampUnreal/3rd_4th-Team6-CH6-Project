@@ -131,7 +131,11 @@ protected:
 	// 스위칭 입력 감도 (낮을수록 민감)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
 	float SwitchInputThreshold = 0.5f;
-
+	
+	// 스위칭 시 허용할 최대 각도 (내적값)
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
+	float SwitchAngularLimit = 0.5f;
+	
 	// 스위칭 쿨타임 (초)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
 	float SwitchCooldown = 0.3f;
