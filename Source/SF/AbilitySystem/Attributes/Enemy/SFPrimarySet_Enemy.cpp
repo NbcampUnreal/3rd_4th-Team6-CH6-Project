@@ -37,11 +37,6 @@ void USFPrimarySet_Enemy::PostGameplayEffectExecute(const FGameplayEffectModCall
 		{
 			AActor* Instigator = Data.EffectSpec.GetContext().GetInstigator();
 			
-			if (ASFEnemy* Enemy = Cast<ASFEnemy>(GetOwningActor()))
-			{
-				Enemy->SetLastAttacker(Instigator);
-			}
-
 			OnTakeDamageDelegate.Broadcast(DamageDone, Instigator);
 		}
 	}

@@ -17,13 +17,15 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Charging, "Character.State.Charging", "Character is currently charging an attack");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Downed, "Character.State.Downed", "Character is downed");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_TurningInPlace, "Character.State.TurningInPlace", "Character is turning in place");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Sprint, "Character.State.Sprint", "Character is sprinting");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Drink, "Character.State.Drink", "Character is drinking a potion/healing item");
 
 	// ========== 방어/회피 ==========
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Blocking, "Character.State.Blocking", "Character is blocking");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Dodging, "Character.State.Dodging", "Character is dodging");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Parrying, "Character.State.Parrying", "Character is parrying");
-
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_LockedOn, "Character.State.LockedOn", "Character is in Lock-On state (Strafing movement)");
+	
 	// ========== 경직/넉백 ==========
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Staggered, "Character.State.Staggered", "Character is staggered");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Knockdown, "Character.State.Knockdown", "Character is knocked down");

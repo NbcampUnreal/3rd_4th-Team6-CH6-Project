@@ -6,21 +6,24 @@
 #include "Components/SFLoadingCheckComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
-#include "InputMappingContext.h"
+#include "Character/Enemy/Component/SFEnemyWidgetComponent.h"
 #include "Components/GameFrameworkInitStateInterface.h"
 #include "Components/SFDeathUIComponent.h"
 #include "Components/SFSharedUIComponent.h"
 #include "Components/SFSpectatorComponent.h"
+#include "UI/Compoent/SFInGameMenuComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 #include "GameModes/SFGameOverManagerComponent.h"
 #include "Inventory/SFInventoryManagerComponent.h"
 #include "Inventory/SFQuickbarComponent.h"
 #include "Item/SFItemManagerComponent.h"
+#include "GameFramework/GameplayMessageSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Pawn/SFSpectatorPawn.h"
 #include "System/SFPlayFabSubsystem.h"
 #include "UI/InGame/SFIndicatorWidgetBase.h"
+#include "UI/InGame/SFDamageWidget.h"
 
 ASFPlayerController::ASFPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -32,6 +35,7 @@ ASFPlayerController::ASFPlayerController(const FObjectInitializer& ObjectInitial
 	InventoryManagerComponent = CreateDefaultSubobject<USFInventoryManagerComponent>(TEXT("InventoryManagerComponent"));
 	QuickbarComponent = CreateDefaultSubobject<USFQuickbarComponent>(TEXT("QuickbarComponent"));
 	ItemManagerComponent = CreateDefaultSubobject<USFItemManagerComponent>(TEXT("ItemManagerComponent"));
+	InGameMenuComponent = CreateDefaultSubobject<USFInGameMenuComponent>(TEXT("SystemMenuComponent"));
 }
 
 void ASFPlayerController::BeginPlay()
@@ -40,13 +44,14 @@ void ASFPlayerController::BeginPlay()
 	SetInputMode(FInputModeGameOnly());
 	SetShowMouseCursor(false);
 
-	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-	{
-		if (DefaultMappingContext)
-		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-		}
-	}
+	// 몬스터 데미지 텍스트 관련 리스너 등록 (UI.Event.Damage) -> OnDamageMessageReceived() 실행
+	UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(this);
+	
+	DamageMessageListenerHandle = MessageSubsystem.RegisterListener(
+		FGameplayTag::RequestGameplayTag("UI.Event.Damage"), 
+		this, 
+		&ThisClass::OnDamageMessageReceived
+	);
 
 	// 로컬 플레이어인 경우 팀원 표시 로직 실행
 	if (IsLocalController())
@@ -109,15 +114,9 @@ void ASFPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	// 기존 InputComponent를 향상된 버전(EnhancedInputComponent)으로 Cast
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		if (InGameMenuAction)
-		{
-			// BindAction: 이 액션이 시작되면(Started) -> ToggleInGameMenu 함수를 실행
-			// ETriggerEvent::Started는 "키를 누르는 순간"
-			EnhancedInputComponent->BindAction(InGameMenuAction, ETriggerEvent::Started, this, &ASFPlayerController::ToggleInGameMenu);
-		}
+		InGameMenuComponent->SetupInputBindings(EnhancedInputComponent);
 	}
 }
 
@@ -186,46 +185,6 @@ void ASFPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 
 }
 
-void ASFPlayerController::ToggleInGameMenu()
-{
-	UE_LOG(LogTemp, Warning, TEXT("ESC 키 눌림! ToggleInGameMenu 함수 진입 성공"));
-	
-	// 1. 이미 메뉴가 켜져 있다면? -> 종료
-	if (InGameMenuInstance && InGameMenuInstance->IsInViewport())
-	{
-		InGameMenuInstance->RemoveFromParent();
-		InGameMenuInstance = nullptr;
-
-		SetInputMode(FInputModeGameOnly());
-		bShowMouseCursor = false;
-		return;
-	}
-
-	// 2. 메뉴가 꺼져 있다면? -> 실행
-	if (InGameMenuClass)
-	{
-		InGameMenuInstance = CreateWidget<UUserWidget>(this, InGameMenuClass);
-
-		if (InGameMenuInstance)
-		{
-			// Z-Order 100으로 최상단 배치
-			InGameMenuInstance->AddToViewport(100);
-
-			// 위젯 자체를 포커스 타겟으로 명확히 지정
-			FInputModeUIOnly InputMode;
-			// 위젯이 포커스를 받을 수 있게 설정 
-			InputMode.SetWidgetToFocus(InGameMenuInstance->TakeWidget());
-			// 마우스가 화면 밖으로 나가지 않게 잠금
-			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			SetInputMode(InputMode);
-			bShowMouseCursor = true;
-
-			InGameMenuInstance->SetKeyboardFocus();
-		}
-	}
-	
-}
-
 void ASFPlayerController::CreateTeammateIndicators()
 {
 	if (!TeammateIndicatorWidgetClass) 
@@ -288,6 +247,121 @@ void ASFPlayerController::CreateTeammateIndicators()
 			UE_LOG(LogTemp, Log, TEXT("Team Indicator Created for: %s"), *Actor->GetName());
 		}
 	}
+}
+
+void ASFPlayerController::OnDamageMessageReceived(FGameplayTag Channel, const FSFDamageMessageInfo& Payload)
+{
+	// 유효성 체크 -> 타겟 확인
+	if (!Payload.TargetActor) return;
+
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return;
+	APlayerState* MyPS = GetPlayerState<APlayerState>();
+
+	/*UE_LOG(LogTemp, Warning, TEXT("Damage Debug: Instigator=[%s], MyPawn=[%s], MyController=[%s]"),
+	Payload.Instigator ? *Payload.Instigator->GetName() : TEXT("NULL"),
+	*MyPawn->GetName(),
+	*GetName());
+	*/
+
+	bool bIsMyPawn = (Payload.Instigator == MyPawn);
+	bool bIsMyController = (Payload.Instigator == this);
+	bool bIsMyPlayerState = (MyPS && Payload.Instigator == MyPS);
+	
+	if (!bIsMyPawn && !bIsMyController && !bIsMyPlayerState)
+	{
+		return; 
+	}
+	
+	Client_ShowDamageText(Payload.DamageAmount, Payload.TargetActor);
+}
+
+void ASFPlayerController::Client_ShowDamageText_Implementation(float DamageAmount, AActor* TargetActor)
+{
+	// 1. 유효성 체크
+	if (!DamageWidgetClass || !TargetActor) return;
+
+	// 플레이어/아군 체크
+	APawn* TargetPawn = Cast<APawn>(TargetActor);
+	if (!TargetPawn) return;
+	if (TargetPawn->IsPlayerControlled()) return; 
+	if (TargetPawn->ActorHasTag(FName("Player"))) return;
+
+	FVector TextSpawnLocation = TargetActor->GetActorLocation();
+
+	USFEnemyWidgetComponent* HPBarComp = TargetActor->FindComponentByClass<USFEnemyWidgetComponent>();
+
+	if (HPBarComp)
+	{
+		TextSpawnLocation = HPBarComp->GetComponentLocation();
+	}
+	else
+	{
+		ACharacter* TargetCharacter = Cast<ACharacter>(TargetActor);
+		if (TargetCharacter)
+		{
+			TextSpawnLocation.Z += TargetCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 50.0f;
+		}
+	}
+
+	if (PlayerCameraManager)
+	{
+		const FTransform CamTransform = PlayerCameraManager->GetTransform();
+		const FVector CamRight = CamTransform.GetUnitAxis(EAxis::Y);
+		const FVector CamUp = CamTransform.GetUnitAxis(EAxis::Z);
+
+		// 오른쪽 50, 위 40
+		TextSpawnLocation += (CamRight * 50.0f) + (CamUp * 40.0f);
+	}
+
+	USFDamageWidget* NewDamageWidget = CreateWidget<USFDamageWidget>(this, DamageWidgetClass);
+	if (NewDamageWidget)
+	{
+		NewDamageWidget->AddToViewport();
+		NewDamageWidget->SetupDamageText(DamageAmount, TextSpawnLocation);
+	}
+}
+
+void ASFPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 1. 팀원 검색 타이머 강제 종료
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TeammateSearchTimerHandle);
+	}
+
+	// 2. GameInstance 가져오기 
+	UGameInstance* GI = GetGameInstance();
+
+	// 만약 PC가 이미 연결이 끊겨서 GI를 가져올 수 없다면
+	if (!GI && GetWorld())
+	{
+		// 월드를 통해 강제로 GameInstance를 찾아옴.
+		GI = GetWorld()->GetGameInstance();
+	}
+
+	// GI를 찾았고, 시스템이 살아있다면
+	if (GI)
+	{
+		if (UGameplayMessageSubsystem* MessageSubsystem = GI->GetSubsystem<UGameplayMessageSubsystem>())
+		{
+			// 리스너 해제 (Unregister)
+			MessageSubsystem->UnregisterListener(DamageMessageListenerHandle);
+		}
+	}
+	
+	// 3. 팀원 표시 위젯 정리 (Viewport 참조 해제)
+	for (auto& Elem : TeammateWidgetMap)
+	{
+		if (Elem.Value)
+		{
+			// 위젯이 유효하다면 부모(Viewport)에서 분리
+			Elem.Value->RemoveFromParent();
+		}
+	}
+	TeammateWidgetMap.Empty();
+	
+	Super::EndPlay(EndPlayReason);
 }
 
 void ASFPlayerController::Server_SendPermanentUpgradeData_Implementation(const FSFPermanentUpgradeData& InData)

@@ -8,19 +8,20 @@
 ASFProjectileBase::ASFProjectileBase()
 {
     PrimaryActorTick.bCanEverTick = false;
+    bReplicates = true;
+    SetReplicateMovement(true);
 
-    // 1. 충돌체 (Root)
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
     CollisionComponent->InitSphereRadius(15.0f);
     CollisionComponent->SetCollisionProfileName(TEXT("Projectile"));
     SetRootComponent(CollisionComponent);
 
-    // 2. [추가] 스태틱 메시 (Visual)
-    ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
-    ProjectileMesh->SetupAttachment(CollisionComponent); // 루트(구체)에 부착
-    ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 충돌은 구체가 담당하므로 메시는 끔
 
-    // 3. 무브먼트
+    ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
+    ProjectileMesh->SetupAttachment(CollisionComponent); 
+    ProjectileMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); 
+
+   
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
     ProjectileMovement->UpdatedComponent = CollisionComponent;
     ProjectileMovement->InitialSpeed = InitialSpeed;
@@ -29,7 +30,7 @@ ASFProjectileBase::ASFProjectileBase()
     ProjectileMovement->bShouldBounce = false;
     ProjectileMovement->ProjectileGravityScale = GravityScale;
 
-    // 4. 이펙트
+
     ProjectileEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("ProjectileEffect"));
     ProjectileEffect->SetupAttachment(RootComponent);
 

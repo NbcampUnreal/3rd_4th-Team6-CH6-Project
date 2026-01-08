@@ -4,11 +4,12 @@
 #include "Character/Enemy/Component/SFDragonMovementComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h" // 필수
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayTag.h"
 #include "AbilitySystem/Abilities/SFGameplayAbilityTags.h"
+#include "AbilitySystem/GameplayCues/SFGameplayCueTags.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "Actors/SFDragonFireballProjectile.h"
 #include "Character/SFCharacterGameplayTags.h"
@@ -21,6 +22,7 @@ USFGA_Dragon_AerialBarrage::USFGA_Dragon_AerialBarrage()
     AbilityTags.AddTag(SFGameplayTags::Ability_Dragon_FlameBreath_Spin);
     ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_UsingAbility);
     ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_Invulnerable);
+    ActivationOwnedTags.AddTag(SFGameplayTags::Dragon_Movement_Flying);
 }
 
 void USFGA_Dragon_AerialBarrage::ActivateAbility(
@@ -29,13 +31,6 @@ void USFGA_Dragon_AerialBarrage::ActivateAbility(
     const FGameplayAbilityActivationInfo ActivationInfo, 
     const FGameplayEventData* TriggerEventData)
 {
-   if (!CommitAbility(Handle, ActorInfo, ActivationInfo)) 
-    { 
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true); 
-        return; 
-    }
-
-    // 타겟 리스트 수집
     PlayerList.Empty();
     for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
     {
@@ -50,16 +45,22 @@ void USFGA_Dragon_AerialBarrage::ActivateAbility(
     SelectRandomLivingTarget();
 
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-    if (!Character) return;
+    if (!Character)
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
 
     USFDragonMovementComponent* MoveComp = Cast<USFDragonMovementComponent>(Character->GetCharacterMovement());
-    if (!MoveComp) return;
+    if (!MoveComp)
+    {
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
     
-   
     MoveComp->bOrientRotationToMovement = false; 
     Character->bUseControllerRotationYaw = false;
     
- 
     CachedBrakingDeceleration = MoveComp->BrakingDecelerationFlying;
 
     if (!MoveComp->IsFlying())
@@ -85,13 +86,11 @@ void USFGA_Dragon_AerialBarrage::SelectRandomLivingTarget()
 
 void USFGA_Dragon_AerialBarrage::StartAscend()
 {
- 
     if (!GetOwningActorFromActorInfo()->HasAuthority()) return;
 
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!Character) return;
     
-  
     if (TakeOffMontage)
     {
         Character->PlayAnimMontage(TakeOffMontage, 1.0f);
@@ -99,19 +98,16 @@ void USFGA_Dragon_AerialBarrage::StartAscend()
     
     float CurrentZ = Character->GetActorLocation().Z;
 
-    // 이미 목표 고도라면 바로 공격
     if (CurrentZ >= TargetAltitude)
     {
         StartOrbitAttack();
         return;
     }
     
- 
     float DistanceNeeded = TargetAltitude - CurrentZ;
     float CalcDuration = (AscendSpeed > 0.f) ? (DistanceNeeded / AscendSpeed) : 5.0f;
-    CalcDuration += 2.0f; // 여유 시간 추가
+    CalcDuration += 2.0f;
 
-    //  루트모션으로 강제 상승
     AscendTask = UAbilityTask_ApplyRootMotionConstantForce::ApplyRootMotionConstantForce(
         this, 
         FName("DragonAscend"), 
@@ -130,7 +126,6 @@ void USFGA_Dragon_AerialBarrage::StartAscend()
         
     TWeakObjectPtr<ACharacter> WeakChar = Character;
     
-    // 고도 체크 타이머
     GetWorld()->GetTimerManager().SetTimer(
         AscendCheckTimerHandle, [this, WeakChar]()
         {
@@ -138,7 +133,6 @@ void USFGA_Dragon_AerialBarrage::StartAscend()
             {
                 GetWorld()->GetTimerManager().ClearTimer(AscendCheckTimerHandle);
                 
-                // 태스크 종료
                 if (AscendTask)
                 {
                     AscendTask->EndTask();
@@ -147,7 +141,6 @@ void USFGA_Dragon_AerialBarrage::StartAscend()
                 
                 WeakChar->GetCharacterMovement()->Velocity = FVector::ZeroVector;
                 
-                // 몽타주 정지
                 if (TakeOffMontage)
                 {
                     WeakChar->StopAnimMontage(TakeOffMontage);
@@ -156,11 +149,19 @@ void USFGA_Dragon_AerialBarrage::StartAscend()
                 StartOrbitAttack();
             }
         }, 0.05f, true);
+
+    if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+    {
+        FGameplayCueParameters CueParams;
+        CueParams.Location = Character->GetActorLocation();
+        CueParams.EffectCauser = Character;
+        CueParams.Instigator = Character;
+        FireGameplayCueWithCosmetic_Actor(SFGameplayTags::GameplayCue_Dragon_Flying,CueParams);
+    }
 }
 
 void USFGA_Dragon_AerialBarrage::StartOrbitAttack()
 {
-    
     if (!GetOwningActorFromActorInfo()->HasAuthority()) return;
 
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
@@ -171,20 +172,16 @@ void USFGA_Dragon_AerialBarrage::StartOrbitAttack()
         MoveComp->BrakingDecelerationFlying = 0.0f;
     }
 
-
     FVector MyLoc = Character->GetActorLocation();
     FVector OrbitCenter = MapCenterLocation;
     OrbitCenter.Z = MyLoc.Z;
 
     FVector DirToCenter = (OrbitCenter - MyLoc).GetSafeNormal();
     FVector MyForward = Character->GetActorForwardVector();
-
-    
     FVector TangentCCW = FVector::CrossProduct(DirToCenter, FVector::UpVector);
     
     float DotResult = FVector::DotProduct(MyForward, TangentCCW);
     bIsClockwise = (DotResult < 0.0f); 
-
 
     if (FlyingAttackMontage && MaxFireballCount > 0 && ShotsPerMontageLoop > 0)
     {
@@ -198,7 +195,6 @@ void USFGA_Dragon_AerialBarrage::StartOrbitAttack()
 
     CurrentFireballCount = 0;
     
-    // 공격 몽타주 재생
     if (FlyingAttackMontage)
     {
         UAbilityTask_PlayMontageAndWait* MontageTask = 
@@ -214,7 +210,6 @@ void USFGA_Dragon_AerialBarrage::StartOrbitAttack()
         }
     }
     
-    // 투사체 발사 이벤트 대기
     UAbilityTask_WaitGameplayEvent* WaitEventTask = 
         UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
             this, SFGameplayTags::GameplayEvent_Dragon_Fireball_Launch);
@@ -231,7 +226,6 @@ void USFGA_Dragon_AerialBarrage::StartOrbitAttack()
 
 void USFGA_Dragon_AerialBarrage::TickOrbitMovement()
 {
-    
     if (!GetOwningActorFromActorInfo()->HasAuthority()) return;
 
     ACharacter* OwnerChar = Cast<ACharacter>(GetAvatarActorFromActorInfo());
@@ -244,31 +238,25 @@ void USFGA_Dragon_AerialBarrage::TickOrbitMovement()
     FVector DirectionToCenter = (OrbitCenter - MyLoc).GetSafeNormal();
     float DistanceFromCenter = FVector::Dist2D(MyLoc, OrbitCenter);
 
-    //  결정된 bIsClockwise에 따라 접선 벡터 계산
     FVector TangentDir;
     if (bIsClockwise)
     {
-        // 시계 방향
         TangentDir = FVector::CrossProduct(FVector::UpVector, DirectionToCenter);
     }
     else
     {
-        // 반시계 방향
         TangentDir = FVector::CrossProduct(DirectionToCenter, FVector::UpVector);
     }
 
- 
     FVector FinalDir = TangentDir;
     if (DistanceFromCenter > OrbitRadius + 200.f) 
         FinalDir = (TangentDir + DirectionToCenter * 0.4f).GetSafeNormal();
     else if (DistanceFromCenter < OrbitRadius - 200.f) 
         FinalDir = (TangentDir - DirectionToCenter * 0.4f).GetSafeNormal();
 
-    // 속도 적용
     FVector CurrentVelocity = FinalDir * CalculatedOrbitSpeed;
     OwnerChar->GetCharacterMovement()->Velocity = CurrentVelocity;
     
-   
     if (!CurrentVelocity.IsNearlyZero())
     {
         FRotator TravelRot = CurrentVelocity.Rotation();
@@ -289,9 +277,7 @@ void USFGA_Dragon_AerialBarrage::OnFireballEventReceived(FGameplayEventData Payl
     ACharacter* OwnerChar = Cast<ACharacter>(GetAvatarActorFromActorInfo());
     if (!OwnerChar || !ProjectileClass) return;
 
-
     FVector SpawnLoc = OwnerChar->GetMesh()->GetSocketLocation(MuzzleSocketName);
-    
     FVector TargetPos = TargetActor->GetActorLocation();
     
     ACharacter* TargetChar = Cast<ACharacter>(TargetActor.Get());
@@ -301,7 +287,6 @@ void USFGA_Dragon_AerialBarrage::OnFireballEventReceived(FGameplayEventData Payl
     }
     
     FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, TargetPos);
-    
     FTransform SpawnTM(LookRot, SpawnLoc);
     
     ASFDragonFireballProjectile* Projectile = GetWorld()->SpawnActorDeferred<ASFDragonFireballProjectile>(
@@ -328,7 +313,6 @@ void USFGA_Dragon_AerialBarrage::OnFireballEventReceived(FGameplayEventData Payl
 
 void USFGA_Dragon_AerialBarrage::OnMontageEnded()
 {
-  
     if (CurrentFireballCount < MaxFireballCount)
     {
         if (FlyingAttackMontage)
@@ -348,7 +332,6 @@ void USFGA_Dragon_AerialBarrage::OnMontageEnded()
 
 void USFGA_Dragon_AerialBarrage::TryChainToDive()
 {
-    // 이동 타이머 정리
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(OrbitTimerHandle);
@@ -362,10 +345,8 @@ void USFGA_Dragon_AerialBarrage::TryChainToDive()
     if (MoveComp)
     {
         MoveComp->Velocity = FVector::ZeroVector;
-        // 주의: 마찰력 복구는 EndAbility에서 수행
     }
-
-    // 다음 어빌리티(Dive) 연계 시도
+    
     FGameplayTagContainer DiveTag;
     DiveTag.AddTag(SFGameplayTags::Ability_Dragon_DiveAttack);
 
@@ -383,7 +364,6 @@ void USFGA_Dragon_AerialBarrage::TryChainToDive()
     }
     else
     {
-        
         FGameplayEventData EventData;
         if (GetAbilitySystemComponentFromActorInfo()->HandleGameplayEvent(SFGameplayTags::GameplayEvent_Dragon_Flight_Land, &EventData))
         {
@@ -399,7 +379,6 @@ void USFGA_Dragon_AerialBarrage::TryChainToDive()
         }
         else
         {
-            
             EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
         }
     }
@@ -422,18 +401,21 @@ void USFGA_Dragon_AerialBarrage::EndAbility(
     bool bReplicateEndAbility, 
     bool bWasCancelled)
 {
-    
     if (GetWorld())
     {
         GetWorld()->GetTimerManager().ClearTimer(OrbitTimerHandle);
         GetWorld()->GetTimerManager().ClearTimer(AscendCheckTimerHandle);
     }
-
     
     if (AscendTask)
     {
         AscendTask->EndTask();
         AscendTask = nullptr;
+    }
+
+    if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+    {
+        ActorInfo->AbilitySystemComponent->RemoveGameplayCue(SFGameplayTags::GameplayCue_Dragon_Flying);
     }
 
     ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
@@ -453,7 +435,6 @@ void USFGA_Dragon_AerialBarrage::EndAbility(
         }
         else
         {
-            
             MoveComp->bOrientRotationToMovement = true;
             Character->bUseControllerRotationYaw = false;
         }

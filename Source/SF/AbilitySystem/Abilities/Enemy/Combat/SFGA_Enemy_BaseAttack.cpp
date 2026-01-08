@@ -1,20 +1,12 @@
-// Enemy Base Attack Ability (Refactored & Organized)
-
 #include "AbilitySystem/Abilities/Enemy/Combat/SFGA_Enemy_BaseAttack.h"
-
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystem/Abilities/SFGameplayAbilityTags.h"
 #include "AbilitySystem/GameplayEvent/SFGameplayEventTags.h"
 #include "AI/Controller/SFEnemyCombatComponent.h"
-#include "AI/Controller/SFEnemyController.h"
 #include "AI/Controller/SFBaseAIController.h"
 #include "Character/SFCharacterBase.h"
 #include "Character/SFCharacterGameplayTags.h"
-#include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "AIController.h"
-#include "TimerManager.h"
+#include "AbilitySystem/GameplayCues/Data/SFGameplayCueCosmeticData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SFGA_Enemy_BaseAttack)
 
@@ -38,7 +30,18 @@ USFGA_Enemy_BaseAttack::USFGA_Enemy_BaseAttack(const FObjectInitializer& ObjectI
 	bIsCancelable = true;
 }
 
-// Range ,Angle Check
+void USFGA_Enemy_BaseAttack::EndAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateEndAbility, bool bWasCancelled)
+{
+	if (!bWasCancelled) 
+	{
+		CommitAbilityCooldown(Handle, ActorInfo, ActivationInfo, true);
+	}
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+
 bool USFGA_Enemy_BaseAttack::CheckRangeAndAngle(
 	const AActor* Self, 
 	const AActor* Target, 
@@ -345,72 +348,27 @@ void USFGA_Enemy_BaseAttack::ApplyCooldown(
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("ApplyCooldown Called - bHasCooldown: %s"), 
-		bHasCooldown ? TEXT("true") : TEXT("false"));
-    
-	if (!bHasCooldown) return;
-    
 	UGameplayEffect* CooldownGE = GetCooldownGameplayEffect();
-	UE_LOG(LogTemp, Warning, TEXT("CooldownGE: %s"), 
-		CooldownGE ? *CooldownGE->GetName() : TEXT("NULL"));
-    
 	if (!CooldownGE) return;
-
-	FGameplayEffectSpecHandle SpecHandle =
-		MakeOutgoingGameplayEffectSpec(CooldownGE->GetClass(), GetAbilityLevel());
-
-	if (!SpecHandle.IsValid())
-	{
-		UE_LOG(LogTemp, Error, TEXT("SpecHandle is Invalid!"));
-		return;
-	}
+	
+	FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(CooldownGE->GetClass(), GetAbilityLevel());
+	if (!SpecHandle.IsValid()) return;
 
 	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
-	if (!Spec)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Spec is NULL!"));
-		return;
-	}
-    
-	float CooldownDuration = GetCooldown();
-	UE_LOG(LogTemp, Warning, TEXT("CooldownDuration: %f"), CooldownDuration);
-    
-	Spec->SetDuration(CooldownDuration, true);
-    
+	
+	float Duration = GetCooldown(); 
+	Spec->SetDuration(Duration, true);
+	
 	if (CoolDownTag.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Adding CoolDownTag: %s"), *CoolDownTag.ToString());
 		Spec->DynamicGrantedTags.AddTag(CoolDownTag);
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("CoolDownTag is INVALID!"));
-	}
-
 	ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
-    
-	UE_LOG(LogTemp, Warning, TEXT("Cooldown Applied Successfully!"));
 }
 
 bool USFGA_Enemy_BaseAttack::CheckCooldown(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags) const
 {
-	if (!bHasCooldown)
-	{
-		return true;
-	}
-	if (CoolDownTag.IsValid() && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
-	{
-		if (ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(CoolDownTag))
-		{
-			const FGameplayTag& CooldownTag = CoolDownTag;
-			if (OptionalRelevantTags && CooldownTag.IsValid())
-			{
-				OptionalRelevantTags->AddTag(CooldownTag);
-			}
-			return false; 
-		}
-	}
 	return Super::CheckCooldown(Handle, ActorInfo, OptionalRelevantTags);
 }
 
@@ -455,3 +413,32 @@ float USFGA_Enemy_BaseAttack::GetAttackAngle() const
 	return GetSetByCallerValue(SFGameplayTags::Data_EnemyAbility_AttackAngle, 45.f);
 }
 
+void USFGA_Enemy_BaseAttack::FireGameplayCueWithCosmetic_Static(FGameplayTag CueTag, FGameplayCueParameters Params)
+{
+
+	if (TObjectPtr<USFGameplayCueCosmeticData>* FoundData = CosmeticDataMap.Find(CueTag))
+	{
+		Params.SourceObject = FoundData->Get();
+	}
+	else
+	{
+		Params.SourceObject = nullptr;
+	}
+
+	GetAbilitySystemComponentFromActorInfo()->ExecuteGameplayCue(CueTag, Params);
+}
+
+void USFGA_Enemy_BaseAttack::FireGameplayCueWithCosmetic_Actor(FGameplayTag CueTag, FGameplayCueParameters Params)
+{
+	if (TObjectPtr<USFGameplayCueCosmeticData>* FoundData = CosmeticDataMap.Find(CueTag))
+	{
+		Params.SourceObject = FoundData->Get();
+	}
+	else
+	{
+		Params.SourceObject = nullptr;
+	}
+	
+
+	GetAbilitySystemComponentFromActorInfo()->AddGameplayCue(CueTag, Params);
+}

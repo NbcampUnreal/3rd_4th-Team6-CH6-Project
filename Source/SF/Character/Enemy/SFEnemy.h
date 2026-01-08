@@ -21,15 +21,15 @@ class SF_API ASFEnemy : public ASFCharacterBase
 public:
 	ASFEnemy(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	virtual void BeginPlay() override;
 
 	virtual void PossessedBy(AController* NewController) override;
 
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-
-	virtual USFAbilitySystemComponent* GetSFAbilitySystemComponent() const override { return AbilitySystemComponent;}
-
 	virtual void InitializeComponents();
+
+	virtual void PostInitializeComponents() override;
 	
 	// ASC 초기화
 	virtual void InitializeAbilitySystem();
@@ -48,6 +48,7 @@ public:
 
 protected:
 
+	virtual void OnAbilitySystemInitialized() override;
 	//PawnData에 있는 AbilitySet GIVE
 	void GrantAbilitiesFromPawnData();
 
@@ -81,18 +82,5 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|InitializeEffect")
 	TSubclassOf<UGameplayEffect> InitializeEffect;
-
-	// 마지막 공격자
-	UPROPERTY(ReplicatedUsing=OnRep_LastAttacker)
-	TObjectPtr<AActor> LastAttacker;
-
-public:
-	void SetLastAttacker(AActor* Attacker);
-
-
-	
-protected:
-	UFUNCTION()
-	void OnRep_LastAttacker();
 
 };

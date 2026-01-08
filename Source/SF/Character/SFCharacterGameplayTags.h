@@ -16,12 +16,14 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Charging);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Downed);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_TurningInPlace);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Sprint);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Drink);
 
 	// ========== 방어/회피 ==========
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Blocking);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Dodging);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Parrying);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_LockedOn);
 
 	// ========== 경직/넉백 ==========
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Staggered);
