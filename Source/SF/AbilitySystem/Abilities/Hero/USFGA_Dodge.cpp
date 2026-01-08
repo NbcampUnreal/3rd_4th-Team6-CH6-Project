@@ -59,19 +59,21 @@ void USFGA_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	if (IsLocallyControlled())
 	{
 		// --- [Local Client / Host] ---
-		
-		// 1. 방향 및 위치 계산
+        
 		FVector TargetLocation;
 		FRotator TargetRotation;
-		CalculateDodgeParameters(TargetLocation, TargetRotation);
+		int32 DodgeType = 0; // 0: Roll, 1: Backstep
+
+		// 1. 방향, 위치, 그리고 구르기 타입(백스텝 여부) 계산
+		CalculateDodgeParameters(TargetLocation, TargetRotation, DodgeType);
 
 		// 2. 서버로 보낼 데이터 패키징
 		FScopedPredictionWindow ScopedPrediction(GetAbilitySystemComponentFromActorInfo());
-		
+        
 		FSFGameplayAbilityTargetData_ChargePhase* NewData = new FSFGameplayAbilityTargetData_ChargePhase();
-		NewData->RushTargetLocation = TargetLocation; // 위치 저장
-		NewData->RushTargetRotation = TargetRotation; // 회전 저장
-		NewData->PhaseIndex = 0; // 구르기는 페이즈 없으므로 0
+		NewData->RushTargetLocation = TargetLocation;
+		NewData->RushTargetRotation = TargetRotation;
+		NewData->PhaseIndex = DodgeType;
 
 		FGameplayAbilityTargetDataHandle DataHandle(NewData);
 
@@ -83,8 +85,8 @@ void USFGA_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 				FGameplayTag(), 
 				GetAbilitySystemComponentFromActorInfo()->ScopedPredictionKey);
 
-		// 4. 로컬(내 화면)에서 즉시 실행 (예측)
-		ApplyDodge(TargetLocation, TargetRotation);
+		// 4. 로컬에서 즉시 실행
+		ApplyDodge(TargetLocation, TargetRotation, DodgeType);
 	}
 	else if (ActorInfo->IsNetAuthority())
 	{
@@ -119,11 +121,11 @@ void USFGA_Dodge::OnServerTargetDataReceived(const FGameplayAbilityTargetDataHan
 	if (ReceivedData)
 	{
 		// 서버는 계산하지 않고, 클라이언트가 준 위치대로 이동
-		ApplyDodge(ReceivedData->RushTargetLocation, ReceivedData->RushTargetRotation);
+		ApplyDodge(ReceivedData->RushTargetLocation, ReceivedData->RushTargetRotation, ReceivedData->PhaseIndex);
 	}
 }
 
-void USFGA_Dodge::ApplyDodge(const FVector& TargetLocation, const FRotator& TargetRotation)
+void USFGA_Dodge::ApplyDodge(const FVector& TargetLocation, const FRotator& TargetRotation, int32 DodgeType)
 {
 	ASFCharacterBase* Character = GetSFCharacterFromActorInfo();
 	if (!Character) return;
@@ -135,12 +137,22 @@ void USFGA_Dodge::ApplyDodge(const FVector& TargetLocation, const FRotator& Targ
 	Character->SetActorRotation(TargetRotation);
 
 	// 3. 몽타주 재생
-	if (DodgeMontage)
+	UAnimMontage* MontageToPlay;
+	if ((DodgeType == 1))
+	{
+		MontageToPlay = BackstepMontage;
+	}
+	else
+	{
+		MontageToPlay = DodgeMontage;
+	}
+
+	if (MontageToPlay)
 	{
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this,
 			TEXT("DodgeMontage"),
-			DodgeMontage,
+			MontageToPlay,
 			1.f,
 			NAME_None,
 			true // StopWhenAbilityEnds
@@ -161,7 +173,7 @@ void USFGA_Dodge::ApplyDodge(const FVector& TargetLocation, const FRotator& Targ
 	}
 }
 
-void USFGA_Dodge::CalculateDodgeParameters(FVector& OutLocation, FRotator& OutRotation) const
+void USFGA_Dodge::CalculateDodgeParameters(FVector& OutLocation, FRotator& OutRotation, int32& OutDodgeType) const
 {
 	ASFCharacterBase* Character = GetSFCharacterFromActorInfo();
 	if (!Character) return;
@@ -172,29 +184,54 @@ void USFGA_Dodge::CalculateDodgeParameters(FVector& OutLocation, FRotator& OutRo
 	// 입력 없으면 백스텝
 	if (InputDir.IsNearlyZero())
 	{
-		InputDir = -Character->GetActorForwardVector();
+		OutDodgeType = 1; // 1 = Backstep
+        
+		FVector ForwardVector = Character->GetActorForwardVector();
+        
+		// 회전: 현재 캐릭터 회전 유지 (적을 계속 바라봄)
+		OutRotation = Character->GetActorRotation();
+        
+		// 이동 위치: 현재 위치에서 뒤쪽으로 이동
+		FVector StartParams = Character->GetActorLocation();
+		// 뒤쪽 방향 벡터 (-Forward)
+		FVector BackDir = -ForwardVector; 
+        
+		FVector EndParams = StartParams + (BackDir * DodgeDistance);
+
+		// 벽 뚫기 방지 레이트레이스
+		FHitResult HitResult;
+		GetWorld()->LineTraceSingleByChannel(HitResult, StartParams, EndParams, ECC_Visibility);
+
+		if (HitResult.bBlockingHit)
+		{
+			OutLocation = HitResult.Location - (BackDir * 30.f);
+		}
+		else
+		{
+			OutLocation = EndParams;
+		}
 	}
 	else
 	{
+		OutDodgeType = 0; // 0 = Roll (구르기)
+
 		InputDir.Normalize();
-	}
+		OutRotation = InputDir.Rotation();
 
-	OutRotation = InputDir.Rotation();
+		FVector StartParams = Character->GetActorLocation();
+		FVector EndParams = StartParams + (InputDir * DodgeDistance);
 
-	FVector StartParams = Character->GetActorLocation();
-	FVector EndParams = StartParams + (InputDir * DodgeDistance);
+		FHitResult HitResult;
+		GetWorld()->LineTraceSingleByChannel(HitResult, StartParams, EndParams, ECC_Visibility);
 
-	// 벽 뚫기 방지
-	FHitResult HitResult;
-	GetWorld()->LineTraceSingleByChannel(HitResult, StartParams, EndParams, ECC_Visibility);
-
-	if (HitResult.bBlockingHit)
-	{
-		OutLocation = HitResult.Location - (InputDir * 30.f);
-	}
-	else
-	{
-		OutLocation = EndParams;
+		if (HitResult.bBlockingHit)
+		{
+			OutLocation = HitResult.Location - (InputDir * 30.f);
+		}
+		else
+		{
+			OutLocation = EndParams;
+		}
 	}
 }
 

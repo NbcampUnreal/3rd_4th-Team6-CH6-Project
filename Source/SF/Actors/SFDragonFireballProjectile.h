@@ -13,6 +13,7 @@ class SF_API ASFDragonFireballProjectile : public ASFProjectileBase
 
 public:
 	ASFDragonFireballProjectile();
+	virtual void BeginPlay() override;
 
 protected:
 	virtual void OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
@@ -27,7 +28,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> ExplosionEffect;
 
+	UPROPERTY(EditDefaultsOnly, Category= "Niagara")
+	TObjectPtr<UNiagaraSystem> DefaultNiagaraEffect;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Damge")
 	TSubclassOf<class UGameplayEffect> DamageEffectClass;
+
+
 };
 

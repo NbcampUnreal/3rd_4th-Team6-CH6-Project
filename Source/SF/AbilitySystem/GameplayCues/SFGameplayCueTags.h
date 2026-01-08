@@ -8,6 +8,12 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_HeartBreaker_Charging)
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_Buff)
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_Wave)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_WeaponBurst);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_MagicBall_Charging)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_MagicBall_Explosion)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_GroundAoE_Destroy)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_FireUlt_Explosion)
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Skill_IceUlt_Loop)
 	
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_HitReaction);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_HitReaction_Type_Player);
@@ -19,4 +25,32 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Event_Parry);
 	
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Animation_PlayMontage);
+
+	//Dragon
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Stomp);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_TailSwipe);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Bite_Start);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Bite_Loop);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Breath_Line_Start);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Breath_Line_Fire);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Breath_Line_Ground);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Charge);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Flying);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Land);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_PhaseIntro);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_FireBallExplosion);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Dragon_Indicator);
+	
+	
+
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Buff);
+	
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_DeBuff);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_DeBuff_Burn);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_DeBuff_Frozen);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_DeBuff_Shock);
 }

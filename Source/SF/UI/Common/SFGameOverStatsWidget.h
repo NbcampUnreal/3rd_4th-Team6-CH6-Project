@@ -6,7 +6,7 @@
 #include "SFGameOverStatsWidget.generated.h"
 
 struct FSFLobbyReadyMessage;
-class UButton;
+class UCommonButtonBase;
 class USFPlayerStatsEntryWidget;
 struct FSFGameOverResult;
 class UVerticalBox;
@@ -53,7 +53,7 @@ protected:
 	TObjectPtr<UTextBlock> CountdownText;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> ReadyButton;
+	TObjectPtr<UCommonButtonBase> ReadyButton;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> ReadyCountText;

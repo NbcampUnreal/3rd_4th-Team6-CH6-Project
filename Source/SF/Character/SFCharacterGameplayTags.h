@@ -23,6 +23,7 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Blocking);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Dodging);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Parrying);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_LockedOn);
 
 	// ========== 경직/넉백 ==========
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_State_Staggered);

@@ -8,6 +8,8 @@
 #include "Character/SFPawnData.h"
 #include "SFEnemyData.generated.h"
 
+class USFDropTable;
+class USF_EffectConfig;
 class USFState;
 class UBehaviorTree;
 struct FSFPhaseData;
@@ -89,7 +91,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|State")
 	FGameplayTag DefaultBehaviourTag;
 
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|State")
 	FSTStateWrapperContainer StateContainer;
 	
@@ -102,5 +103,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Phase|Boss")
 	TArray<FSFPhaseData> PhaseData;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Drop")
+	TObjectPtr<USFDropTable> DropTable;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Drop")
+	TArray<TObjectPtr<USFDropTable>> AdditionalDropTables;
+  
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy|Phase|Boss")
+	TObjectPtr<USF_EffectConfig> EffectConfig;
 };

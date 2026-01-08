@@ -27,12 +27,7 @@ void USFGA_Dragon_TailSwipe::ActivateAbility(const FGameplayAbilitySpecHandle Ha
                                              const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
+	
 
 	// Montage 재생
 	if (TailSwipeMontage)
@@ -111,7 +106,7 @@ void USFGA_Dragon_TailSwipe::OnTailHit(FGameplayEventData Payload)
 
 	ApplyDamageToTarget(HitActor, EffectContext);
 
-	TailLaunchToTarget(HitActor, HitResult->ImpactPoint);
+	ApplyKnockBackToTarget(HitActor, HitResult->ImpactPoint);
 
 	// Pressure 적용 
 	ApplyPressureToTarget(HitActor);

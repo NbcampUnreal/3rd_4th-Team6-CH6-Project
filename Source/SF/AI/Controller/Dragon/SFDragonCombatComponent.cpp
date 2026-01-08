@@ -154,7 +154,6 @@ void USFDragonCombatComponent::EvaluateTarget()
         }
 
         CurrentTargetState = EBossTargetState::Grace;
-        UE_LOG(LogTemp, Log, TEXT("[Dragon] Target lost, entering Grace period."));
         return;
     }
 
@@ -171,7 +170,6 @@ void USFDragonCombatComponent::EvaluateTarget()
 			CachedDistance = 0.f;
 			CachedAngle = 0.f;
 
-			UE_LOG(LogTemp, Log, TEXT("[Dragon] Grace expired → Target cleared"));
 		}
 	}
 
@@ -486,7 +484,8 @@ bool USFDragonCombatComponent::IsValidTarget(AActor* Target) const
 	if (!SFCharacter) return false;
 
 	USFAbilitySystemComponent* ASC = SFCharacter->GetSFAbilitySystemComponent();
-	if (ASC && ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead))
+	if (ASC && ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead) ||
+			ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Downed))
 	{
 		return false;
 	}
@@ -517,7 +516,8 @@ bool USFDragonCombatComponent::ShouldForceReleaseTarget(AActor* Target) const
 	if (SFCharacter)
 	{
 		USFAbilitySystemComponent* ASC = SFCharacter->GetSFAbilitySystemComponent();
-		if (ASC && ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead))
+		if (ASC && ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead)||
+				ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Downed))
 			return true;
 	}
 

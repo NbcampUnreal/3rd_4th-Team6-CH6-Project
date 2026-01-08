@@ -41,8 +41,6 @@ void USFEnemyWidgetComponent::InitializeWidget()
         {
             ASC->GetGameplayAttributeValueChangeDelegate(PrimarySet->GetHealthAttribute())
                .AddUObject(this, &ThisClass::OnHealthChanged);
-
-            CachedMaxHealth = PrimarySet->GetMaxHealth();
         }
     }
     if (OwnerCharacter && OwnerCharacter->GetCapsuleComponent())
@@ -60,22 +58,27 @@ void USFEnemyWidgetComponent::InitializeWidget()
     }
 }
 
+void USFEnemyWidgetComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    
+}
+
 void USFEnemyWidgetComponent::OnHealthChanged(const FOnAttributeChangeData& OnAttributeChangeData)
 {
     UpdateHealthPercent();
     
-    if (bEngagedByLocalPlayer)
+    if (OnAttributeChangeData.NewValue <= 0.0f)
+    {
+        OnEngagementExpired(); 
+        return;
+    }
+    
+    if (OnAttributeChangeData.OldValue > OnAttributeChangeData.NewValue)
     {
         ShowHealthBar();
         ResetEngagementTimer();
     }
-}
-
-void USFEnemyWidgetComponent::MarkAsAttackedByLocalPlayer()
-{
-    bEngagedByLocalPlayer = true;
-    ShowHealthBar();
-    ResetEngagementTimer();
 }
 
 void USFEnemyWidgetComponent::ShowHealthBar()
@@ -87,7 +90,6 @@ void USFEnemyWidgetComponent::ShowHealthBar()
 
 void USFEnemyWidgetComponent::OnEngagementExpired()
 {
-    bEngagedByLocalPlayer = false;
     SetVisibility(false);
     SetComponentTickEnabled(false);
 }
@@ -115,9 +117,9 @@ void USFEnemyWidgetComponent::UpdateHealthPercent()
     if (IsValid(ASC))
     {
         const USFPrimarySet_Enemy* PrimarySet = ASC->GetSet<USFPrimarySet_Enemy>();
-        if (IsValid(PrimarySet) && CachedMaxHealth > 0.f)
+        if (IsValid(PrimarySet))
         {
-            float Percent = PrimarySet->GetHealth() / CachedMaxHealth;
+            float Percent = PrimarySet->GetHealth() / PrimarySet->GetMaxHealth();
             EnemyWidget->SetPercentVisuals(Percent);
         }
     }

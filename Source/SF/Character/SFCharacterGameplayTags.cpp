@@ -24,7 +24,8 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Blocking, "Character.State.Blocking", "Character is blocking");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Dodging, "Character.State.Dodging", "Character is dodging");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Parrying, "Character.State.Parrying", "Character is parrying");
-
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_LockedOn, "Character.State.LockedOn", "Character is in Lock-On state (Strafing movement)");
+	
 	// ========== 경직/넉백 ==========
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Staggered, "Character.State.Staggered", "Character is staggered");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_State_Knockdown, "Character.State.Knockdown", "Character is knocked down");
