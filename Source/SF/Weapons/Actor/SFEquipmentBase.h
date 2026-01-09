@@ -1,0 +1,56 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "AbilitySystemInterface.h"
+#include "GameplayTagContainer.h"
+#include "GameFramework/Actor.h"
+#include "SFEquipmentBase.generated.h"
+
+class UBoxComponent;
+class UArrowComponent;
+
+UCLASS()
+class SF_API ASFEquipmentBase : public AActor, public IAbilitySystemInterface
+{
+	GENERATED_BODY()
+
+public:
+
+	ASFEquipmentBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SF|Combat")
+	float WeaponBaseDamage = 10.0f;
+
+	USkeletalMeshComponent* GetMeshComponent() const { return MeshComponent; }
+
+	void SetIsBlocking(bool bNewBlockingState);
+	bool GetIsBlocking() const { return bIsBlocking; }
+
+	const FGameplayTag& GetEquipMontageTag() const { return EquipMontageTag; }
+
+private:
+
+	UFUNCTION()
+	void OnRep_IsBlocking();
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UArrowComponent> ArrowComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<USkeletalMeshComponent> MeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UBoxComponent> TraceDebugCollision;
+
+private:
+	UPROPERTY(ReplicatedUsing=OnRep_IsBlocking)
+	bool bIsBlocking;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SF|Animation")
+	FGameplayTag EquipMontageTag;
+};

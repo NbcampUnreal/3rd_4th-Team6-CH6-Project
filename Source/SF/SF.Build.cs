@@ -17,18 +17,36 @@ public class SF : ModuleRules
 			"EnhancedInput",
 			"GameplayTags",
 			"GameplayTasks",
+			"GameplayAbilities",
 			"NetCore",
 			"OnlineSubsystem",
+			"OnlineSubsystemSteam",
 			"OnlineSubsystemUtils",
 			"SlateCore",
 			"Slate",
 			"UMG",
 			"MediaAssets",
-			"AIModule"
-			
+			"AIModule",
+			"ModularGameplay",
+			"GameplayMessageRuntime",
+			"AnimGraphRuntime",
+			"AnimationLocomotionLibraryRuntime",
+			"NavigationSystem",
+			"MotionWarping",
+			"MoviePlayer",
+			"EngineSettings",
+			"CommonLoadingScreen",
+            "PlayFab",
+            "PlayFabCpp",
+            "PlayFabCommon",
+            "Json",
+			"JsonUtilities",
+			"Niagara",
+			"NiagaraAnimNotifies",
+			"EngineCameras"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] { });
 
 		PublicIncludePaths.AddRange(new string[] { "SF" });		
 

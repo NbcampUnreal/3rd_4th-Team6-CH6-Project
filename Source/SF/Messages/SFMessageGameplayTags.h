@@ -1,0 +1,25 @@
+#pragma once
+
+#include "NativeGameplayTags.h"
+
+namespace SFGameplayTags
+{
+	// Gameplay Message Tags
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Portal_StateChanged);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Player_TravelReadyChanged);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Skill_ProgressInfoChanged);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Skill_ProgressRefresh);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Skill_ChainStateChanged);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Interaction_Notice);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Interaction_Progress);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Interaction_Interacting);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_RewardSelection_Complete);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Player_DeadStateChanged);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Player_DeadStateChangedUI);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Player_DownedStateChanged);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Player_DownedStateChangedUI);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_GameOver);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_GameOverStats);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_LobbyReadyCount);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_GameClear);
+}

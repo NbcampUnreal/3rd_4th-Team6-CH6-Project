@@ -1,0 +1,19 @@
+﻿RowName,SectionTitle,RoleOrCategory,NameOrAuthor,AssetName,AssetDescription,SourceURL
+1,Core Team,Level Design,곽준상,,,
+2,Core Team,Core Gameplay,김민영,,,
+3,Core Team,AI Programming,박준범,,,
+4,Core Team,AI Programming,안지호,,,
+5,Core Team,UI/UX Programming,이정국,,,
+6,Core Team,Character System,최윤호,,,
+7,Core Team,Server & Gameplay,허중영,,,
+8,Helpers,Tutor,이삭,,,
+9,Assets,Music,Kevin MacLeod (incompetech.com),Virtutes Instrumenti,Licensed under Creative Commons: By Attribution 4.0 License,http://creativecommons.org/licenses/by/4.0/
+10,Assets,Sound,vacuumfan7072,uisound1,,https://pixabay.com/ko/sound-effects/uisound1-79819/
+11,Assets,Sound,plasterbrain,Melancholy UI Chime,,https://pixabay.com/ko/sound-effects/melancholy-ui-chime-47804/
+12,Assets,Sound,paulmerlo,Playing Cards Being Dealt,,https://pixabay.com/ko/sound-effects/playing-cards-being-dealt-27024/
+13,Assets,Sound,Universfield,Magic Surprise,,https://pixabay.com/ko/sound-effects/magic-surprise-145912/
+14,Assets,Sound,freesound_community,shuffle,,https://pixabay.com/ko/sound-effects/shuffle-98603/
+15,Assets,Font,Christian Thalmann,Cormorant Garamond,SIL Open Font License 1.1,https://fonts.google.com/specimen/Cormorant+Garamond
+16,Assets,Font,Google Inc.,Noto Serif Korean,SIL Open Font License 1.1,https://fonts.google.com/noto/specimen/Noto+Serif+KR
+17,Assets,Font,Robert Leuschke,Kings,SIL Open Font License 1.1,https://fonts.google.com/specimen/Kings
+18,Assets,Font,"Rodrigo Fuenzalida, Nicolas Massi",Pirata One,SIL Open Font License 1.1,https://fonts.google.com/specimen/Pirata+One

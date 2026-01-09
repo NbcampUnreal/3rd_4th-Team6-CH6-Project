@@ -1,0 +1,73 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/GameStateBase.h"
+#include "SFGameState.generated.h"
+
+class USFPortalManagerComponent;
+class USFEnemyManagerComponent;
+class USFStageManagerComponent;
+class USFGameOverManagerComponent;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateChangedDelegate, APlayerState*, PlayerState);
+
+/**
+ * 
+ */
+UCLASS()
+class SF_API ASFGameState : public AGameStateBase
+{
+	GENERATED_BODY()
+
+public:
+	ASFGameState();
+	
+	/** Portal Manager 가져오기 */
+	UFUNCTION(BlueprintPure, Category = "SF|GameState")
+	USFPortalManagerComponent* GetPortalManager() const { return PortalManager; }
+
+	/** Enemy Manager 가져오기 */
+	UFUNCTION(BlueprintPure, Category = "SF|GameState")
+	USFEnemyManagerComponent* GetEnemyManager() const { return EnemyManager; }
+
+	UFUNCTION(BlueprintPure, Category = "SF|GameState")
+	USFStageManagerComponent* GetStageManager() const { return StageManager; }
+
+	UFUNCTION(BlueprintPure, Category = "SF|GameState")
+	USFGameOverManagerComponent* GetGameOverManager() const { return GameOverManager; }
+
+	UFUNCTION(BlueprintPure, Category = "SF|GameState")
+	bool IsGameOver() const;
+	
+protected:
+
+	//~AGameStateBase interface
+	virtual void AddPlayerState(APlayerState* PlayerState) override;
+	virtual void RemovePlayerState(APlayerState* PlayerState) override;
+	//~End of AGameStateBase interface
+
+public:
+	/** 새 플레이어가 PlayerArray에 추가될 때 브로드캐스트. */
+	UPROPERTY(BlueprintAssignable, Category = "SF|Events")
+	FOnPlayerStateChangedDelegate OnPlayerAdded;
+
+	/** 플레이어가 PlayerArray에서 제거될 때 브로드캐스트 */
+	UPROPERTY(BlueprintAssignable, Category = "SF|Events")
+	FOnPlayerStateChangedDelegate OnPlayerRemoved;
+	
+private:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USFPortalManagerComponent> PortalManager;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USFEnemyManagerComponent> EnemyManager;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USFStageManagerComponent> StageManager;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USFGameOverManagerComponent> GameOverManager;
+};
