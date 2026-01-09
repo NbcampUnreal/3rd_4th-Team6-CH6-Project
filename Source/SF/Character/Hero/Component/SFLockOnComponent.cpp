@@ -52,7 +52,9 @@ void USFLockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 void USFLockOnComponent::UpdateLogic_TargetValidation(float DeltaTime)
 {
 	bool bShouldBreak = false;
-
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn) return;
+	
 	// A. 기본 유효성 및 거리 검사
 	float Distance = FVector::Dist(GetOwner()->GetActorLocation(), CurrentTarget->GetActorLocation());
 	
@@ -63,46 +65,45 @@ void USFLockOnComponent::UpdateLogic_TargetValidation(float DeltaTime)
 	}
 	else
 	{
-		// B. 시야 가림 유예 (Grace Period)
-		FHitResult HitResult;
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(GetOwner());
-		QueryParams.AddIgnoredActor(CurrentTarget);
-
-		FVector Start = GetOwner()->GetActorLocation() + FVector(0, 0, 50);
+		// 2. 고각(High Angle) 자동 해제 체크
+		// 타겟이 머리 위로 지나가면(드래곤 비행 등) 락온 해제
+		FVector DirectionToTarget = (CurrentTarget->GetActorLocation() - OwnerPawn->GetActorLocation()).GetSafeNormal();
+		FRotator LookAtRot = DirectionToTarget.Rotation();
 		
-		// 소켓 정보가 있으면 소켓 위치 사용, 없으면 Actor Location
-		FVector End = CurrentTarget->GetActorLocation();
-		if (CurrentTargetSocketName != NAME_None)
+		// 상대적인 Pitch 계산
+		// 타겟이 내 머리 바로 위에 있다면 LookAtRot.Pitch는 90에 가까움
+		if (LookAtRot.Pitch > AutoBreakPitchAngle)
 		{
-			if (USceneComponent* Mesh = CurrentTarget->FindComponentByClass<USceneComponent>())
+			bShouldBreak = true;
+		}
+
+		// 3. 시야 가림 유예 (Grace Period)
+		if (!bShouldBreak)
+		{
+			FHitResult HitResult;
+			FCollisionQueryParams QueryParams;
+			QueryParams.AddIgnoredActor(OwnerPawn);
+			QueryParams.AddIgnoredActor(CurrentTarget);
+
+			FVector Start = OwnerPawn->GetActorLocation() + FVector(0, 0, 50);
+			FVector End = GetActorSocketLocation(CurrentTarget, CurrentTargetSocketName);
+			
+			bool bHit = GetWorld()->LineTraceSingleByChannel(
+				HitResult, Start, End, ECC_Visibility, QueryParams
+			);
+			
+			if (bHit)
 			{
-				if (Mesh->DoesSocketExist(CurrentTargetSocketName))
+				TimeSinceTargetHidden += DeltaTime;
+				if (TimeSinceTargetHidden > LostTargetMemoryTime)
 				{
-					End = Mesh->GetSocketLocation(CurrentTargetSocketName);
+					bShouldBreak = true;
 				}
 			}
-		}
-		else
-		{
-			End += FVector(0, 0, 50);
-		}
-
-		bool bHit = GetWorld()->LineTraceSingleByChannel(
-			HitResult, Start, End, ECC_Visibility, QueryParams
-		);
-
-		if (bHit)
-		{
-			TimeSinceTargetHidden += DeltaTime;
-			if (TimeSinceTargetHidden > LostTargetMemoryTime)
+			else
 			{
-				bShouldBreak = true;
+				TimeSinceTargetHidden = 0.0f;
 			}
-		}
-		else
-		{
-			TimeSinceTargetHidden = 0.0f;
 		}
 	}
 
@@ -150,56 +151,83 @@ void USFLockOnComponent::HandleTargetSwitching(float DeltaTime)
 	
 	FVector SearchDirection = (CamRight * CurrentInput.X + CamUp * CurrentInput.Y).GetSafeNormal();
 	
+	struct FSwitchCandidate
+	{
+		AActor* Actor;
+		FName SocketName;
+		float DistanceSq;
+	};
+	
+	AActor* BestNewActor = nullptr;
+	FName BestNewSocket = NAME_None;
+	float ClosestDistSq = FLT_MAX;
+	
+	FVector CurrentLockLocation = GetActorSocketLocation(CurrentTarget, CurrentTargetSocketName);
+	
 	TArray<AActor*> OverlappedActors;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
 
 	UKismetSystemLibrary::SphereOverlapActors(
 		this, OwnerPawn->GetActorLocation(), LockOnDistance, ObjectTypes,
-		AActor::StaticClass(), { OwnerPawn, CurrentTarget }, OverlappedActors
+		AActor::StaticClass(), { OwnerPawn }, OverlappedActors
 	);
-
-	AActor* BestNewTarget = nullptr;
-	float ClosestDistSq = FLT_MAX; 
 
 	for (AActor* Candidate : OverlappedActors)
 	{
 		if (!IsTargetValid(Candidate)) continue;
 		if (!IsHostile(Candidate)) continue;
 
-		FVector FromTargetToCand = Candidate->GetActorLocation() - CurrentTarget->GetActorLocation();
-		float DistSq = FromTargetToCand.SizeSquared(); 
-		FVector DirToCand = FromTargetToCand.GetSafeNormal();
-
-		float InputDot = FVector::DotProduct(SearchDirection, DirToCand);
-
-		if (InputDot > SwitchAngularLimit) 
+		// B. 내부 소켓 검색 (Internal) 포함
+		// 후보 액터의 모든 락온 가능 소켓을 검사
+		TArray<FName> CandidateSockets;
+		if (const ISFLockOnInterface* Interface = Cast<const ISFLockOnInterface>(Candidate))
 		{
-			if (DistSq < ClosestDistSq)
+			CandidateSockets = Interface->GetLockOnSockets();
+		}
+		
+		// 소켓이 없으면 기본 소켓 하나 추가 (일반 몬스터 등)
+		if (CandidateSockets.Num() == 0) CandidateSockets.Add(LockOnSocketName);
+
+		for (const FName& Socket : CandidateSockets)
+		{
+			// 현재 락온 중인 정확히 그 부위는 스킵
+			if (Candidate == CurrentTarget && Socket == CurrentTargetSocketName) continue;
+
+			FVector CandidateLoc = GetActorSocketLocation(Candidate, Socket);
+			FVector DirToCand = (CandidateLoc - CurrentLockLocation).GetSafeNormal();
+
+			// 입력 방향과의 각도 비교
+			float InputDot = FVector::DotProduct(SearchDirection, DirToCand);
+			if (InputDot > SwitchAngularLimit)
 			{
-				ClosestDistSq = DistSq;
-				BestNewTarget = Candidate;
+				float DistSq = FVector::DistSquared(CurrentLockLocation, CandidateLoc);
+				
+				// 같은 몬스터 내 부위 변경이면 우선순위를 높임 (거리를 좁게 인식시켜서)
+				if (Candidate == CurrentTarget)
+				{
+					DistSq *= 0.5f; 
+				}
+
+				if (DistSq < ClosestDistSq)
+				{
+					ClosestDistSq = DistSq;
+					BestNewActor = Candidate;
+					BestNewSocket = Socket;
+				}
 			}
 		}
 	}
 
-	if (BestNewTarget)
+	if (BestNewActor)
 	{
-		CurrentTarget = BestNewTarget;
+		// 대상 변경 (같은 대상일 수도 있음)
+		CurrentTarget = BestNewActor;
+		CurrentTargetSocketName = BestNewSocket;
+		
 		CurrentSwitchCooldown = SwitchCooldown;
 		TimeSinceTargetHidden = 0.0f;
 		
-		// 새 타겟의 소켓 정보 갱신
-		if (const ISFLockOnInterface* LockOnInterface = Cast<const ISFLockOnInterface>(CurrentTarget))
-		{
-			TArray<FName> Sockets = LockOnInterface->GetLockOnSockets();
-			CurrentTargetSocketName = (Sockets.Num() > 0) ? Sockets[0] : LockOnSocketName;
-		}
-		else
-		{
-			CurrentTargetSocketName = LockOnSocketName;
-		}
-
 		DestroyLockOnWidget();
 		CreateLockOnWidget();
 
@@ -215,42 +243,39 @@ void USFLockOnComponent::UpdateLogic_CameraRotation(float DeltaTime)
 	if (!PC) return;
 
 	// 1. 타겟 목표 위치 계산 (CurrentTargetSocketName 우선)
-	FVector TargetLoc = CurrentTarget->GetActorLocation();
-	if (USceneComponent* TargetMesh = CurrentTarget->FindComponentByClass<USceneComponent>())
-	{
-		FName SocketToUse = (CurrentTargetSocketName != NAME_None) ? CurrentTargetSocketName : LockOnSocketName;
-		
-		if (TargetMesh->DoesSocketExist(SocketToUse))
-		{
-			TargetLoc = TargetMesh->GetSocketLocation(SocketToUse);
-		}
-		else
-		{
-			TargetLoc.Z += 50.0f; 
-		}
-	}
+	FVector TargetLoc = GetActorSocketLocation(CurrentTarget, CurrentTargetSocketName);
 
-	// 2. 목표 회전값 계산
 	FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();
 	FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(CameraLoc, TargetLoc);
-	LookAtRot.Pitch = FMath::Clamp(LookAtRot.Pitch, -45.0f, 45.0f);
+	
+	// 2. 거리 기반 Pitch 제한 (Smart Pitch Clamp)
+	float DistanceToTarget = FVector::Dist(OwnerPawn->GetActorLocation(), TargetLoc);
+	float CurrentPitchMax = PitchLimitMax;
 
-	// 3. 보간 속도
-	float InterpSpeed = 30.0f; 
+	if (DistanceToTarget < CloseRangeThreshold)
+	{
+		float Alpha = FMath::Clamp(DistanceToTarget / CloseRangeThreshold, 0.0f, 1.0f);
+		CurrentPitchMax = FMath::Lerp(CloseRangePitchLimitMax, PitchLimitMax, Alpha);
+	}
+
+	LookAtRot.Pitch = FMath::Clamp(LookAtRot.Pitch, PitchLimitMin, CurrentPitchMax);
+	
+	// 3. 보간 처리 (Smooth Interpolation)
+	float CurrentInterpSpeed = bIsSwitchingTarget ? TargetSwitchInterpSpeed : CameraInterpSpeed;
+	FRotator SmoothRot = FMath::RInterpTo(LastLockOnRotation, LookAtRot, DeltaTime, CurrentInterpSpeed);
+	
+	PC->SetControlRotation(SmoothRot);
+	LastLockOnRotation = SmoothRot;
+
+	// 스위칭 완료 체크
 	if (bIsSwitchingTarget)
 	{
-		InterpSpeed = TargetSwitchInterpSpeed; 
 		FRotator Delta = (LookAtRot - LastLockOnRotation).GetNormalized();
 		if (FMath::Abs(Delta.Yaw) < 2.0f && FMath::Abs(Delta.Pitch) < 2.0f)
 		{
 			bIsSwitchingTarget = false;
 		}
 	}
-
-	// 4. 회전 적용
-	FRotator SmoothRot = FMath::RInterpTo(LastLockOnRotation, LookAtRot, DeltaTime, InterpSpeed);
-	PC->SetControlRotation(SmoothRot);
-	LastLockOnRotation = SmoothRot; 
 }
 
 void USFLockOnComponent::UpdateLogic_CharacterRotation(float DeltaTime)
@@ -427,6 +452,25 @@ bool USFLockOnComponent::IsHostile(AActor* TargetActor) const
 	return true; // 인터페이스 없으면 기본적으로 타겟 가능으로 간주 (또는 태그 체크)
 }
 
+FVector USFLockOnComponent::GetActorSocketLocation(AActor* Actor, FName SocketName) const
+{
+	if (!Actor) return FVector::ZeroVector;
+
+	if (SocketName != NAME_None)
+	{
+		if (USceneComponent* Mesh = Actor->FindComponentByClass<USceneComponent>())
+		{
+			if (Mesh->DoesSocketExist(SocketName))
+			{
+				return Mesh->GetSocketLocation(SocketName);
+			}
+		}
+	}
+	
+	// 소켓이 없거나 이름이 None이면 액터 위치 + 50 (대략 중심)
+	return Actor->GetActorLocation() + FVector(0, 0, 50.0f);
+}
+
 AActor* USFLockOnComponent::FindBestTarget()
 {
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
@@ -492,22 +536,15 @@ AActor* USFLockOnComponent::FindBestTarget()
 		Params.AddIgnoredActor(OwnerPawn);
 		Params.AddIgnoredActor(Candidate);
 		
-		FVector TestTargetLoc = Candidate->GetActorLocation();
+		FVector TestTargetLoc = GetActorSocketLocation(Candidate, NAME_None);
 		// 소켓 정보가 있다면 첫 번째 소켓 위치를 기준으로 시야 검사
 		if (const ISFLockOnInterface* LockOnInterface = Cast<const ISFLockOnInterface>(Candidate))
 		{
 			TArray<FName> Sockets = LockOnInterface->GetLockOnSockets();
 			if (Sockets.Num() > 0)
 			{
-				if (USceneComponent* Mesh = Candidate->FindComponentByClass<USceneComponent>())
-				{
-					TestTargetLoc = Mesh->GetSocketLocation(Sockets[0]);
-				}
+				TestTargetLoc = GetActorSocketLocation(Candidate, Sockets[0]);
 			}
-		}
-		else
-		{
-			TestTargetLoc.Z += 50.0f;
 		}
 
 		bool bVisible = !GetWorld()->LineTraceSingleByChannel(

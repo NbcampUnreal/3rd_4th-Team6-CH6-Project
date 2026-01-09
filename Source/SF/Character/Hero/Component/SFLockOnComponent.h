@@ -74,6 +74,9 @@ protected:
 
 	// 적대 관계 확인 (Team ID 활용)
 	bool IsHostile(AActor* TargetActor) const;
+	
+	// 액터의 특정 소켓(혹은 ActorLocation) 위치를 안전하게 반환하는 헬퍼
+	FVector GetActorSocketLocation(AActor* Actor, FName SocketName) const;
 
 	// UI 위젯 생성 및 파괴
 	void CreateLockOnWidget();
@@ -98,7 +101,7 @@ protected:
 
 	// 락온 해제 거리
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
-	float LockOnBreakDistance = 1700.0f;
+	float LockOnBreakDistance = 5000.0f;
 
 	// 화면 중앙 가중치 (0~1, 클수록 중앙에 있는 적 우선)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
@@ -141,10 +144,28 @@ protected:
 
 	FRotator LastLockOnRotation;
 	bool bIsSwitchingTarget = false;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
+	float CameraInterpSpeed = 10.0f;
 
 	UPROPERTY(EditAnywhere, Category = "SF|LockOn|Switching")
 	float TargetSwitchInterpSpeed = 15.0f;
-
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
+	float PitchLimitMin = -60.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
+	float PitchLimitMax = 45.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
+	float CloseRangePitchLimitMax = 20.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
+	float CloseRangeThreshold = 400.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
+	float AutoBreakPitchAngle = 80.0f;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
 	float SwitchInputThreshold = 0.5f;
 	
@@ -152,7 +173,7 @@ protected:
 	float SwitchAngularLimit = 0.5f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
-	float SwitchCooldown = 0.3f;
+	float SwitchCooldown = 0.25f;
 
 	float CurrentSwitchCooldown = 0.0f;
 	
