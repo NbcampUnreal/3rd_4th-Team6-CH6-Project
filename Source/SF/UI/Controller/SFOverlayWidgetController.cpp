@@ -58,6 +58,11 @@ void USFOverlayWidgetController::BindCallbacksToDependencies()
 			this,
 			&ThisClass::HandleChainStateChangedMessage);
 	}
+
+	if (USFPlayerCombatStateComponent* CombatComp = USFPlayerCombatStateComponent::FindPlayerCombatStateComponent(TargetPlayerState))
+	{
+		CombatComp->OnDamageReceived.AddDynamic(this, &ThisClass::HandleDamageReceived);
+	}
 	
 	// TODO : 다른 Model들에 대한 Callbacks도 추가할 것
 }
@@ -136,6 +141,11 @@ void USFOverlayWidgetController::HandleChainStateChangedMessage(FGameplayTag Cha
 void USFOverlayWidgetController::HandleGameplayEffectRemoved(const FActiveGameplayEffect& RemovedEffect)
 {
 	BroadcastChainStateForAbility(RemovedEffect.Spec.Def, 0);
+}
+
+void USFOverlayWidgetController::HandleDamageReceived(float DamageAmount)
+{
+	OnDamageReceived.Broadcast(DamageAmount);
 }
 
 void USFOverlayWidgetController::BroadcastChainStateForAbility(const UGameplayEffect* EffectDef, int32 StackCount)

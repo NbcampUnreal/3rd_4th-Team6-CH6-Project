@@ -38,6 +38,7 @@ void USFPlayerCombatStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeP
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, CombatInfo);
+	DOREPLIFETIME(ThisClass, LastDamageInfo);
 }
 
 void USFPlayerCombatStateComponent::BeginPlay()
@@ -127,6 +128,22 @@ void USFPlayerCombatStateComponent::ResetDownCount()
 	}
 }
 
+void USFPlayerCombatStateComponent::NotifyDamageReceived(float DamageAmount)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	LastDamageInfo.DamageAmount = DamageAmount;
+	LastDamageInfo.Timestamp = GetWorld()->GetTimeSeconds();
+
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		OnDamageReceived.Broadcast(DamageAmount);
+	}
+}
+
 void USFPlayerCombatStateComponent::OnRep_CombatInfo()
 {
 	bHasReceivedInitialCombatInfo = true;
@@ -144,6 +161,18 @@ void USFPlayerCombatStateComponent::OnRep_CombatInfo()
 	{
 		BroadcastDownedStateChanged();
 	}
+}
+
+void USFPlayerCombatStateComponent::OnRep_LastDamageInfo()
+{
+	// 중복 처리 방지 (같은 타임스탬프면 이미 처리됨)
+	if (LastDamageInfo.Timestamp <= LastProcessedDamageTimestamp)
+	{
+		return;
+	}
+
+	LastProcessedDamageTimestamp = LastDamageInfo.Timestamp;
+	OnDamageReceived.Broadcast(LastDamageInfo.DamageAmount);
 }
 
 void USFPlayerCombatStateComponent::RestoreCombatStateFromTravel(const FSFHeroCombatInfo& InCombatInfo)

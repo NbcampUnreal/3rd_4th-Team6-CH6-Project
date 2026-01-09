@@ -67,48 +67,6 @@ void USFGA_Hero_Death::HideWeapons()
 	}
 }
 
-void USFGA_Hero_Death::DisablePlayerInput()
-{
-	if (ASFHero* Hero = Cast<ASFHero>(GetAvatarActorFromActorInfo()))
-	{
-		if (UCharacterMovementComponent* MovementComp = Hero->GetCharacterMovement())
-		{
-			MovementComp->StopMovementImmediately();
-			MovementComp->DisableMovement();
-		}
-	}
-
-	if (ASFPlayerController* PC = GetSFPlayerControllerFromActorInfo())
-	{
-		PC->SetIgnoreMoveInput(true);
-	}
-
-	// ASC 입력 버퍼 클리어
-	if (IsLocallyControlled())
-	{
-		if (USFAbilitySystemComponent* ASC = GetSFAbilitySystemComponentFromActorInfo())
-		{
-			ASC->ClearAbilityInput();
-		}
-	}
-}
-
-void USFGA_Hero_Death::RestorePlayerInput()
-{
-	if (ASFHero* Hero = Cast<ASFHero>(GetAvatarActorFromActorInfo()))
-	{
-		if (UCharacterMovementComponent* MovementComp = Hero->GetCharacterMovement())
-		{
-			MovementComp->SetMovementMode(MOVE_Walking);
-		}
-	}
-
-	if (ASFPlayerController* PC = GetSFPlayerControllerFromActorInfo())
-	{
-		PC->SetIgnoreMoveInput(false);
-	}
-}
-
 void USFGA_Hero_Death::PlayDeathMontage()
 {
 	if (const USFHeroAnimationData* AnimData = GetHeroAnimationData())

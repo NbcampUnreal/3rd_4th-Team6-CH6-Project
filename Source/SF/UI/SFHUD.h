@@ -5,6 +5,7 @@
 #include "GameFramework/HUD.h"
 #include "SFHUD.generated.h"
 
+class USFGameClearOverlayWidget;
 class USFGameOverStatsWidget;
 class USFSharedOverlayWidgetController;
 class USFPartyWidgetController;
@@ -32,6 +33,8 @@ public:
 
 	// GameOverStats 초기화 (게임 시작 시 Hidden 상태로 생성)
 	void InitGameOverStats();
+
+	void InitGameClearOverlay();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	USFSharedOverlayWidgetController* GetSharedOverlayWidgetController(const FWidgetControllerParams& WCParams = FWidgetControllerParams());
@@ -97,6 +100,7 @@ private:
 	TSubclassOf<USFPartyWidgetController> PartyWidgetControllerClass;
 
 	// ========== GameOverStats ==========
+	
 	UPROPERTY(EditAnywhere, Category = "SF|GameOverStats")
 	TSubclassOf<USFGameOverStatsWidget> GameOverStatsWidgetClass;
 
@@ -105,6 +109,14 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "SF|GameOverStats")
 	int32 GameOverStatsZOrder = 550;
+
+	// ========== GameClear ==========
+	
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<USFGameClearOverlayWidget> GameClearOverlayClass;
+
+	UPROPERTY()
+	TObjectPtr<USFGameClearOverlayWidget> GameClearOverlay;
 
 	// ========== 공용 ==========
 	

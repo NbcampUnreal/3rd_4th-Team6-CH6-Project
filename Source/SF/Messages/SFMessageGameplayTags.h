@@ -21,4 +21,5 @@ namespace SFGameplayTags
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_GameOver);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_GameOverStats);
 	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_LobbyReadyCount);
+	SF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Message_Game_GameClear);
 }

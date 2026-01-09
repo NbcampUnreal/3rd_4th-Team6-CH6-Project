@@ -12,6 +12,8 @@ struct FSFPlayerSelectionInfo;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAbilityChangedSignature, FGameplayAbilitySpecHandle, AbilitySpecHandle, bool, bGiven);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChainStateChangedSignature, FGameplayAbilitySpecHandle, AbilitySpecHandle, int32, ChainIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageReceivedSignature, float, DamageAmount);
+
 
 /**
  * 
@@ -71,6 +73,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="SF|Abilities")
 	FOnChainStateChangedSignature OnChainStateChanged;
 
+	// 데미지 스크린용
+	UPROPERTY(BlueprintAssignable, Category = "SF|Damage")
+	FOnDamageReceivedSignature OnDamageReceived;
+
 private:
 	FGameplayMessageListenerHandle ChainStateListenerHandle;
+
+	UFUNCTION()
+	void HandleDamageReceived(float DamageAmount);
 };

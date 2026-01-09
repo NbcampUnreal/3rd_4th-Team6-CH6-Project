@@ -41,9 +41,14 @@ struct SF_API FSFStageInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ESFStageType StageType = ESFStageType::Normal;
 
+	// 최종 스테이지 여부
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsFinalStage = false;
+
 	bool IsBossStage() const { return StageType == ESFStageType::Boss; }
 	bool IsNormalStage() const { return StageType == ESFStageType::Normal; }
 	bool IsRestStage() const { return StageType == ESFStageType::Rest; }
+	bool IsFinalStage() const { return bIsFinalStage; }
 
 	bool operator==(const FSFStageInfo& Other) const
 	{

@@ -15,4 +15,6 @@ namespace SFGameplayTags
 	// State Tags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Montage_State_Downed, "Montage.State.Downed", "Downed state montage tag");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Montage_State_Death, "Montage.State.Death", "Death state montage tag");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Montage_State_Grabbed, "Montage.State.Grabbed", "Grabbed state montage tag");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Montage_State_HitReact, "Montage.State.HitReact", "Hit react state montage tag");
 }

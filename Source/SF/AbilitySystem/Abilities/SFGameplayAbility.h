@@ -106,6 +106,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SF|Ability|Animation")
 	void ExecuteMontageGameplayCue(const FSFMontagePlayData& MontageData);
+
+	UFUNCTION(BlueprintCallable, Category = "SF|Ability|Input")
+	void RestorePlayerInput();
+
+	UFUNCTION(BlueprintCallable, Category = "SF|Ability|Input")
+	void DisablePlayerInput();
 	
 protected:
 	//~UGameplayAbility interface

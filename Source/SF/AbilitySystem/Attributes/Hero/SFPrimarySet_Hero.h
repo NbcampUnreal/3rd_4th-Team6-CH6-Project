@@ -90,6 +90,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_StaminaRegen, meta=(AllowPrivateAccess="true"))
 	FGameplayAttributeData StaminaRegen;
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_StaminaRegen, meta=(AllowPrivateAccess="true"))
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_ManaReduction, meta=(AllowPrivateAccess="true"))
 	FGameplayAttributeData ManaReduction;
 };

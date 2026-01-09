@@ -465,6 +465,19 @@ void ASFGameMode::OnAllEnemiesDefeated()
 		ReviveAllIncapacitatedPlayers();
 	}
 
+	// 최종 스테이지 체크
+	if (IsFinalStage())
+	{
+		if (ASFGameState* SFGS = GetGameState<ASFGameState>())
+		{
+			if (USFGameOverManagerComponent* GameOverManager = SFGS->GetGameOverManager())
+			{
+				GameOverManager->TriggerGameClear();
+			}
+		}
+		return;
+	}
+
 	NotifyStageClear();
 	ActivatePortal();
 }
@@ -598,6 +611,18 @@ bool ASFGameMode::IsBossStage() const
 				return true;
 			}
 			return StageManager->GetCurrentStageInfo().IsBossStage();
+		}
+	}
+	return false;
+}
+
+bool ASFGameMode::IsFinalStage() const
+{
+	if (ASFGameState* SFGS = GetGameState<ASFGameState>())
+	{
+		if (USFStageManagerComponent* StageManager = SFGS->GetStageManager())
+		{
+			return StageManager->GetCurrentStageInfo().bIsFinalStage;
 		}
 	}
 	return false;

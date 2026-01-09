@@ -89,3 +89,15 @@ struct FSFLobbyReadyMessage
 	UPROPERTY(BlueprintReadOnly)
 	int32 TotalCount = 0;
 };
+
+USTRUCT(BlueprintType)
+struct FSFGameClearMessage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bGameClear = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	float TargetStatsTime = 0.f;
+};

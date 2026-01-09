@@ -11,6 +11,7 @@
 #include "AbilitySystem/GameplayEffect/Hero/EffectContext/SFTargetDataTypes.h"
 #include "AbilitySystem/Tasks/Combat/SFAbilityTask_UpdateWarpTarget.h"
 #include "Camera/SFCameraMode.h"
+#include "Character/SFCharacterGameplayTags.h"
 #include "Character/Hero/SFHeroComponent.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "Messages/SFMessageGameplayTags.h"
@@ -23,6 +24,8 @@ USFGA_Thrust_HeartBreaker::USFGA_Thrust_HeartBreaker(FObjectInitializer const& O
 {
 	bUseWindupWarp = true;
 	bUseEquipmentWarpSettings = false;
+
+	ActivationOwnedTags.AddTag(SFGameplayTags::Character_State_SuperArmor);
 	
 	WarpTargetNameOverride = TEXT("AttackTarget");
 	WarpRangeOverride = 124.f;  
@@ -49,16 +52,6 @@ void USFGA_Thrust_HeartBreaker::ActivateAbility(const FGameplayAbilitySpecHandle
 	MaxPhaseIndex = PhaseInfos.Num() > 0 ? PhaseInfos.Num() - 1 : 0;
 	
 	ResetCharge();
-	
-	// 슈퍼아머 적용
-    if (SuperArmorEffectClass)
-    {
-        FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(SuperArmorEffectClass);
-        if (SpecHandle.IsValid())
-        {
-            SuperArmorEffectHandle = ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, SpecHandle);
-        }
-    }
 
 	// 차징 몽타주 재생 (Start → Loop)
 	if (ChargingMontage)

@@ -14,6 +14,7 @@
 #include "Input/SFEnhancedPlayerInput.h"
 #include "Player/SFPlayerController.h"
 #include "AbilitySystem/Abilities/Hero/Skill/SFHeroSkillTags.h"
+#include "Character/Hero/SFHero.h"
 #include "Player/SFPlayerState.h"
 
 #define ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(FunctionName, ReturnValue)																				\
@@ -444,4 +445,37 @@ void USFGameplayAbility::ExecuteMontageGameplayCue(const FSFMontagePlayData& Mon
 	
 	// StartSection은 필요시 다른 파라미터에 저장
 	ASC->ExecuteGameplayCue(SFGameplayTags::GameplayCue_Animation_PlayMontage ,CueParams);
+}
+
+void USFGameplayAbility::RestorePlayerInput()
+{
+	if (ASFPlayerController* PC = GetSFPlayerControllerFromActorInfo())
+	{
+		PC->SetIgnoreMoveInput(false);
+	}
+}
+
+void USFGameplayAbility::DisablePlayerInput()
+{
+	if (ASFHero* Hero = Cast<ASFHero>(GetAvatarActorFromActorInfo()))
+	{
+		if (UCharacterMovementComponent* MovementComp = Hero->GetCharacterMovement())
+		{
+			MovementComp->StopMovementImmediately();
+		}
+	}
+
+	if (ASFPlayerController* PC = GetSFPlayerControllerFromActorInfo())
+	{
+		PC->SetIgnoreMoveInput(true);
+	}
+
+	// ASC 입력 버퍼 클리어
+	if (IsLocallyControlled())
+	{
+		if (USFAbilitySystemComponent* ASC = GetSFAbilitySystemComponentFromActorInfo())
+		{
+			ASC->ClearAbilityInput();
+		}
+	}
 }

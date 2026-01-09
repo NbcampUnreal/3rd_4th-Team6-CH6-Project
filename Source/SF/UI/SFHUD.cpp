@@ -7,6 +7,7 @@
 #include "Controller/SFSharedOverlayWidgetController.h"
 #include "Controller/SFOverlayWidgetController.h"
 #include "Controller/Party/SFPartyWidgetController.h"
+#include "InGame/SFGameClearOverlayWidget.h"
 #include "Player/SFPlayerState.h"
 #include "Player/Components/SFPlayerCombatStateComponent.h"
 #include "Player/Components/SFSharedUIComponent.h"
@@ -61,6 +62,7 @@ void ASFHUD::BeginPlay()
 
 	// GameOverStats 초기화 (Hidden 상태로 미리 생성)
 	InitGameOverStats();
+	InitGameClearOverlay();
 }
 
 void ASFHUD::InitSharedOverlay(APlayerController* PC, APlayerState* PS, AGameStateBase* GS)
@@ -158,6 +160,18 @@ void ASFHUD::InitGameOverStats()
 	{
 		GameOverStatsWidget->SetVisibility(ESlateVisibility::Collapsed);
 		GameOverStatsWidget->AddToViewport(GameOverStatsZOrder);
+	}
+}
+
+void ASFHUD::InitGameClearOverlay()
+{
+	if (GameClearOverlayClass)
+	{
+		GameClearOverlay = CreateWidget<USFGameClearOverlayWidget>(GetOwningPlayerController(), GameClearOverlayClass);
+		if (GameClearOverlay)
+		{
+			GameClearOverlay->AddToViewport(540);
+		}
 	}
 }
 

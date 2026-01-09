@@ -24,8 +24,6 @@ protected:
 private:
 	void CancelAllActiveAbilities();
 	void HideWeapons();
-	void DisablePlayerInput();
-	void RestorePlayerInput();
 	void PlayDeathMontage();
 
 protected:

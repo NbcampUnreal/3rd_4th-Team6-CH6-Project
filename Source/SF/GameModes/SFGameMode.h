@@ -66,6 +66,8 @@ protected:
 
 	bool IsBossStage() const;
 
+	bool IsFinalStage() const;
+
 	UFUNCTION()
 	void OnGameOver();
 

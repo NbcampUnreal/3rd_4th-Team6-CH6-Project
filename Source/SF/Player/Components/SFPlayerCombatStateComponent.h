@@ -5,6 +5,18 @@
 #include "SFPlayerCombatStateComponent.generated.h"
 
 USTRUCT(BlueprintType)
+struct FSFLastDamageInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float DamageAmount = 0.f;
+
+	UPROPERTY()
+	float Timestamp = 0.f;  // 중복 방지용
+};
+
+USTRUCT(BlueprintType)
 struct FSFHeroCombatInfo
 {
 	GENERATED_BODY()
@@ -38,6 +50,7 @@ struct FSFHeroCombatInfo
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHeroCombatInfoChanged, const FSFHeroCombatInfo&, CombatInfo);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageReceived, float, DamageAmount);
 
 
 /**
@@ -101,9 +114,16 @@ public:
 	bool HasReceivedInitialCombatInfo() const;
 	void MarkInitialDataReceived();
 
+	// 서버에서 호출 - 데미지 정보 설정
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "SF|Combat")
+	void NotifyDamageReceived(float DamageAmount);
+
 protected:
 	UFUNCTION()
 	void OnRep_CombatInfo();
+
+	UFUNCTION()
+	void OnRep_LastDamageInfo();
 
 	// CombatInfo 변경 감지 후 브로드캐스트
 	void BroadcastCombatInfoChanged();
@@ -123,6 +143,9 @@ protected:
 public:
 	UPROPERTY(BlueprintAssignable, Category = "SF|Combat")
 	FOnHeroCombatInfoChanged OnCombatInfoChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "SF|Combat")
+	FOnDamageReceived OnDamageReceived;
 	
 protected:
 
@@ -137,6 +160,9 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_CombatInfo, BlueprintReadOnly, Category = "SF|Combat")
 	FSFHeroCombatInfo CombatInfo;
 
+	UPROPERTY(ReplicatedUsing = OnRep_LastDamageInfo)
+	FSFLastDamageInfo LastDamageInfo;
+
 private:
 	// 변경 감지용 캐시
 	FSFHeroCombatInfo CachedCombatInfo;
@@ -146,4 +172,6 @@ private:
 
 	// CombatInfo 대상이 아니라 일반 변수로 변화 감지를 위해 사용하는 변수
 	bool bLastKnownDownedState = false;
+
+	float LastProcessedDamageTimestamp = 0.f;
 };

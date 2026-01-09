@@ -116,10 +116,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="SF|Startup")
 	float BaseRushDistance = 124.f;
 	
-	// 슈퍼아머 GE
-	UPROPERTY(EditDefaultsOnly, Category="SF|Buff")
-	TSubclassOf<UGameplayEffect> SuperArmorEffectClass;
-
 	UPROPERTY(EditDefaultsOnly, Category="SF|GameplayCue")
 	FGameplayTag ChargingCueTag;
 	

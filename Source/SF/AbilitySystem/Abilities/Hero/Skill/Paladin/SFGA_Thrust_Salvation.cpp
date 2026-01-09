@@ -39,7 +39,10 @@ void USFGA_Thrust_Salvation::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	if (!CommitAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 	{
 		CancelAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true);
+		return;
 	}
+
+	ApplySlidingMode(ThrustSlidingMode);
 
 	if (UAbilityTask_WaitGameplayEvent* ShieldBashEffectBeginTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, SFGameplayTags::GameplayEvent_Montage_Begin, nullptr, true, true))
 	{
@@ -79,6 +82,9 @@ void USFGA_Thrust_Salvation::OnThrustMontageCompleted()
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 		return;
 	}
+
+	RestoreSlidingMode();
+	ApplySlidingMode(ShieldBashSlidingMode);
 	
 	if (UAbilityTask_PlayMontageAndWait* ShieldBashTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 		this, TEXT("ShieldBashMontage"), ShieldBashMontage, 1.f, NAME_None, true))
@@ -310,6 +316,8 @@ void USFGA_Thrust_Salvation::OnMontageFinished()
 
 void USFGA_Thrust_Salvation::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	RestoreSlidingMode();
+	
 	DisableCameraYawLimitsForActiveMode();
 	ClearCameraMode();
 	

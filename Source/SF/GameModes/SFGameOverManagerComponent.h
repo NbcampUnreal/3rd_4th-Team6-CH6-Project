@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/GameStateComponent.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
+#include "Messages/SFPortalInfoMessages.h"
 #include "Player/SFPlayerInfoTypes.h"
 #include "SFGameOverManagerComponent.generated.h"
 
@@ -44,10 +45,22 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "SF|GameOver")
 	void NotifyPlayerReadyForLobby(APlayerController* PC);
+
+	UFUNCTION(BlueprintPure, Category = "SF|GameOver")
+	bool IsGameClear() const { return GameClearMessage.bGameClear; }
+
+	UFUNCTION(BlueprintPure, Category = "SF|GameOver")
+	bool IsGameEnded() const { return bGameOver || IsGameClear(); }
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "SF|GameOver")
+	void TriggerGameClear();
 	
 protected:
 	UFUNCTION()
 	void OnRep_bGameOver();
+
+	UFUNCTION()
+	void OnRep_GameClearMessage();
 
 	UFUNCTION()
 	void OnRep_GameOverResult();
@@ -58,6 +71,7 @@ protected:
 private:
 	void OnPlayerDeadStateChanged(FGameplayTag Channel, const FSFPlayerDeadStateMessage& Message);
 	void OnPlayerDownedStateChanged(FGameplayTag Channel, const FSFPlayerDownedStateMessage& Message);
+	void OnStatsDelayComplete();
     
 	void ScheduleGameOverCheck();
 	void CheckGameOverCondition();
@@ -86,11 +100,17 @@ protected:
 	float LobbyTransitionDelay = 20.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "SF|GameOver")
+	float VictoryStatsDisplayDelay = 20.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SF|GameOver")
 	TSoftObjectPtr<UWorld> LobbyLevel;
 
 private:
 	UPROPERTY(ReplicatedUsing = OnRep_bGameOver)
 	bool bGameOver = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_GameClearMessage)
+	FSFGameClearMessage GameClearMessage;
 
 	UPROPERTY(ReplicatedUsing = OnRep_GameOverResult)
 	FSFGameOverResult GameOverResult;

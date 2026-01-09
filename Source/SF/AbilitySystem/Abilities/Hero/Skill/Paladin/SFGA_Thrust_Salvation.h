@@ -89,11 +89,18 @@ protected:
 	// 발 밑 파장 VFX + 사운드 Cue 태그
 	UPROPERTY(EditDefaultsOnly, Category="SF|Cue")
 	FGameplayTag WaveEffectCueTag;
-
 	UPROPERTY(EditDefaultsOnly, Category="SF|VFX")
 	TObjectPtr<USFDA_WaveEffectData> WaveEffectData;
 
 	UPROPERTY(EditDefaultsOnly, Category="SF|VFX")
 	TObjectPtr<USFDA_BuffAuraEffectData> BuffAuraEffectData;
+
+	// 돌진 구간 슬라이딩 모드
+	UPROPERTY(EditDefaultsOnly, Category="SF|Movement")
+	ESFSlidingMode ThrustSlidingMode = ESFSlidingMode::Normal;
+    
+	// ShieldBash 구간 슬라이딩 모드
+	UPROPERTY(EditDefaultsOnly, Category="SF|Movement")
+	ESFSlidingMode ShieldBashSlidingMode = ESFSlidingMode::Normal;
 	
 };

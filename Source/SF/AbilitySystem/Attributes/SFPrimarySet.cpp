@@ -100,6 +100,12 @@ void USFPrimarySet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDa
         const float NewHealth = GetHealth() - DamageDone;
         SetHealth(NewHealth);
 
+        // 데미지 스크린 알림
+        if (USFPlayerCombatStateComponent* CombatComp = USFPlayerCombatStateComponent::FindPlayerCombatStateComponent(GetOwningActor()))
+        {
+            CombatComp->NotifyDamageReceived(DamageDone);
+        }
+
         // [UI] 데미지 폰트 띄우기 메시지
         if (DamageDone > 0.0f)
         {

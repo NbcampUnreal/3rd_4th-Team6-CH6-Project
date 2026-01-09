@@ -23,6 +23,7 @@ void USFGameOverManagerComponent::GetLifetimeReplicatedProps(TArray<FLifetimePro
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
 	DOREPLIFETIME(ThisClass, bGameOver);
+	DOREPLIFETIME(ThisClass, GameClearMessage);
 	DOREPLIFETIME(ThisClass, GameOverResult);
 	DOREPLIFETIME(ThisClass, ReadyCount);
 }
@@ -63,7 +64,7 @@ void USFGameOverManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 
 void USFGameOverManagerComponent::OnPlayerDeadStateChanged(FGameplayTag Channel, const FSFPlayerDeadStateMessage& Message)
 {
-	if (!GetOwner()->HasAuthority() || bGameOver)
+	if (!GetOwner()->HasAuthority() || IsGameEnded())
 	{
 		return;
 	}
@@ -89,7 +90,7 @@ void USFGameOverManagerComponent::OnPlayerDeadStateChanged(FGameplayTag Channel,
 
 void USFGameOverManagerComponent::OnPlayerDownedStateChanged(FGameplayTag Channel, const FSFPlayerDownedStateMessage& Message)
 {
-	if (!GetOwner()->HasAuthority() || bGameOver)
+	if (!GetOwner()->HasAuthority() || IsGameEnded())
 	{
 		return;
 	}
@@ -132,7 +133,7 @@ void USFGameOverManagerComponent::ScheduleGameOverCheck()
 
 void USFGameOverManagerComponent::CheckGameOverCondition()
 {
-	if (!GetOwner()->HasAuthority() || bGameOver)
+	if (!GetOwner()->HasAuthority() || IsGameEnded())
 	{
 		return;
 	}
@@ -177,7 +178,7 @@ bool USFGameOverManagerComponent::AreAllPlayersIncapacitated() const
 
 void USFGameOverManagerComponent::TriggerGameOver()
 {
-	if (!GetOwner()->HasAuthority() || bGameOver)
+	if (!GetOwner()->HasAuthority() || IsGameEnded())
 	{
 		return;
 	}
@@ -387,6 +388,39 @@ int32 USFGameOverManagerComponent::GetTotalPlayerCount() const
 }
 
 
+void USFGameOverManagerComponent::TriggerGameClear()
+{
+	if (!GetOwner()->HasAuthority() || IsGameEnded())
+	{
+		return;
+	}
+
+	GameClearMessage.bGameClear = true;
+	if (const AGameStateBase* GS = GetGameStateChecked<AGameStateBase>())
+	{
+		GameClearMessage.TargetStatsTime = GS->GetServerWorldTimeSeconds() + VictoryStatsDisplayDelay;
+	}
+
+	// Listen Server 로컬 처리
+	OnRep_GameClearMessage();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			StatsDelayHandle,
+			this,
+			&ThisClass::OnStatsDelayComplete,
+			VictoryStatsDisplayDelay,
+			false
+		);
+	}
+}
+
+void USFGameOverManagerComponent::OnStatsDelayComplete()
+{
+	CollectAndBroadcastStats();
+}
+
 void USFGameOverManagerComponent::OnRep_bGameOver()
 {
 	if (bGameOver)
@@ -398,6 +432,18 @@ void USFGameOverManagerComponent::OnRep_bGameOver()
 			UGameplayMessageSubsystem& MessageSubsystem = UGameplayMessageSubsystem::Get(this);
 			FSFGameOverMessage Message;
 			MessageSubsystem.BroadcastMessage(SFGameplayTags::Message_Game_GameOver, Message);
+		}
+	}
+}
+
+void USFGameOverManagerComponent::OnRep_GameClearMessage()
+{
+	if (GameClearMessage.bGameClear)
+	{
+		if (UGameplayMessageSubsystem::HasInstance(this))
+		{
+			UGameplayMessageSubsystem& GMS = UGameplayMessageSubsystem::Get(this);
+			GMS.BroadcastMessage(SFGameplayTags::Message_Game_GameClear, GameClearMessage);
 		}
 	}
 }

@@ -223,45 +223,6 @@ void USFGA_Hero_Downed::HandleRevive()
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
-void USFGA_Hero_Downed::DisablePlayerInput()
-{
-	if (ASFHero* Hero = CachedDownedHero.Get())
-	{
-		if (UCharacterMovementComponent* MovementComp = Hero->GetCharacterMovement())
-		{
-			MovementComp->StopMovementImmediately();
-		}
-	}
-
-	if (ASFPlayerController* PC = GetSFPlayerControllerFromActorInfo())
-	{
-		PC->SetIgnoreMoveInput(true);
-        
-		// 카메라 회전도 막고 싶다면
-		// PC->SetIgnoreLookInput(true);
-	}
-
-	// ASC 입력 버퍼 클리어
-	if (IsLocallyControlled())
-	{
-		if (USFAbilitySystemComponent* ASC = GetSFAbilitySystemComponentFromActorInfo())
-		{
-			ASC->ClearAbilityInput();
-		}
-	}
-}
-
-void USFGA_Hero_Downed::RestorePlayerInput()
-{
-	if (ASFPlayerController* PC = GetSFPlayerControllerFromActorInfo())
-	{
-		PC->SetIgnoreMoveInput(false);
-        
-		// 카메라 회전도 막았다면:
-		// PC->SetIgnoreLookInput(false);
-	}
-}
-
 void USFGA_Hero_Downed::PlayDownedMontage()
 {
 	ASFHero* Hero = Cast<ASFHero>(GetAvatarActorFromActorInfo());

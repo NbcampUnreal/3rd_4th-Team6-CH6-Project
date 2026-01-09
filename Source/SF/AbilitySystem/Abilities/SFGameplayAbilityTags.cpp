@@ -60,6 +60,8 @@ namespace SFGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Dodge, "Ability.Hero.Dodge");
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Downed, "Ability.Hero.Downed");
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Death, "Ability.Hero.Death");
+	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_Grabbed, "Ability.Hero.Grabbed");
+	UE_DEFINE_GAMEPLAY_TAG(Ability_Hero_HitReact, "Ability.Hero.HitReact")
 
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Sprint, "Ability.Sprint");
 	
