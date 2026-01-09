@@ -1,5 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 #include "SFEnemy.h"
+
+#include "SFEnemyGameplayTags.h"
 #include "AbilitySystem/SFAbilitySet.h"
 #include "AbilitySystem/SFAbilitySystemComponent.h"
 #include "AbilitySystem/Attributes/SFCombatSet.h"
@@ -17,6 +19,7 @@
 #include "Components/CapsuleComponent.h"
 #include "GameModes/SFEnemyManagerComponent.h"
 #include "GameModes/SFGameState.h"
+#include "GameModes/SFStageManagerComponent.h"
 #include "System/SFGameInstance.h"
 #include "Net/UnrealNetwork.h"
 
@@ -78,6 +81,17 @@ void ASFEnemy::BeginPlay()
 			if (USFEnemyManagerComponent* EnemyManager = SFGameState->GetEnemyManager())
 			{
 				EnemyManager->RegisterEnemy(this);
+			}
+
+			if (const USFEnemyData* Data = Cast<USFEnemyData>(EnemyPawnData))
+			{
+				if (Data->EnemyType == SFGameplayTags::Enemy_Type_Boss)
+				{
+					if (USFStageManagerComponent* StageManager = SFGameState->GetStageManager())
+					{
+						StageManager->RegisterBossActor(this);
+					}
+				}
 			}
 		}
 	}
@@ -339,6 +353,38 @@ void ASFEnemy::TurnCollisionOff()
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		GetMesh()->SetGenerateOverlapEvents(false);
 	}
+}
+
+FName ASFEnemy::GetName() const
+{
+	if (EnemyPawnData)
+	{
+		if (const USFEnemyData* Data = Cast<USFEnemyData>(EnemyPawnData))
+		{
+			return Data->EnemyName;
+		}
+	}
+	return NAME_None;
+}
+
+void ASFEnemy::CheckBossDeath()
+{
+	if (HasAuthority())
+	{
+		if (ASFGameState* SFGameState = GetWorld()->GetGameState<ASFGameState>())
+		{
+			if (USFStageManagerComponent* StageManager = SFGameState->GetStageManager())
+			{
+				if (const USFEnemyData* Data = Cast<USFEnemyData>(EnemyPawnData))
+				{
+					if (Data->EnemyType == SFGameplayTags::Enemy_Type_Boss)
+					{
+							StageManager->RegisterBossActor(nullptr);
+					}
+				}
+			}
+		}
+	}	
 }
 
 void ASFEnemy::OnAbilitySystemInitialized()

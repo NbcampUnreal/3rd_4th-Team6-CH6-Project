@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Character/SFCharacterBase.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "GameplayEffectTypes.h" // FOnAttributeChangeData 사용에 필요
 #include "SFEnemy.generated.h"
 
 class USFCombatSet_Enemy;
@@ -12,6 +13,7 @@ class USFPrimarySet_Enemy;
 class USFCombatSet;
 class USFPawnData;
 class USFPrimarySet;
+class UUserWidget;
 
 UCLASS(Blueprintable)
 class SF_API ASFEnemy : public ASFCharacterBase
@@ -44,6 +46,10 @@ public:
 	void TurnCollisionOn();
 	void TurnCollisionOff();
 
+	FName GetName() const;
+
+	void CheckBossDeath();
+	
 protected:
 
 	virtual void OnAbilitySystemInitialized() override;
@@ -53,6 +59,9 @@ protected:
 	// Collision 처리를 위한 Tag 감지
 	void RegisterCollisionTagEvents();
 	void OnCollisionTagChanged(const FGameplayTag Tag, int32 NewCount);
+	
+	// 체력이 변했을 때 호출될 함수
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category= "Abilites")
@@ -76,9 +85,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category="Component")
 	TObjectPtr<class USFEnemyWidgetComponent> EnemyWidgetComponent;
-
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|InitializeEffect")
 	TSubclassOf<UGameplayEffect> InitializeEffect;
-
 };
