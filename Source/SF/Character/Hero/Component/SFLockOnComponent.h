@@ -3,19 +3,21 @@
 #include "CoreMinimal.h"
 #include "Components/PawnComponent.h"
 #include "GameplayTagContainer.h"
-#include "Blueprint/UserWidget.h"
 #include "Interface/SFLockOnInterface.h"
 #include "SFLockOnComponent.generated.h"
+
+class UNiagaraSystem;
+class UNiagaraComponent;
 
 /**
  * USFLockOnComponent
  * 소울라이크 스타일의 락온(Lock-On) 시스템을 담당하는 컴포넌트
  * * [주요 기능]
  * 1. 화면 중앙 가중치(Dot Product) 기반 타겟 탐색
- * 2. 하드 락온(Hard Lock): 마우스 회전 입력을 무시하고 타겟 고정
- * 3. 타겟 스위칭(Target Switching): 입력 방향으로 타겟 변경
- * 4. 시야 가림 유예(Grace Period): 장애물에 가려져도 잠시 락온 유지
- * 5. 캐릭터 이동 제어: 락온 시 Strafing(게걸음) 모드로 전환
+ * 2. 타겟 스위칭(Target Switching): 입력 방향으로 타겟 변경
+ * 3. 시야 가림 유예(Grace Period): 장애물에 가려져도 잠시 락온 유지
+ * 4. 캐릭터 이동 제어: 락온 시 Strafing(게걸음) 모드로 전환
+ * 5. 락온 타겟 VFX: 나이아가라를 활용한 타겟 확인
  */
 UCLASS(Blueprintable, Meta = (BlueprintSpawnableComponent))
 class SF_API USFLockOnComponent : public UPawnComponent
@@ -25,171 +27,199 @@ class SF_API USFLockOnComponent : public UPawnComponent
 public:
 	USFLockOnComponent(const FObjectInitializer& ObjectInitializer);
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/**
-	 * 락온을 시도하거나 해제합니다. (Toggle)
-	 */
+	/** [Client -> Server] 락온 시도 (Toggle) */
 	UFUNCTION(BlueprintCallable, Category = "SF|LockOn")
-	bool TryLockOn();
+	void TryLockOn();
 
-	// 락온 강제 해제
+	/** [Client -> Server] 락온 해제 */
 	UFUNCTION(BlueprintCallable, Category = "SF|LockOn")
 	void EndLockOn();
 
-	// 현재 타겟 반환
+	/** [Client] 카메라를 캐릭터 정면으로 리셋 (락온 실패/해제 시) */
+	UFUNCTION(BlueprintCallable, Category = "SF|LockOn")
+	void ResetCamera();
+	
 	UFUNCTION(BlueprintPure, Category = "SF|LockOn")
 	AActor* GetCurrentTarget() const { return CurrentTarget; }
 
-protected:
-	// ==========================================
-	//  틱(Tick) 내부 로직 분리
-	// ==========================================
-	
-	// 1. 타겟 유효성 검사 (거리, 시야 가림 유예 처리)
-	void UpdateLogic_TargetValidation(float DeltaTime);
-
-	// 2. 타겟 스위칭 입력 처리 (마우스/스틱)
-	void HandleTargetSwitching(float DeltaTime);
-
-	// 3. 카메라 회전 제어 (Hard Lock 및 스위칭 보간)
-	void UpdateLogic_CameraRotation(float DeltaTime);
-
-	// 4. 캐릭터 회전 제어 (카메라 방향과 동기화)
-	void UpdateLogic_CharacterRotation(float DeltaTime);
-
-	// 5. 위젯 위치 업데이트
-	void UpdateLogic_WidgetPosition(float DeltaTime);
+	UFUNCTION(BlueprintPure, Category = "SF|LockOn")
+	bool IsLockedOn() const { return CurrentTarget != nullptr; }
 
 protected:
 	// ==========================================
-	//  내부 유틸리티 함수 (알고리즘 개선)
+	//  업데이트 로직 (Tick 분리)
 	// ==========================================
 
-	// 최적의 타겟 탐색 (Score 기반)
+	/** [Server] 타겟 유효성 검증 (거리, 시야) */
+	void ServerUpdate_TargetValidation(float DeltaTime);
+
+	/** [Client] 카메라 및 캐릭터 회전 처리 */
+	void ClientUpdate_Rotation(float DeltaTime);
+
+	/** [Client] 타겟 스위칭 입력 감지 */
+	void ClientUpdate_SwitchingInput(float DeltaTime);
+
+protected:
+	// ==========================================
+	//  내부 로직 & GAS 이벤트
+	// ==========================================
+
+	// 최적의 타겟 찾기
 	AActor* FindBestTarget();
 	
-	// 타겟 유효성 검사 (Interface 활용)
+	// 타겟 유효성 검사
 	bool IsTargetValid(AActor* TargetActor) const;
-
-	// 적대 관계 확인 (Team ID 활용)
 	bool IsHostile(AActor* TargetActor) const;
 	
-	// 액터의 특정 소켓(혹은 ActorLocation) 위치를 안전하게 반환하는 헬퍼
+	// 소켓 위치 가져오기 헬퍼
 	FVector GetActorSocketLocation(AActor* Actor, FName SocketName) const;
 
-	// UI 위젯 생성 및 파괴
-	void CreateLockOnWidget();
-	void DestroyLockOnWidget();
+	// [Event] 타겟의 사망 태그 이벤트를 바인딩
+	void RegisterTargetEvents(AActor* NewTarget);
+	void UnregisterTargetEvents(AActor* OldTarget);
+
+	// [Callback] 타겟이 죽었을 때 호출됨
+	void OnTargetDeathTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
+
+	// VFX 관리
+	void CreateLockOnEffect();
+	void DestroyLockOnEffect();
+	void UpdateLockOnEffectLocation();
+
+	// ==========================================
+	//  RPC (네트워크)
+	// ==========================================
+
+	UFUNCTION(Server, Reliable)
+	void Server_TryLockOn();
+
+	UFUNCTION(Server, Reliable)
+	void Server_EndLockOn();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SwitchTarget(const FVector2D& Input);
+
+	// 내부적으로 타겟을 변경할 때 사용하는 함수 (모든 변경은 이 함수를 통해야 함)
+	void Server_SetCurrentTarget(AActor* NewTarget, FName SocketName);
+
+	// ==========================================
+	//  Replication Callbacks
+	// ==========================================
+	
+	UFUNCTION()
+	void OnRep_CurrentTarget(AActor* OldTarget);
+
+	UFUNCTION()
+	void OnRep_CurrentTargetSocketName();
 
 protected:
 	// ==========================================
-	//  변수 및 설정
+	//  데이터
 	// ==========================================
 
-	// 현재 락온된 대상
-	UPROPERTY(BlueprintReadOnly, Category = "SF|LockOn")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_CurrentTarget, Category = "SF|LockOn")
 	TObjectPtr<AActor> CurrentTarget;
 
-	// 현재 타겟의 조준 소켓 이름 (예: Head, Spine_02)
-	UPROPERTY(BlueprintReadOnly, Category = "SF|LockOn")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_CurrentTargetSocketName, Category = "SF|LockOn")
 	FName CurrentTargetSocketName;
 
-	// 락온 탐색 거리
-	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
-	float LockOnDistance = 1500.0f;
+	// 타겟 사망 이벤트 핸들 (GAS)
+	FDelegateHandle TargetDeathDelegateHandle;
 
-	// 락온 해제 거리
+	// ------------------------------------------
+	// 설정 값 (Config)
+	// ------------------------------------------
+	
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
-	float LockOnBreakDistance = 5000.0f;
+	float LockOnDistance = 2000.0f;
 
-	// 화면 중앙 가중치 (0~1, 클수록 중앙에 있는 적 우선)
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
+	float LockOnBreakDistance = 5000.0f; 
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
 	float ScreenCenterWeight = 0.6f;
 
-	// 타겟 필터 태그 (Enemy 등)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
 	FGameplayTagContainer TargetTags;
-	
-	// 달리기 상태 태그
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
 	FGameplayTag SprintTag;
 
-	// [New] 타겟 선정 가중치 (Score Weights)
-	
-	// 거리 점수 가중치 (1.0 = 기본)
+	// 점수 가중치
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Selection")
 	float Weight_Distance = 1.0f;
 
-	// 각도 점수 가중치 (1.5 = 화면 중앙 우선시)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Selection")
 	float Weight_Angle = 1.5f;
 
-	// 보스 우선 가중치 (2.0 = 보스 선호)
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Selection")
 	float Weight_BossBonus = 2.0f;
 
-	// ------------------------------------------
-	// 시야 가림(Occlusion) 유예 설정
-	// ------------------------------------------
-	
+	// 시야 가림(Occlusion) 설정
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn")
-	float LostTargetMemoryTime = 1.0f;
+	float LostTargetMemoryTime = 5.0f;
 
 	float TimeSinceTargetHidden = 0.0f;
 
-	// ------------------------------------------
-	// 카메라 및 스위칭 설정
-	// ------------------------------------------
-
+	// 카메라 제어 변수
 	FRotator LastLockOnRotation;
 	bool bIsSwitchingTarget = false;
+	
+	// 카메라 리셋용 보간 변수
+	bool bIsResettingCamera = false;
+	FRotator CameraResetTargetRotation;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
 	float CameraInterpSpeed = 10.0f;
 
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
+	float CameraResetInterpSpeed = 5.0f;
+	
 	UPROPERTY(EditAnywhere, Category = "SF|LockOn|Switching")
 	float TargetSwitchInterpSpeed = 15.0f;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
 	float PitchLimitMin = -60.0f;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
 	float PitchLimitMax = 45.0f;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
 	float CloseRangePitchLimitMax = 20.0f;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
 	float CloseRangeThreshold = 400.0f;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Camera")
 	float AutoBreakPitchAngle = 80.0f;
-	
+
+	// 스위칭 설정
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
 	float SwitchInputThreshold = 0.5f;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
 	float SwitchAngularLimit = 0.5f;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|Switching")
 	float SwitchCooldown = 0.25f;
 
 	float CurrentSwitchCooldown = 0.0f;
-	
 	double LastLockOnToggleTime = 0.0;
 
 	// ------------------------------------------
-	// UI 설정
+	// VFX
 	// ------------------------------------------
+	
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|VFX")
+	FName DefaultLockOnSocketName = FName("spine_02");
 
-	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|UI")
-	TSubclassOf<UUserWidget> LockOnWidgetClass;
+	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|VFX")
+	TObjectPtr<UNiagaraSystem> LockOnEffectTemplate;
 
 	UPROPERTY()
-	TObjectPtr<UUserWidget> LockOnWidgetInstance;
-
-	// 기본 소켓 이름 (Interface 미사용 시 Fallback)
-	UPROPERTY(EditDefaultsOnly, Category = "SF|LockOn|UI")
-	FName LockOnSocketName = FName("spine_02");
+	TObjectPtr<UNiagaraComponent> LockOnEffectComponent;
 };
