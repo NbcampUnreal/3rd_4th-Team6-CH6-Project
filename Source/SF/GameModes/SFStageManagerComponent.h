@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/GameStateComponent.h"
 #include "System/Data/SFStageInfo.h"
+#include "System/SFEnemyScalingTypes.h"
 #include "SFStageManagerComponent.generated.h"
 
 class USFStageSubsystem;
@@ -38,6 +39,14 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "SF|Stage")
 	ACharacter* GetCurrentBossActor() const { return CurrentBossActor; }
+
+	// ===== Enemy Scaling =====
+    
+	UFUNCTION(BlueprintPure, Category = "SF|Stage")
+	int32 GetPlayerCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "SF|Stage")
+	FSFEnemyScalingContext GetEnemyScalingContext() const;
 
 private:
 

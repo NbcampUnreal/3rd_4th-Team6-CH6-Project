@@ -79,6 +79,11 @@ void USFStageSubsystem::ResetStageInfo()
     CurrentStageInfo = FSFStageInfo();
 }
 
+void USFStageSubsystem::SetPlayerCount(int32 Count)
+{
+    PlayerCount = FMath::Max(1, Count);
+}
+
 FSFStageInfo USFStageSubsystem::GetStageInfoForLevel(const FString& LevelName) const
 {
     if (const FSFStageConfig* Config = GetStageConfigForLevel(LevelName))

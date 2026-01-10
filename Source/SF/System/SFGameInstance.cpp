@@ -3,7 +3,9 @@
 #include "GenericTeamAgentInterface.h"
 #include "NetworkMessage.h"
 #include "SFInitGameplayTags.h"
+#include "SFStageSubsystem.h"
 #include "Components/GameFrameworkComponentManager.h"
+#include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Team/SFTeamTypes.h"
 
@@ -38,6 +40,17 @@ void USFGameInstance::LoadLevelAndListen(TSoftObjectPtr<UWorld> Level)
 {
 	const FName LevelURL = FName(*FPackageName::ObjectPathToPackageName(Level.ToString()));
 
+	if (USFStageSubsystem* StageSubsystem = GetSubsystem<USFStageSubsystem>())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (AGameStateBase* GS = World->GetGameState<AGameStateBase>())
+			{
+				StageSubsystem->SetPlayerCount(GS->PlayerArray.Num());
+			}
+		}
+	}
+	
 	if (LevelURL != "")
 	{
 		GetWorld()->ServerTravel(LevelURL.ToString() + "?listen", false);

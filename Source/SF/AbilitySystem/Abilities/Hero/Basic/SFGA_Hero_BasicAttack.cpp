@@ -113,6 +113,7 @@ void USFGA_Hero_BasicAttack::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	ChargeStartTime = 0.0f;
 
 	RemoveStepGameplayTags();
+	RestoreSlidingMode();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -158,6 +159,11 @@ void USFGA_Hero_BasicAttack::ExecuteAttackStep(int32 StepIndex)
 	RemoveStepGameplayTags();
 	
 	CurrentDamageMultiplier = CurrentStep.DamageMultiplier;
+
+	if (CurrentStep.ChainSlidingMode != ESFSlidingMode::None)
+	{
+		ApplySlidingMode(CurrentStep.ChainSlidingMode);
+	}
 
 	// [중요] 입력 캐싱 및 원거리 투영을 적용하여 워핑 타겟을 갱신함
 	UpdateWarpTargetFromInput();
@@ -375,6 +381,7 @@ void USFGA_Hero_BasicAttack::OnMontageFinished()
 {
 	bIsCharging = false;
 	RemoveStepGameplayTags();
+	RestoreSlidingMode(); 
 	
 	// 예약된 입력이 없다면 어빌리티를 종료함
 	if (!bInputReserved)

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "Character/Hero/Component/SFHeroMovementComponent.h"
 #include "SFBasicAttackTypes.generated.h"
 
 USTRUCT(BlueprintType)
@@ -32,4 +33,7 @@ struct FSFBasicAttackStep
 	/** 공격 단계 진행 시 캐릭터에게 일시적으로 부여할 태그 (예: 슈퍼아머) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTagContainer TempAbilityTags;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	ESFSlidingMode ChainSlidingMode;
 };

@@ -172,6 +172,16 @@ void ASFEnemy::InitializeAttributeSet(USFPawnExtensionComponent* PawnExtComp)
 	{
 		return;
 	}
+
+	// 스케일링 컨텍스트
+	FSFEnemyScalingContext ScalingContext;
+	if (ASFGameState* SFGameState = GetWorld()->GetGameState<ASFGameState>())
+	{
+		if (USFStageManagerComponent* StageManager = SFGameState->GetStageManager())
+		{
+			ScalingContext = StageManager->GetEnemyScalingContext();
+		}
+	}
 	
 	const FEnemyAttributeData* AttrData = GI->EnemyDataMap.Find(EnemyData->EnemyID);
 	TMap<FGameplayTag, float> AttrMap;

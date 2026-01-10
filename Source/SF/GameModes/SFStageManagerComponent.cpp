@@ -102,6 +102,40 @@ void USFStageManagerComponent::RegisterBossActor(ACharacter* NewBoss)
     OnBossStateChanged.Broadcast(CurrentBossActor);    
 }
 
+int32 USFStageManagerComponent::GetPlayerCount() const
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (UGameInstance* GI = World->GetGameInstance())
+        {
+            if (USFStageSubsystem* StageSubsystem = GI->GetSubsystem<USFStageSubsystem>())
+            {
+                return StageSubsystem->GetPlayerCount();
+            }
+        }
+    }
+    return 1;
+}
+
+FSFEnemyScalingContext USFStageManagerComponent::GetEnemyScalingContext() const
+{
+    FSFEnemyScalingContext Context;
+
+    if (UGameInstance* GI = GetWorld()->GetGameInstance())
+    {
+        if (USFStageSubsystem* StageSubsystem = GI->GetSubsystem<USFStageSubsystem>())
+        {
+            const FSFStageInfo& StageInfo = StageSubsystem->GetCurrentStageInfo();
+            Context.StageIndex = StageInfo.StageIndex;
+            Context.SubStageIndex = StageInfo.SubStageIndex;
+            Context.PlayerCount = StageSubsystem->GetPlayerCount();
+            Context.bIsBossStage = StageInfo.IsBossStage();
+            Context.bIsFinalStage = StageInfo.bIsFinalStage;
+        }
+    }
+    
+    return Context;
+}
 
 void USFStageManagerComponent::OnRep_CurrentBossActor()
 {

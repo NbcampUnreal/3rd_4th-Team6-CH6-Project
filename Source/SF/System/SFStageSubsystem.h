@@ -30,6 +30,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SF|Stage")
 	void ResetStageInfo();
 
+	// ===== 플레이어 수 =====
+    
+	UFUNCTION(BlueprintCallable, Category = "SF|Stage")
+	void SetPlayerCount(int32 Count);
+
+	UFUNCTION(BlueprintPure, Category = "SF|Stage")
+	int32 GetPlayerCount() const { return PlayerCount; }
+
 	// ===== DataTable 조회 =====
     
 	UFUNCTION(BlueprintCallable, Category = "SF|Stage")
@@ -65,6 +73,8 @@ private:
 private:
 	UPROPERTY()
 	FSFStageInfo CurrentStageInfo;
+
+	int32 PlayerCount = 1;
 
 	// 스테이지 설정 DataTable
 	UPROPERTY(Config)
