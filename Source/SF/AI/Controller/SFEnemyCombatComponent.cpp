@@ -11,6 +11,7 @@
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISense_Sight.h"
 #include "AI/SFAIGameplayTags.h"
+#include "Character/SFCharacterBase.h"         
 #include "Character/SFCharacterGameplayTags.h"
 #include "Character/Enemy/SFEnemyGameplayTags.h"
 
@@ -21,7 +22,6 @@ USFEnemyCombatComponent::USFEnemyCombatComponent(const FObjectInitializer& Objec
 
 void USFEnemyCombatComponent::InitializeCombatComponent()
 {
-
     Super::InitializeCombatComponent();
 
     if (!CachedASC) return;
@@ -93,11 +93,19 @@ void USFEnemyCombatComponent::OnTargetEvaluationTimer()
 void USFEnemyCombatComponent::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
     if (!Actor || !Actor->ActorHasTag(FName("Player"))) return;
+    
+    if (!IsValidTarget(Actor)) 
+    {
+        if (CurrentTarget == Actor)
+        {
+            EvaluateTarget();
+        }
+        return;
+    }
 
     AAIController* AIC = GetController<AAIController>();
     if (!AIC) return;
-
-    // Ability 사용 중에는 타겟 변경 차단
+    
     if (CurrentTarget && CurrentTarget != Actor)
     {
         APawn* MyPawn = AIC->GetPawn();
@@ -145,6 +153,8 @@ void USFEnemyCombatComponent::EvaluateTarget()
     for (AActor* Actor : PerceivedActors)
     {
         if (!Actor->ActorHasTag(FName("Player"))) continue;
+        
+        if (!IsValidTarget(Actor)) continue;
 
         float Score = CalculateTargetScore(Actor);
         if (Score > BestScore)
@@ -153,8 +163,30 @@ void USFEnemyCombatComponent::EvaluateTarget()
             BestTarget = Actor;
         }
     }
-
+    
     UpdateTargetActor(BestTarget);
+}
+
+bool USFEnemyCombatComponent::IsValidTarget(AActor* Target) const
+{
+    if (!Target) return false;
+    
+    if (Target->IsPendingKillPending()) return false;
+
+    ASFCharacterBase* TargetChar = Cast<ASFCharacterBase>(Target);
+    if (!TargetChar) return false;
+
+    UAbilitySystemComponent* ASC = TargetChar->GetSFAbilitySystemComponent();
+    if (ASC)
+    {
+        if (ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Dead) ||
+            ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Downed))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 float USFEnemyCombatComponent::CalculateTargetScore(AActor* Target) const
@@ -175,7 +207,7 @@ float USFEnemyCombatComponent::CalculateTargetScore(AActor* Target) const
 
 void USFEnemyCombatComponent::UpdateCombatRangeTags()
 {
-    if (!CachedASC || !CachedCombatSet || !CurrentTarget)
+    if (!CachedASC || !CachedCombatSet || !CurrentTarget || !IsValidTarget(CurrentTarget))
     {
         SetGameplayTagStatus(SFGameplayTags::AI_Range_Melee, false);
         SetGameplayTagStatus(SFGameplayTags::AI_Range_Guard, false);

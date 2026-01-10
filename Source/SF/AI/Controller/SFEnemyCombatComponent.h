@@ -35,6 +35,8 @@ public:
     void OnPerceptionUpdated(const TArray<AActor*>& UpdatedActors);
 
 protected:
+
+    bool IsValidTarget(AActor* Target) const;
     
     virtual void EvaluateTarget() override;
     
