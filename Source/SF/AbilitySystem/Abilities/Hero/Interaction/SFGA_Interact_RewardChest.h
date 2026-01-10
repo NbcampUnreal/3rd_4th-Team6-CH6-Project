@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "SFGA_Interact_Chest.h"
+#include "System/Data/Common/SFCommonUpgradeChoice.h" 
 #include "SFGA_Interact_RewardChest.generated.h"
 
 class USFStatBoostSelectionWidget;
-struct FSFCommonUpgradeChoice;
 class USFCommonLootTable;
 /**
  * 보상 상자 전용 어빌리티
@@ -73,6 +73,10 @@ private:
 private:
 	void CleanupUI();
 	void CleanupStatBoostDelegates();
+	void CleanupServerDelegates();
+
+	UFUNCTION()
+	void OnServerUpgradeComplete();
 
 protected:
 	// 스킬 업그레이드 UI 위젯 클래스 
@@ -94,6 +98,8 @@ private:
 	TWeakObjectPtr<ASFRewardChest> CachedRewardChest;
 
 	bool bStatBoostDelegatesBound = false;
+	bool bSkillUpgradeDelegateBound = false;
+	bool bRewardClaimed = false;
 
 	int32 CachedStageIndex = 0;
 };

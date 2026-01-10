@@ -71,22 +71,6 @@ bool ASFRewardChest::CanInteraction(const FSFInteractionQuery& InteractionQuery)
 	return Super::CanInteraction(InteractionQuery);
 }
 
-void ASFRewardChest::OnInteractionSuccess(AActor* Interactor)
-{
-	if (HasAuthority())
-	{
-		APawn* Pawn = Cast<APawn>(Interactor);
-		APlayerState* PS = Pawn ? Pawn->GetPlayerState() : nullptr;
-        
-		if (PS && !ClaimedPlayers.Contains(PS))
-		{
-			ClaimedPlayers.Add(PS);
-		}
-	}
-	
-	Super::OnInteractionSuccess(Interactor);
-}
-
 bool ASFRewardChest::HasPlayerClaimed(APlayerState* PlayerState) const
 {
 	if (!PlayerState)
@@ -95,6 +79,30 @@ bool ASFRewardChest::HasPlayerClaimed(APlayerState* PlayerState) const
 	}
 
 	return ClaimedPlayers.Contains(PlayerState);
+}
+
+void ASFRewardChest::ClaimReward(AActor* Interactor)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	APawn* Pawn = Cast<APawn>(Interactor);
+	APlayerState* PS = Pawn ? Pawn->GetPlayerState() : nullptr;
+
+	if (!PS)
+	{
+		return;
+	}
+
+	// 중복 Claim 방지
+	if (ClaimedPlayers.Contains(PS))
+	{
+		return;
+	}
+
+	ClaimedPlayers.Add(PS);
 }
 
 void ASFRewardChest::OnStageClearedHandler(const FSFStageInfo& ClearedStageInfo)

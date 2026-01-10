@@ -14,6 +14,8 @@ class USFCommonUpgradeDefinition;
 class ASFPlayerState;
 class USFCommonLootTable;
 
+DECLARE_DELEGATE(FOnUpgradeComplete);
+
 /**
  * 플레이어별 리롤 상태를 추적하기 위한 컨텍스트
  */
@@ -25,6 +27,10 @@ struct FSFCommonUpgradeContext
 	// 리롤 시 동일한 테이블을 사용하기 위해 저장
 	UPROPERTY()
 	TObjectPtr<USFCommonLootTable> SourceLootTable;
+
+	// 선택지를 생성한 상호작용 객체 (상자 등)
+	UPROPERTY()
+	TWeakObjectPtr<AActor> SourceInteractable;
 
 	UPROPERTY()
 	int32 SlotCount = 3;
@@ -43,6 +49,9 @@ struct FSFCommonUpgradeContext
 	// 서버 검증용: 생성된 선택지들
 	UPROPERTY()
 	TArray<FSFCommonUpgradeChoice> PendingChoices;
+
+	// 완료 콜백 (상자, NPC 등 호출 측에서 바인딩)
+	FOnUpgradeComplete OnCompleteCallback;
 
 	void Reset()
 	{
@@ -68,12 +77,14 @@ public:
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
 	// 상자 상호작용 시 호출. 보상 선택지 3개를 생성
-	UFUNCTION(BlueprintCallable, Category = "SF|Upgrade")
-	TArray<FSFCommonUpgradeChoice> GenerateUpgradeOptions(ASFPlayerState* PlayerState, USFCommonLootTable* LootTable, int32 Count = 3);
+	TArray<FSFCommonUpgradeChoice> GenerateUpgradeOptions(ASFPlayerState* PlayerState, USFCommonLootTable* LootTable, int32 Count = 3, FOnUpgradeComplete OnComplete = FOnUpgradeComplete(), AActor* SourceInteractable = nullptr);
 	
 	// UI에서 리롤 버튼 클릭 시 호출. 재화(Tag)를 소모하고 선택지를 재생성
 	UFUNCTION(BlueprintCallable, Category = "SF|Upgrade")
 	TArray<FSFCommonUpgradeChoice> TryRerollOptions(ASFPlayerState* PlayerState);
+
+	// 보너스 새 선택지 생성시 호출
+	TArray<FSFCommonUpgradeChoice> RegenerateChoicesForMoreEnhance(ASFPlayerState* PlayerState);
 
 	// 플레이어가 선택한 업그레이드 적용 (UniqueId 기반)
 	UFUNCTION(BlueprintCallable, Category = "SF|Upgrade")
@@ -107,6 +118,13 @@ protected:
 	void ApplySkillLevelFragment(UAbilitySystemComponent* ASC, const USFCommonUpgradeFragment_SkillLevel* Fragment);
 
 	int32 GetRerollCostByCount(int32 RerollCount) const;
+
+private:
+	// 선택지만 재생성 (콜백/소스 보존)
+	TArray<FSFCommonUpgradeChoice> RegenerateChoicesInternal(ASFPlayerState* PlayerState);
+
+	// 새 선택지 생성
+	TArray<FSFCommonUpgradeChoice> CreateNewChoices(ASFPlayerState* PlayerState, USFCommonLootTable* LootTable, int32 Count);
 
 protected:
 	// 플레이어별 업그레이드 컨텍스트

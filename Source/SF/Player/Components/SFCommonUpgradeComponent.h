@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/PlayerStateComponent.h"
+#include "System/Data/Common/SFCommonUpgradeManagerSubsystem.h"
 #include "SFCommonUpgradeComponent.generated.h"
 
 struct FSFCommonUpgradeChoice;
@@ -23,8 +24,7 @@ class SF_API USFCommonUpgradeComponent : public UPlayerStateComponent
 public:
 	USFCommonUpgradeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "SF|Upgrade")
-	void RequestGenerateChoices(USFCommonLootTable* LootTable, int32 StageIndex, int32 Count = 3);
+	void RequestGenerateChoices(USFCommonLootTable* LootTable, int32 StageIndex, int32 Count, FOnUpgradeComplete OnComplete = FOnUpgradeComplete(), AActor* SourceInteractable = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "SF|Upgrade")
 	void RequestApplyUpgrade(const FGuid& ChoiceId);

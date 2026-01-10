@@ -29,6 +29,14 @@ void USFGA_Interact_RewardChest::OnChestOpened(ASFChestBase* ChestActor)
 	switch (RewardChest->GetRewardType())
 	{
 	case ESFRewardChestType::SkillUpgrade:
+		if (HasAuthority(&CurrentActivationInfo))
+		{
+			if (ASFPlayerState* PS = GetSFPlayerStateFromActorInfo())
+			{
+				PS->OnSkillUpgradeCompleted.AddDynamic(this, &ThisClass::OnServerUpgradeComplete);
+				bSkillUpgradeDelegateBound = true;
+			}
+		}
 		if (IsLocallyControlled())
 		{
 			ShowSkillUpgradeUI(RewardChest->GetStageIndex());
@@ -149,7 +157,10 @@ void USFGA_Interact_RewardChest::OnClientReadyForStatBoost()
 		return;
 	}
 
-	UpgradeComp->RequestGenerateChoices(LootTable, CachedStageIndex, 3);
+	FOnUpgradeComplete OnComplete;
+	OnComplete.BindUObject(this, &ThisClass::OnServerUpgradeComplete);
+
+	UpgradeComp->RequestGenerateChoices(LootTable, CachedStageIndex, 3, MoveTemp(OnComplete), CachedRewardChest.Get());
 }
 
 void USFGA_Interact_RewardChest::OnStatBoostChoicesReceived(const TArray<FSFCommonUpgradeChoice>& Choices, int32 NextRerollCost)
@@ -273,6 +284,19 @@ void USFGA_Interact_RewardChest::OnRerollFailed(const FText& Reason)
     }
 }
 
+void USFGA_Interact_RewardChest::OnServerUpgradeComplete()
+{
+	if (!HasAuthority(&CurrentActivationInfo))
+	{
+		return;
+	}
+
+	if (ASFRewardChest* Chest = CachedRewardChest.Get())
+	{
+		Chest->ClaimReward(GetAvatarActorFromActorInfo());
+	}
+}
+
 void USFGA_Interact_RewardChest::CleanupUI()
 {
 	if (SkillSelectionScreen)
@@ -285,6 +309,7 @@ void USFGA_Interact_RewardChest::CleanupUI()
 	if (StatBoostWidget)
 	{
 		StatBoostWidget->OnCardSelectedDelegate.RemoveAll(this);
+		StatBoostWidget->OnSelectionCompleteDelegate.RemoveAll(this);
 		StatBoostWidget->RemoveFromParent();
 		StatBoostWidget = nullptr;
 	}
@@ -321,8 +346,29 @@ void USFGA_Interact_RewardChest::CleanupStatBoostDelegates()
 	bStatBoostDelegatesBound = false;
 }
 
+void USFGA_Interact_RewardChest::CleanupServerDelegates()
+{
+	if (!bSkillUpgradeDelegateBound)
+	{
+		return;
+	}
+
+	ASFPlayerState* PS = GetSFPlayerStateFromActorInfo();
+	if (PS)
+	{
+		PS->OnSkillUpgradeCompleted.RemoveDynamic(this, &ThisClass::OnServerUpgradeComplete);
+	}
+
+	bSkillUpgradeDelegateBound = false;
+}
+
 void USFGA_Interact_RewardChest::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	if (HasAuthority(&ActivationInfo))
+	{
+		CleanupServerDelegates();
+	}
+	
 	if (IsLocallyControlled())
 	{
 		CleanupUI();

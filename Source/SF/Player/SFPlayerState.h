@@ -10,6 +10,7 @@
 #include "Character/Hero/Component/SFPermanentUpgradeComponent.h"
 #include "Components/SFPlayerCombatStateComponent.h"
 #include "System/Data/SFPermanentUpgradeTypes.h"
+#include "System/Data/Common/SFCommonUpgradeChoice.h" 
 #include "SFPlayerState.generated.h"
 
 class USFCommonUpgradeComponent;
@@ -26,6 +27,7 @@ class USFPlayerStatsComponent;
 // PawnData 로드 완료 델리게이트
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPawnDataLoaded, const USFPawnData*);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerInfoChangedDelegate, const FSFPlayerSelectionInfo&, NewPlayerSelectionInfo);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSkillUpgradeCompleted);
 
 /** Defines the types of client connected */
 UENUM()
@@ -159,6 +161,9 @@ private:
 
 public:
 	FOnPawnDataLoaded OnPawnDataLoaded;
+
+	UPROPERTY(BlueprintAssignable, Category = "SF|Upgrade")
+	FOnSkillUpgradeCompleted OnSkillUpgradeCompleted;
 
 	UPROPERTY(BlueprintAssignable, Category = "SF|Events")
 	FOnPlayerInfoChangedDelegate OnPlayerInfoChanged;

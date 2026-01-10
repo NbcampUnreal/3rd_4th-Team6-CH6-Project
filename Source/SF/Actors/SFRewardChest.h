@@ -32,11 +32,7 @@ public:
 	// ~ Begin ISFInteractable
 	virtual bool CanInteraction(const FSFInteractionQuery& InteractionQuery) const override;
 	// ~ End ISFInteractable
-
-	// ~ Begin ASFWorldInteractable
-	virtual void OnInteractionSuccess(AActor* Interactor) override;
-	// ~ End ASFWorldInteractable
-
+	
 	UFUNCTION(BlueprintPure, Category = "SF|Reward")
 	ESFRewardChestType GetRewardType() const { return RewardType; }
 
@@ -48,6 +44,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "SF|Reward")
 	bool HasPlayerClaimed(APlayerState* PlayerState) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "SF|Reward")
+	void ClaimReward(AActor* Interactor);
 
 protected:
 	UFUNCTION()

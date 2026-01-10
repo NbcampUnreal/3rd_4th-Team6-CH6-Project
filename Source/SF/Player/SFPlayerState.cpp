@@ -518,6 +518,8 @@ void ASFPlayerState::ApplySkillUpgrade(TSubclassOf<USFGameplayAbility> NewAbilit
 	NewSpec.GetDynamicSpecSourceTags().AddTag(InputTag);
     
 	AbilitySystemComponent->GiveAbility(NewSpec);
+
+	OnSkillUpgradeCompleted.Broadcast();
 }
 
 void ASFPlayerState::OnRep_PawnData()

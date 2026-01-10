@@ -13,7 +13,7 @@ USFCommonUpgradeComponent::USFCommonUpgradeComponent(const FObjectInitializer& O
 	SetIsReplicatedByDefault(true);
 }
 
-void USFCommonUpgradeComponent::RequestGenerateChoices(USFCommonLootTable* LootTable, int32 StageIndex, int32 Count)
+void USFCommonUpgradeComponent::RequestGenerateChoices(USFCommonLootTable* LootTable, int32 StageIndex, int32 Count, FOnUpgradeComplete OnComplete, AActor* SourceInteractable)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
@@ -37,16 +37,14 @@ void USFCommonUpgradeComponent::RequestGenerateChoices(USFCommonLootTable* LootT
 	{
 		return;
 	}
-
+	
 	CachedLootTable = LootTable;
 	CachedStageIndex = StageIndex;
 	CachedChoiceCount = Count;
-
-	// 새 상자이므로 이전 Context 정리
-	Subsystem->ClearUpgradeContext(PS);
-
+	
 	// 서브시스템에서 선택지 생성
-	TArray<FSFCommonUpgradeChoice> GeneratedChoices = Subsystem->GenerateUpgradeOptions(PS, LootTable, Count);
+	TArray<FSFCommonUpgradeChoice> GeneratedChoices = Subsystem->GenerateUpgradeOptions(PS, LootTable, Count, MoveTemp(OnComplete), SourceInteractable);
+
 
 	// 다음 리롤 비용 계산
 	int32 NextCost = Subsystem->CalculateRerollCost(PS);
@@ -116,7 +114,7 @@ void USFCommonUpgradeComponent::Server_RequestApplyUpgrade_Implementation(const 
 	// MoreEnhance가 있었으면 새 선택지 생성
 	if (bHasMoreEnhance)
 	{
-		TArray<FSFCommonUpgradeChoice> NewChoices = Subsystem->GenerateUpgradeOptions(PS, CachedLootTable, CachedChoiceCount);
+		TArray<FSFCommonUpgradeChoice> NewChoices = Subsystem->RegenerateChoicesForMoreEnhance(PS);
 		int32 NextCost = Subsystem->CalculateRerollCost(PS);
 
 		// 추가 선택임을 알리며 전송
