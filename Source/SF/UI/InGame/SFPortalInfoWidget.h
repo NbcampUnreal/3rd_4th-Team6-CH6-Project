@@ -71,6 +71,9 @@ private:
 	FGameplayMessageListenerHandle PlayerReadyListenerHandle;
 	FGameplayMessageListenerHandle DeadStateListenerHandle;
 
+	// 슬롯의 정렬을 중앙으로 맞춰주는 헬퍼 함수
+	void SetSlotAlignment(class UPanelSlot* NewSlot);
+
 	// 로컬에서 카운트다운 출력용
 	float CurrentCountdownTime = 0.0f;
 	bool bIsCountingDown = false;

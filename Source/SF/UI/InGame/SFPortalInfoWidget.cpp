@@ -4,6 +4,8 @@
 #include "SFPortalInfoEntryWidget.h"
 #include "Components/HorizontalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "GameModes/SFGameState.h"
 #include "Messages/SFMessageGameplayTags.h"
@@ -124,8 +126,11 @@ void USFPortalInfoWidget::HandlePlayerAdded(APlayerState* PlayerState)
     {
         // Entry가 자체적으로 PlayerState에 바인딩 (정보 갱신용)
         NewPortalEntry->InitializeRow(SFPlayerState);
-        
-        PortalEntryBox->AddChild(NewPortalEntry);
+
+        UPanelSlot* NewSlot = PortalEntryBox->AddChild(NewPortalEntry);
+
+        SetSlotAlignment(NewSlot);
+
         PortalEntryMap.Add(PlayerState, NewPortalEntry);
 
         // 정렬용 바인딩 (Entry의 바인딩과 별개)
@@ -259,6 +264,22 @@ void USFPortalInfoWidget::ReorderAllEntries()
     
     for (auto& Entry : SortedEntries)
     {
-        PortalEntryBox->AddChild(Entry.Value);
+        UPanelSlot* NewSlot = PortalEntryBox->AddChild(Entry.Value);
+        
+        SetSlotAlignment(NewSlot);
+    }
+}
+
+void USFPortalInfoWidget::SetSlotAlignment(class UPanelSlot* NewSlot)
+{
+    UHorizontalBoxSlot* HSlot = Cast<UHorizontalBoxSlot>(NewSlot);
+    
+    if (HSlot)
+    {
+        HSlot->SetVerticalAlignment(VAlign_Center);
+        HSlot->SetHorizontalAlignment(HAlign_Center);
+        HSlot->SetPadding(FMargin(10.0f, 0.0f, 10.0f, 0.0f));
+        
+        HSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
     }
 }
