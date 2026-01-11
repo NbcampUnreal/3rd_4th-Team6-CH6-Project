@@ -4,7 +4,6 @@
 #include "UI/InGame/SFDamageWidget.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 
 void USFDamageTextSubSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
