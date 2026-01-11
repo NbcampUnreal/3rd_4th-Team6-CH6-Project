@@ -8,7 +8,9 @@
 #include "UI/InGame/UIDataStructs.h"
 #include "SFPlayerController.generated.h"
 
+struct FSFPermanentUpgradeData;
 class USFBossHUDWidget;
+class USFStageAnnouncementWidget;
 class USFQuickbarComponent;
 class USFItemManagerComponent;
 class USFInventoryManagerComponent;
@@ -23,10 +25,21 @@ class ASFPlayerState;
 class USFAbilitySystemComponent;
 class UUserWidget;
 class USFDamageWidget;
+class ULoadingScreenManager;
 
 /**
  * 
  */
+
+USTRUCT(BlueprintType)
+struct FSFStageRowSelection
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FDataTableRowHandle StageRow;
+};
+
 UCLASS()
 class SF_API ASFPlayerController : public APlayerController
 {
@@ -61,6 +74,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SF|GameOver")
 	void RemoveBossHUD(ACharacter* BossActor);
+
+	// 1. 로딩창 체크용 
+	UFUNCTION(BlueprintPure, Category = "SF_Stage")
+	bool IsLoadingScreenActive() const;
+
+	// 2. UI 출력용 
+	UFUNCTION(BlueprintCallable, Category = "SF_Stage")
+	void ShowStageAnnouncementUI(FDataTableRowHandle StageHandle);
 	
 public:
   //영구강화
@@ -69,7 +90,6 @@ public:
 
   UFUNCTION(Client, Reliable)
   void Client_BeginPermanentUpgradeFlow();
-
 
 protected:
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
@@ -82,7 +102,7 @@ protected:
 	
 	// 몬스터 데미지 텍스트 메세지 함수 (서버 실행)
 	void OnDamageMessageReceived(FGameplayTag Channel, const FSFDamageMessageInfo& Payload);
-	
+
 	// 클라이언트 데미지 텍스트 출력 RPC 함수
 	UFUNCTION(Client, Unreliable)
 	void Client_ShowDamageText(float DamageAmount, AActor* TargetActor);
@@ -111,6 +131,13 @@ protected:
 
 	UPROPERTY()
 	USFBossHUDWidget* BossHUDWidgetInstance;
+
+	// 스테이지 레벨 전용 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI|InGame")
+	TSubclassOf<USFStageAnnouncementWidget> StageAnnouncementWidgetClass;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SF_Data")
+	UDataTable* StageDataTable;
 	
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
@@ -135,7 +162,7 @@ private:
 	TObjectPtr<USFItemManagerComponent> ItemManagerComponent;
 
   UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SF|Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USFInGameMenuComponent> InGameMenuComponent; 
+	TObjectPtr<USFInGameMenuComponent> InGameMenuComponent;
 
 private:
 	// ViewRotation 전송 최적화 

@@ -5,6 +5,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"
 #include "UObject/WeakInterfacePtr.h"
+#include "Delegates/DelegateCombinations.h"
 
 #include "LoadingScreenManager.generated.h"
 
@@ -51,14 +52,15 @@ public:
 	}
 
 	/** Returns True when the loading screen is currently being shown */
+	UFUNCTION(BlueprintPure, Category = "LoadingScreen")
 	bool GetLoadingScreenDisplayStatus() const
 	{
 		return bCurrentlyShowingLoadingScreen;
 	}
 
 	/** Called when the loading screen visibility changes  */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLoadingScreenVisibilityChangedDelegate, bool);
-	FORCEINLINE FOnLoadingScreenVisibilityChangedDelegate& OnLoadingScreenVisibilityChangedDelegate() { return LoadingScreenVisibilityChanged; }
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadingScreenVisibilityChangedDelegate, bool, bIsVisible);
+	FORCEINLINE FOnLoadingScreenVisibilityChangedDelegate& OnLoadingScreenVisibilityChangedDelegate() { return OnLoadingScreenVisibilityChanged; }
 
 	UE_API void RegisterLoadingProcessor(TScriptInterface<ILoadingProcessInterface> Interface);
 	UE_API void UnregisterLoadingProcessor(TScriptInterface<ILoadingProcessInterface> Interface);
@@ -100,7 +102,8 @@ private:
 
 private:
 	/** Delegate broadcast when the loading screen visibility changes */
-	FOnLoadingScreenVisibilityChangedDelegate LoadingScreenVisibilityChanged;
+	UPROPERTY(BlueprintAssignable, Category = "LoadingScreen")
+	FOnLoadingScreenVisibilityChangedDelegate OnLoadingScreenVisibilityChanged;
 
 	/** A reference to the loading screen widget we are displaying (if any) */
 	TSharedPtr<SWidget> LoadingScreenWidget;

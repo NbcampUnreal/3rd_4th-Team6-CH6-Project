@@ -27,6 +27,8 @@
 #include "UI/InGame/SFBossHUDWidget.h"
 #include "UI/InGame/SFIndicatorWidgetBase.h"
 #include "UI/InGame/SFDamageWidget.h"
+#include "LoadingScreenManager.h"
+#include "UI/InGame/SFStageAnnouncementWidget.h"
 
 ASFPlayerController::ASFPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -446,7 +448,35 @@ void ASFPlayerController::RemoveBossHUD(ACharacter* BossActor)
 				}
 			}
 		}
-} 
+}
+
+bool ASFPlayerController::IsLoadingScreenActive() const
+{
+	ULoadingScreenManager* LoadingManager = GetGameInstance()->GetSubsystem<ULoadingScreenManager>();
+
+	if (LoadingManager)
+	{
+		return LoadingManager->GetLoadingScreenDisplayStatus();
+	}
+
+	// [에러 해결] 매니저를 못 찾았을 때는 로딩 중이 아닌 것으로 간주하여 false 반환
+	return false;
+}
+
+void ASFPlayerController::ShowStageAnnouncementUI(FDataTableRowHandle StageHandle)
+{
+	if (StageHandle.IsNull()) return;
+	
+	FSFStageConfig* ConfigRow = StageHandle.GetRow<FSFStageConfig>(TEXT("ShowUI"));
+	
+	if (!ConfigRow || !StageAnnouncementWidgetClass) return;
+
+	if (USFStageAnnouncementWidget* Widget = CreateWidget<USFStageAnnouncementWidget>(this, StageAnnouncementWidgetClass))
+	{
+		Widget->AddToViewport(10);
+		Widget->ShowStageAnnouncement(ConfigRow->StageInfo.DisplayName);
+	}
+}
 
 void ASFPlayerController::Server_NotifyReadyForLobby_Implementation()
 {

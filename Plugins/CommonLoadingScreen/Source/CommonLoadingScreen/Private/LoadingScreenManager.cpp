@@ -542,7 +542,7 @@ void ULoadingScreenManager::ShowLoadingScreen()
 		StartBlockingInput();
 
 		// 로딩 스크린 활성화 시작 브로드캐스트
-		LoadingScreenVisibilityChanged.Broadcast(/*bIsVisible=*/ true);
+		OnLoadingScreenVisibilityChanged.Broadcast(/*bIsVisible=*/ true);
 
 		// Create the loading screen widget
 		TSubclassOf<UUserWidget> LoadingScreenWidgetClass = Settings->LoadingScreenWidget.TryLoadClass<UUserWidget>();
@@ -599,7 +599,7 @@ void ULoadingScreenManager::HideLoadingScreen()
 		ChangePerformanceSettings(/*bEnableLoadingScreen=*/ false);
 
 		// 로딩 스크린 종료 관련 브로드캐스트
-		LoadingScreenVisibilityChanged.Broadcast(/*bIsVisible=*/ false);
+		OnLoadingScreenVisibilityChanged.Broadcast(/*bIsVisible=*/ false);
 	}
 
 	CSV_EVENT(LoadingScreen, TEXT("Hide"));
