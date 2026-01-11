@@ -14,13 +14,18 @@ void USFDamageWidget::PlayDamageEffect(float DamageAmount, bool bIsCritical)
 	{
 		Txt_DamageText->SetText(FText::AsNumber(FMath::RoundToInt(DamageAmount)));
         
+
 		if (bIsCritical)
 		{
-			Txt_DamageText->SetColorAndOpacity(FSlateColor(FLinearColor::Red));
+			FLinearColor RedColor = FLinearColor::Red;
+			Txt_DamageText->SetColorAndOpacity(FSlateColor(RedColor));
+       
 		}
 		else
 		{
-			Txt_DamageText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			FLinearColor WhiteColor = FLinearColor::White;
+			Txt_DamageText->SetColorAndOpacity(FSlateColor(WhiteColor));
+      
 		}
 	}
 	

@@ -11,12 +11,17 @@ UScriptStruct* FSFGameplayEffectContext::GetScriptStruct() const
 
 FGameplayEffectContext* FSFGameplayEffectContext::Duplicate() const
 {
-	FGameplayEffectContext* NewContext = new FSFGameplayEffectContext();
+	FSFGameplayEffectContext* NewContext = new FSFGameplayEffectContext();
 	*NewContext = *this;
+    
 	if (GetHitResult())
 	{
 		NewContext->AddHitResult(*GetHitResult(), true);
 	}
+	
+	NewContext->bIsCriticalHit = this->bIsCriticalHit;
+	NewContext->bIsBlockedHit = this->bIsBlockedHit;
+    
 	return NewContext;
 }
 
@@ -26,6 +31,7 @@ bool FSFGameplayEffectContext::NetSerialize(FArchive& Ar, UPackageMap* Map, bool
 
 	if (Ar.IsSaving())
 	{
+		
 		if (Instigator.IsValid())
 		{
 			RepBits |= 1 << 0;
@@ -54,6 +60,7 @@ bool FSFGameplayEffectContext::NetSerialize(FArchive& Ar, UPackageMap* Map, bool
 		{
 			RepBits |= 1 << 6;
 		}
+		
 		if (bIsBlockedHit)
 		{
 			RepBits |= 1 << 7;
@@ -64,6 +71,7 @@ bool FSFGameplayEffectContext::NetSerialize(FArchive& Ar, UPackageMap* Map, bool
 		}
 	}
 
+	// 비트 전송 
 	Ar.SerializeBits(&RepBits, 9);
 
 	if (RepBits & (1 << 0))
@@ -86,7 +94,7 @@ bool FSFGameplayEffectContext::NetSerialize(FArchive& Ar, UPackageMap* Map, bool
 	{
 		SafeNetSerializeTArray_Default<31>(Ar, Actors);
 	}
-
+    
 	if (RepBits & (1 << 5))
 	{
 		if (Ar.IsLoading() && !HitResult.IsValid())
@@ -95,17 +103,23 @@ bool FSFGameplayEffectContext::NetSerialize(FArchive& Ar, UPackageMap* Map, bool
 		}
 		HitResult->NetSerialize(Ar, Map, bOutSuccess);
 	}
-
+    
 	if (RepBits & (1 << 6))
 	{
 		Ar << WorldOrigin;
 		bHasWorldOrigin = true;
 	}
+	else
+	{
+		bHasWorldOrigin = false;
+	}
+	
+	if (Ar.IsLoading())
+	{
+		bIsBlockedHit = (RepBits & (1 << 7)) != 0;
+		bIsCriticalHit = (RepBits & (1 << 8)) != 0;
+	}
 
-	if (RepBits & (1 << 7)) Ar << bIsBlockedHit;
-	if (RepBits & (1 << 8)) Ar << bIsCriticalHit;
-
-	// Instigator 재설정
 	if (Ar.IsLoading())
 	{
 		AddInstigator(Instigator.Get(), EffectCauser.Get());
