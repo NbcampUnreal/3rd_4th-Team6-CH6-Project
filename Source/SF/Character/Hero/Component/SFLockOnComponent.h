@@ -62,6 +62,12 @@ protected:
 
 	/** [Client] 타겟 스위칭 입력 감지 */
 	void ClientUpdate_SwitchingInput(float DeltaTime);
+	
+	/** 회전 모드 변경 및 GAS 태그 클라이언트 동기화 */
+	void UpdateLockOnState(bool bIsLockedOn);
+	
+	/** 회전 설정 변경 */
+	void UpdateCharacterRotationMode(bool bLockOnEnabled);
 
 protected:
 	// ==========================================

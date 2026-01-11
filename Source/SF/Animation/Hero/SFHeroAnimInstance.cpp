@@ -9,6 +9,7 @@
 #include "AbilitySystem/SFAbilitySystemComponent.h"
 #include "Character/SFCharacterGameplayTags.h"
 #include "Equipment/EquipmentComponent/SFEquipmentComponent.h"
+#include "Character/Hero/Component/SFLockOnComponent.h"
 
 USFHeroAnimInstance::USFHeroAnimInstance()
 {
@@ -29,6 +30,8 @@ void USFHeroAnimInstance::NativeInitializeAnimation()
 	{
 		MovementComponent = OwnerCharacter->GetCharacterMovement(); // ASFCharacterBase도 UCharacter를 상속하므로 GetCharacterMovement 사용 가능
 
+		LockOnComponent = OwnerCharacter->FindComponentByClass<USFLockOnComponent>();
+		
 		// AbilitySystemComponent 찾아서 초기화
 		if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerCharacter))
 		{
@@ -74,21 +77,14 @@ void USFHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	{
 		// 입력(가속도)이 있을 때만 True. (감속 중일 때는 False가 됨 -> Stop 모션 발동)
 		bShouldMove = (MovementComponent->GetCurrentAcceleration().SizeSquared() > 0.0f);
-	}
-	else
-	{
-		bShouldMove = false;
-	}
-
-	if (MovementComponent)
-	{
 		bIsCrouching = MovementComponent->IsCrouching();
 	}
 	else
 	{
+		bShouldMove = false;
 		bIsCrouching = false;
 	}
-	
+
 	if (bShouldMove)
 	{
 		LastMoveSpeed = GroundSpeed;
@@ -104,5 +100,14 @@ void USFHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 		bIsStunned = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Stunned);
 		bIsSprinting = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_Sprint);
 		bIsLockedOn = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_LockedOn);
+		
+		if (LockOnComponent)
+		{
+			bIsLockedOn = LockOnComponent->IsLockedOn();
+		}
+		else
+		{
+			bIsLockedOn = ASC->HasMatchingGameplayTag(SFGameplayTags::Character_State_LockedOn);
+		}
 	}
 }

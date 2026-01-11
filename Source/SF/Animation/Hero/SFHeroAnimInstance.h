@@ -8,7 +8,8 @@
 
 class UCharacterMovementComponent;
 class UAbilitySystemComponent;
-class ASFCharacterBase; // 전방 선언 추가
+class ASFCharacterBase;
+class USFLockOnComponent;
 
 /**
  * 
@@ -38,6 +39,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "References")
 	TObjectPtr<UCharacterMovementComponent> MovementComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "References")
+	TObjectPtr<USFLockOnComponent> LockOnComponent;
 
 	// === Anim Graph Variables (Thread Safe) ===
 	// 이 변수들은 AnimGraph에서 'Fast Path'로 접근 가능해야 함

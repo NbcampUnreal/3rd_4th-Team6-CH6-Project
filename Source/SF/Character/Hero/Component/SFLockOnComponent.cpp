@@ -350,6 +350,7 @@ void USFLockOnComponent::Server_SetCurrentTarget(AActor* NewTarget, FName Socket
 		{
 			ASC->AddLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
 		}
+		UpdateLockOnState(true);
 	}
 	else
 	{
@@ -358,6 +359,7 @@ void USFLockOnComponent::Server_SetCurrentTarget(AActor* NewTarget, FName Socket
 		{
 			ASC->RemoveLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
 		}
+		UpdateLockOnState(false);
 	}
 
 	// 4. 리슨 서버 호스트(Listen Server Host)를 위한 수동 OnRep 호출
@@ -434,6 +436,7 @@ void USFLockOnComponent::OnRep_CurrentTarget(AActor* OldTarget)
 	// 타겟 상태 변경에 따른 VFX 및 로컬 변수 처리
 	if (CurrentTarget)
 	{
+		UpdateLockOnState(true);
 		CreateLockOnEffect();
 		bIsResettingCamera = false;
 		
@@ -458,6 +461,7 @@ void USFLockOnComponent::OnRep_CurrentTarget(AActor* OldTarget)
 	}
 	else
 	{
+		UpdateLockOnState(false);
 		DestroyLockOnEffect();
 		bIsSwitchingTarget = false;
 
@@ -541,11 +545,13 @@ void USFLockOnComponent::ClientUpdate_Rotation(float DeltaTime)
 		if (bIsSprinting)
 		{
 			Character->GetCharacterMovement()->bOrientRotationToMovement = true;
+			Character->GetCharacterMovement()->bUseControllerDesiredRotation = false;
 		}
 		else
 		{
 			// Strafing: 카메라는 타겟을 보고, 몸은 카메라(타겟) 방향 정렬
 			Character->GetCharacterMovement()->bOrientRotationToMovement = false;
+			Character->GetCharacterMovement()->bUseControllerDesiredRotation = true;
 			FRotator TargetBodyRot = FRotator(0.0f, LastLockOnRotation.Yaw, 0.0f);
 			FRotator SmoothBodyRot = FMath::RInterpTo(Character->GetActorRotation(), TargetBodyRot, DeltaTime, 15.0f);
 			Character->SetActorRotation(SmoothBodyRot);
@@ -584,6 +590,53 @@ void USFLockOnComponent::ClientUpdate_SwitchingInput(float DeltaTime)
 	{
 		Server_SwitchTarget(CurrentInput);
 		CurrentSwitchCooldown = SwitchCooldown;
+	}
+}
+
+void USFLockOnComponent::UpdateLockOnState(bool bIsLockedOn)
+{
+	// 1. 캐릭터 회전 모드 변경 
+	UpdateCharacterRotationMode(bIsLockedOn);
+
+	// 2. GAS 태그 클라이언트 동기화
+	// 서버뿐만 아니라 클라이언트도 이 태그를 가지고 있어야 AnimBP가 확실하게 반응합니다.
+	if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
+	{
+		if (bIsLockedOn)
+		{
+			ASC->AddLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
+		}
+		else
+		{
+			ASC->RemoveLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
+		}
+	}
+}
+
+void USFLockOnComponent::UpdateCharacterRotationMode(bool bLockOnEnabled)
+{
+	ACharacter* Character = Cast<ACharacter>(GetOwner());
+	if (!Character) return;
+
+	UCharacterMovementComponent* CMC = Character->GetCharacterMovement();
+	if (!CMC) return;
+
+	if (bLockOnEnabled)
+	{
+		// 락온 켜짐: 캐릭터가 이동 방향으로 회전하지 않도록 설정 (Strafing 준비)
+		CMC->bOrientRotationToMovement = false;
+		
+		// 카메라는 우리가 직접 제어하므로 컨트롤러 회전을 자동으로 따르지 않게 함
+		CMC->bUseControllerDesiredRotation = true; 
+	}
+	else
+	{
+		// 락온 꺼짐: 다시 이동 방향으로 캐릭터가 회전하도록 복구
+		CMC->bOrientRotationToMovement = true;
+		CMC->bUseControllerDesiredRotation = false;
+		
+		// 혹시 모를 Yaw 고정도 해제
+		Character->bUseControllerRotationYaw = false;
 	}
 }
 
