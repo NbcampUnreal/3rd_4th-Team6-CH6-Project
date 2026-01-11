@@ -11,6 +11,7 @@
 #include "GenericTeamAgentInterface.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "AbilitySystem/Abilities/SFGameplayAbilityTags.h"
 #include "Net/UnrealNetwork.h"
 
 USFLockOnComponent::USFLockOnComponent(const FObjectInitializer& ObjectInitializer)
@@ -333,6 +334,10 @@ void USFLockOnComponent::Server_SetCurrentTarget(AActor* NewTarget, FName Socket
 	if (OldTarget)
 	{
 		UnregisterTargetEvents(OldTarget);
+		if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
+		{
+			ASC->RemoveLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
+		}
 	}
 
 	// 2. 값 변경
@@ -351,16 +356,6 @@ void USFLockOnComponent::Server_SetCurrentTarget(AActor* NewTarget, FName Socket
 		{
 			ASC->AddLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
 		}
-		UpdateLockOnState(true);
-	}
-	else
-	{
-		// Owner의 LockOn 상태 태그 제거
-		if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
-		{
-			ASC->RemoveLooseGameplayTag(SFGameplayTags::Character_State_LockedOn);
-		}
-		UpdateLockOnState(false);
 	}
 
 	// 4. 리슨 서버 호스트(Listen Server Host)를 위한 수동 OnRep 호출
@@ -465,20 +460,6 @@ void USFLockOnComponent::OnRep_CurrentTarget(AActor* OldTarget)
 		UpdateLockOnState(false);
 		DestroyLockOnEffect();
 		bIsSwitchingTarget = false;
-
-		// 캐릭터 회전 모드를 '자유 이동'으로 복구
-		if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
-		{
-			if (ACharacter* Character = Cast<ACharacter>(OwnerPawn))
-			{
-				// 입력 방향으로 캐릭터가 회전하도록 설정
-				Character->GetCharacterMovement()->bOrientRotationToMovement = true;
-				
-				// 컨트롤러(카메라) 회전을 따르지 않도록 설정
-				Character->GetCharacterMovement()->bUseControllerDesiredRotation = false; 
-				Character->bUseControllerRotationYaw = false;
-			}
-		}
 	}
 }
 
@@ -491,6 +472,15 @@ void USFLockOnComponent::ClientUpdate_Rotation(float DeltaTime)
 {
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 	if (!OwnerPawn) return;
+
+	if (const IGameplayTagAssetInterface* TagInterface = Cast<const IGameplayTagAssetInterface>(OwnerPawn))
+	{
+		if (TagInterface->HasMatchingGameplayTag(SFGameplayTags::Ability_Hero_Dodge))
+		{
+			return; 
+		}
+	}
+	
 	APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
 	if (!PC) return;
 

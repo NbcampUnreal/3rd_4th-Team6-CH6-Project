@@ -16,6 +16,7 @@ USFGA_Dodge::USFGA_Dodge(FObjectInitializer const& ObjectInitializer)
 	// 예측 정책 설정
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	SetAssetTags(FGameplayTagContainer(SFGameplayTags::Ability_Hero_Dodge));
+	ActivationOwnedTags.AddTag(SFGameplayTags::Ability_Hero_Dodge);
 }
 
 void USFGA_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
