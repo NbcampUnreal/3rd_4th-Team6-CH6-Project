@@ -10,6 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Input/Events.h"
 #include "InputCoreTypes.h"
+#include "Components/Button.h"
 
 void USFCreateRoomWidget::NativeConstruct()
 {
@@ -45,6 +46,14 @@ void USFCreateRoomWidget::NativeConstruct()
             PasswordInput->SetIsEnabled(bChecked);
         }
     }
+    if (DecreasePlayerCountButton)
+    {
+        DecreasePlayerCountButton->OnClicked.AddDynamic(this, &USFCreateRoomWidget::OnDecreasePlayerCountClicked);
+    }
+    if (IncreasePlayerCountButton)
+    {
+        IncreasePlayerCountButton->OnClicked.AddDynamic(this, &USFCreateRoomWidget::OnIncreasePlayerCountClicked);
+    }
     //=======================================================================
 
     //================================UI 초기값===============================
@@ -58,12 +67,9 @@ void USFCreateRoomWidget::NativeConstruct()
         PasswordInput->SetText(FText::FromString(TEXT("")));
     }
 
-    if (MaxPlayersSpinBox)
-    {
-        MaxPlayersSpinBox->SetValue(1);
-        MaxPlayersSpinBox->SetMinValue(1);
-        MaxPlayersSpinBox->SetMaxValue(4);
-    }
+    // 초기값 설정 (기본 1명 OR 4명)
+    CurrentMaxPlayerCount = 1; 
+    UpdateMaxPlayerDisplay();
 
     SetKeyboardFocus();
     //=======================================================================
@@ -79,7 +85,7 @@ void USFCreateRoomWidget::OnCreateButtonClicked()
 
     FString RoomName = RoomNameInput->GetText().ToString();
     FString Password = PasswordInput ? PasswordInput->GetText().ToString() : TEXT("");
-    int32 MaxPlayers = static_cast<int32>(MaxPlayersSpinBox ? MaxPlayersSpinBox->GetValue() : 4.0f);
+    int32 MaxPlayers = CurrentMaxPlayerCount;
     bool bProtected = !Password.IsEmpty();
 
     if (RoomName.IsEmpty())
@@ -102,6 +108,34 @@ void USFCreateRoomWidget::OnCreateButtonClicked()
 void USFCreateRoomWidget::OnCancelButtonClicked()
 {
     RemoveFromParent();
+}
+
+void USFCreateRoomWidget::OnDecreasePlayerCountClicked()
+{
+    // 최소 1명까지만 감소
+    if (CurrentMaxPlayerCount > 1)
+    {
+        CurrentMaxPlayerCount--;
+        UpdateMaxPlayerDisplay();
+    }
+}
+
+void USFCreateRoomWidget::OnIncreasePlayerCountClicked()
+{
+    // 최대 4명까지만 증가
+    if (CurrentMaxPlayerCount < 4)
+    {
+        CurrentMaxPlayerCount++;
+        UpdateMaxPlayerDisplay();
+    }
+}
+
+void USFCreateRoomWidget::UpdateMaxPlayerDisplay()
+{
+    if (MaxPlayersText)
+    {
+        MaxPlayersText->SetText(FText::AsNumber(CurrentMaxPlayerCount));
+    }
 }
 
 void USFCreateRoomWidget::OnCreateSessionComplete(bool bWasSuccessful, const FString& Message)
