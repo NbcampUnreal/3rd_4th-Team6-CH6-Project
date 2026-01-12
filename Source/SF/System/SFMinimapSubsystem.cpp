@@ -19,6 +19,10 @@ void USFMinimapSubsystem::Deinitialize()
 
 void USFMinimapSubsystem::RegisterTarget(TScriptInterface<ISFMiniMapTrackable> Target)
 {
+	if (Targets.Contains(Target))
+	{
+		return;
+	}
 	Targets.Add(Target);
 	OnTargetRegistered.Broadcast(Target);
 }

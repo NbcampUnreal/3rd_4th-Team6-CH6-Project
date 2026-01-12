@@ -22,6 +22,7 @@ public:
 	// Sets default values for this character's properties
 	ASFCharacterBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	void DeathTagChanged(FGameplayTag GameplayTag, int NewCount);
 	virtual void OnAbilitySystemInitialized();
 	virtual void OnAbilitySystemUninitialized();
 
@@ -61,7 +62,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	
 
 	virtual void Tick(float DeltaSeconds) override;
 
