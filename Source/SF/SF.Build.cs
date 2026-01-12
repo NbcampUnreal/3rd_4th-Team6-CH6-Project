@@ -48,8 +48,6 @@ public class SF : ModuleRules
 			
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AITestSuite" });
-
 		PublicIncludePaths.AddRange(new string[] { "SF" });		
 
 		
