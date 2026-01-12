@@ -58,17 +58,25 @@ void USFMinimapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
 
 void USFMinimapWidget::OnTargetRegistered(TScriptInterface<ISFMiniMapTrackable> Target)
 {
-    if (!Target.GetObject() || !IconWidgetClass || !MiniMapCanvas) return;
-    
+    if (!Target.GetObject() && !MiniMapCanvas) return;
+
+    if (APawn* MyPawn = GetOwningPlayerPawn())
+    {
+        if (Target.GetObject() == MyPawn)
+        {
+            return;
+        }
+    }
+
     if (TargetIcons.Contains(Target.GetObject())) return;
-    
+
     USFMiniMapIcon* NewIcon = CreateWidget<USFMiniMapIcon>(this, IconWidgetClass);
     if (NewIcon)
     {
         NewIcon->SetTarget(Target);
-        
+
         UPanelSlot* PanelSlot = MiniMapCanvas->AddChild(NewIcon);
-        
+
         if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(PanelSlot))
         {
             CanvasSlot->SetAnchors(FAnchors(0.5f));
