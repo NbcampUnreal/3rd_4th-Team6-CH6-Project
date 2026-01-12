@@ -38,8 +38,27 @@ ASFCharacterBase::ASFCharacterBase(const FObjectInitializer& ObjectInitializer)
 	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
 }
 
+void ASFCharacterBase::DeathTagChanged(FGameplayTag GameplayTag, int NewCount)
+{
+	if (NewCount >0)
+	{
+		UnregisterFromMiniMap();
+	}
+	else
+	{
+		RegisterToMiniMap();
+	}
+}
+
 void ASFCharacterBase::OnAbilitySystemInitialized()
 {
+	USFAbilitySystemComponent* SFASC = GetSFAbilitySystemComponent();
+	if (SFASC)
+	{
+		SFASC->RegisterGameplayTagEvent(SFGameplayTags::Character_State_Dead, EGameplayTagEventType::NewOrRemoved)
+			 .AddUObject(this, &ThisClass::DeathTagChanged);
+	}
+    
 	// TODO : 파생 클래스에서 ASC 의존적 컴포넌트들 초기화 로직 등 수행 가능 
 }
 
@@ -120,13 +139,6 @@ void ASFCharacterBase::BeginPlay()
 	Super::BeginPlay();
 	RegisterToMiniMap();
 	
-}
-
-void ASFCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	UnregisterFromMiniMap();
-	
-	Super::EndPlay(EndPlayReason);
 }
 
 void ASFCharacterBase::PossessedBy(AController* NewController)
