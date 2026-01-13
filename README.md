@@ -163,6 +163,7 @@
 | 이름 | 역할 | 담당 파트 |
 |---|---|---|
 | **박준범** | **Main Developer** | Enemy/Boss AI 아키텍처, GAS 전투 시스템
+| **곽준상** | **Main Developer** | Level Design 구조 설계
 
 ---
 
